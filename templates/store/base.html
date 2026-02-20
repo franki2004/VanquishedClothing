@@ -1,0 +1,121 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Shop{% endblock %}</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="bg-white text-gray-800">
+<div x-data="{ menuOpen: false }">
+
+  <!-- HEADER BAR -->
+  <header style="mix-blend-mode: difference; filter: invert(1); isolation: isolate;"class="fixed top-0 left-0 w-full z-50 pointer-events-none">
+    <div class="max-w-7xl mx-auto h-16 flex items-center justify-between px-4 pointer-events-auto">
+
+      <button @click="menuOpen = true" class="text-black text-2xl">
+        ☰
+      </button>
+
+      <div class="absolute left-1/2 -translate-x-1/2">
+        <a href="{% url 'home' %}"
+           class="text-2xl font-bold">
+          SHOP
+        </a>
+      </div>
+
+      <div class="flex items-center space-x-4">
+      <!-- Search -->
+      <a href="{% url 'search' %}">
+        <img src="{% static 'icons/search.svg' %}" alt="Search" class="h-6 w-6">
+      </a>
+      <!-- Profile -->
+      <a href="/account/login/">
+        <img src="{% static 'icons/user.svg' %}" alt="Profile" class="h-6 w-6">
+      </a>
+      <!-- Cart -->
+      <a href="/cart/" class="relative">
+        <img src="{% static 'icons/bag.svg' %}" alt="Cart" class="h-6 w-6">
+        <!-- Optional badge -->
+        <span class="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full px-1">0</span>
+      </a>
+    </div>
+
+    </div>
+  </header>
+
+  <!-- OVERLAY -->
+  <div x-show="menuOpen"
+       x-transition.opacity
+       class="fixed inset-0 bg-black/50 z-40"
+       @click="menuOpen = false">
+  </div>
+
+  <aside
+  x-show="menuOpen"
+
+  x-transition:enter="transition transform ease-out duration-300"
+  x-transition:enter-start="-translate-x-full"
+  x-transition:enter-end="translate-x-0"
+
+  x-transition:leave="transition transform ease-in duration-200"
+  x-transition:leave-start="translate-x-0"
+  x-transition:leave-end="-translate-x-full"
+
+  class="fixed top-0 left-0 w-72 h-full bg-white z-50 p-6 pointer-events-auto"
+>
+
+    <button @click="menuOpen = false"
+            class="text-3xl leading-none mb-6">
+      &times;
+    </button>
+
+    <nav class="space-y-4 mb-8">
+      <a href="{% url 'new_products' %}" class="block text-xl font-bold">New</a>
+      <a href="{% url 'sale_products' %}" class="block text-xl font-bold">Sale</a>
+    </nav>
+
+    <hr class="mb-6">
+
+    <div class="space-y-3">
+      {% for category in categories %}
+        <a href="{% url 'collection' category.slug %}"
+           class="block text-lg">
+          {{ category.name }}
+        </a>
+      {% endfor %}
+    </div>
+
+  </aside>
+
+</div>
+
+  <!-- Main content -->
+  <main class>
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-gray-100 mt-12 p-8">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div>
+        <h3 class="font-bold mb-2">Shop</h3>
+        <p>Best products online</p>
+      </div>
+      <div>
+        <h3 class="font-bold mb-2">Links</h3>
+        <ul>
+          <li><a href="#" class="hover:text-gray-700">Privacy</a></li>
+          <li><a href="#" class="hover:text-gray-700">Terms</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="font-bold mb-2">Contact</h3>
+        <p>Email: shop@example.com</p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

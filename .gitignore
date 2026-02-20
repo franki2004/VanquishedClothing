@@ -1,0 +1,10 @@
+# Database
+db.sqlite3
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Django media / static if needed
+media/
+staticfiles/
