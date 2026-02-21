@@ -2,11 +2,11 @@
 {% block title %}{{ product.name }}{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto p-8 grid md:grid-cols-2 gap-8">
+<div class="max-w-6xl mx-auto p-8 grid md:grid-cols-2 gap-8 mt-16">
   <div class="relative">
     <img id="product-image" src="{{ product.images.all.0.image.url }}" alt="{{ product.name }}" class="w-full h-auto rounded-none border-0">
-    <button id="prev-btn" class="absolute top-1/2 left-2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white px-3 py-2 rounded">&#10094;</button>
-    <button id="next-btn" class="absolute top-1/2 right-2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white px-3 py-2 rounded">&#10095;</button>
+    <button id="prev-btn" class="absolute top-1/2 left-2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white px-3 py-2 rounded cursor-pointer">&#10094;</button>
+    <button id="next-btn" class="absolute top-1/2 right-2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white px-3 py-2 rounded cursor-pointer">&#10095;</button>
   </div>
   <div>
     <h1 class="text-3xl font-bold mb-4">{{ product.name }}</h1>

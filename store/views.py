@@ -1,5 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from .models import Category, Product
+from django.http import JsonResponse
+from django.db.models import Q
 
 def home(request):
     categories = Category.objects.all()
@@ -14,11 +16,22 @@ def collection(request, slug):
     })
 
 def search(request):
-    query = request.GET.get('q', '')
-    products = Product.objects.filter(name__icontains=query, is_active=True) if query else []
-    return render(request, 'store/search.html', {
-        'query': query,
-        'products': products
+    q = request.GET.get("q", "").strip()
+
+    products = (
+        Product.objects
+        .filter(
+            Q(name__icontains=q) |
+            Q(tags__name__icontains=q),
+            is_active=True
+        )
+        .distinct()
+        if q else Product.objects.none()
+    )
+
+    return render(request, "store/search.html", {
+        "query": q,
+        "products": products,
     })
 
 def product_detail(request, id):
@@ -38,3 +51,33 @@ def sale_products(request):
         'title': 'Sale',
         'products': products
     })
+
+def search_suggestions(request):
+    q = request.GET.get("q", "").strip()
+
+    if len(q) < 2:
+        return JsonResponse([], safe=False)
+
+    products = (
+        Product.objects
+        .filter(
+            Q(name__icontains=q) |
+            Q(tags__name__icontains=q),
+            is_active=True
+        )
+        .prefetch_related("images")
+        .distinct()[:6]
+    )
+
+    data = []
+    for p in products:
+        image = p.images.first()
+        data.append({
+            "id": p.id,
+            "name": p.name,
+            "url": f"/product/{p.id}/",
+            "image": image.image.url if image else "",
+            "price": p.price
+        })
+
+    return JsonResponse(data, safe=False)
