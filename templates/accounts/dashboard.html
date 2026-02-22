@@ -1,0 +1,32 @@
+{% extends "store/base.html" %} {% block title %}Vanquished - Profile{% endblock%}
+{% block content %}
+<div class="max-w-4xl mx-auto mt-24 px-4">
+  <h1 class="text-2xl font-bold mb-6">My Account</h1>
+
+  <!-- User info -->
+  <div class="border p-4 mb-8">
+    <p><strong>Email:</strong> {{ user.email }}</p>
+    <p><strong>Username:</strong> {{ user.username }}</p>
+    <a href="{% url 'logout' %}" class="inline-block mt-4 text-red-600">
+      Logout
+    </a>
+  </div>
+
+  <!-- Orders -->
+  <h2 class="text-xl font-semibold mb-4">My Orders</h2>
+
+  {% if orders %}
+  <div class="space-y-4">
+    {% for order in orders %}
+    <div class="border p-4">
+      <p><strong>Order #{{ order.id }}</strong></p>
+      <p>Status: {{ order.status }}</p>
+      <p>Total: {{ order.total_price }} €</p>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p>No orders yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

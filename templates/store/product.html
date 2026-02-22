@@ -1,41 +1,65 @@
-{% extends "store/base.html" %}
-{% block title %}{{ product.name }}{% endblock %}
-
+{% extends "store/base.html" %} {% block title %}{{ product.name }}{% endblock%}
 {% block content %}
 <div class="max-w-6xl mx-auto p-8 grid md:grid-cols-2 gap-8 mt-16">
   <div class="relative">
-    <img id="product-image" src="{{ product.images.all.0.image.url }}" alt="{{ product.name }}" class="w-full h-auto rounded-none border-0">
-    <button id="prev-btn" class="absolute top-1/2 left-2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white px-3 py-2 rounded cursor-pointer">&#10094;</button>
-    <button id="next-btn" class="absolute top-1/2 right-2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white px-3 py-2 rounded cursor-pointer">&#10095;</button>
+    <img
+      id="product-image"
+      src="{{ product.images.all.0.image.url }}"
+      alt="{{ product.name }}"
+      class="w-full h-auto rounded-none border-0"
+    />
+    <button
+      id="prev-btn"
+      class="absolute top-1/2 left-2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white px-3 py-2 rounded cursor-pointer"
+    >
+      &#10094;
+    </button>
+    <button
+      id="next-btn"
+      class="absolute top-1/2 right-2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white px-3 py-2 rounded cursor-pointer"
+    >
+      &#10095;
+    </button>
   </div>
   <div>
-    <h1 class="text-3xl font-bold mb-4">{{ product.name }}</h1>
-    <p class="text-xl mb-4">{{ product.price }} €.</p>
-    <p class="text-gray-600 mb-6">
-      Тагове:
+    <h1 class="text-3xl font-bold mb-4 mt-12">{{ product.name }}</h1>
+    <p class="text-xl font-semibold mb-4">{{ product.price }} €</p>
+    <button class="bg-black text-white px-6 py-3 cursor-pointer mb-4 rounded">
+      Add to cart
+    </button>
+
+    <div class="text-center mb-4 mt-12">
+      <p class="text-lg font-bold mb-2">Description:</p>
+      <p class="text-gray-700">{{ product.description }}</p>
+    </div>
+
+    <div class="flex flex-col items-center gap-2">
       {% for tag in product.tags.all %}
-      <span class="inline-block bg-gray-200 px-2 py-1 rounded mr-1">{{ tag.name }}</span>
+      <span
+        class="inline-block bg-gray-200 px-3 py-1 rounded text-sm text-center w-max"
+      >
+        {{ tag.name }}
+      </span>
       {% endfor %}
-    </p>
-    <button class="bg-black text-white px-6 py-3">Add to cart</button>
+    </div>
   </div>
 </div>
 
 <script>
-const images = [
-  {% for img in product.images.all %}
-  "{{ img.image.url }}",
-  {% endfor %}
-];
-let index = 0;
-const imgElement = document.getElementById('product-image');
-document.getElementById('prev-btn').addEventListener('click', ()=>{
-  index = (index - 1 + images.length) % images.length;
-  imgElement.src = images[index];
-});
-document.getElementById('next-btn').addEventListener('click', ()=>{
-  index = (index + 1) % images.length;
-  imgElement.src = images[index];
-});
+  const images = [
+    {% for img in product.images.all %}
+    "{{ img.image.url }}",
+    {% endfor %}
+  ];
+  let index = 0;
+  const imgElement = document.getElementById('product-image');
+  document.getElementById('prev-btn').addEventListener('click', ()=>{
+    index = (index - 1 + images.length) % images.length;
+    imgElement.src = images[index];
+  });
+  document.getElementById('next-btn').addEventListener('click', ()=>{
+    index = (index + 1) % images.length;
+    imgElement.src = images[index];
+  });
 </script>
 {% endblock %}

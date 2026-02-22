@@ -7,6 +7,10 @@ def home(request):
     categories = Category.objects.all()
     return render(request, 'store/home.html', {'categories': categories})
 
+
+def returns(request):
+    return render(request, 'store/returns.html')
+
 def collection(request, slug):
     category = get_object_or_404(Category, slug=slug)
     products = Product.objects.filter(category=category, is_active=True)

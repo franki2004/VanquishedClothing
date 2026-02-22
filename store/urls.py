@@ -9,4 +9,5 @@ urlpatterns = [
     path('search/', views.search, name='search'),
     path('product/<int:id>/', views.product_detail, name='product'),
     path("search/suggestions/", views.search_suggestions, name="search_suggestions"),
+    path('returns', views.returns, name='returns')
 ]
