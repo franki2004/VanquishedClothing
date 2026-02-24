@@ -183,13 +183,32 @@
       >
         <button @click="menuOpen = false" class="text-3xl mb-6">&times;</button>
 
-        <nav class="space-y-4 mb-8">
-          <a href="{% url 'new_products' %}" class="block text-xl font-bold"
-            >New</a
+        <nav class="space-y-4 mb-6">
+          {% if user.is_staff %}
+
+          <a
+            href="{% url 'admin:index' %}"
+            class="block text-lg font-semibold text-gray-900"
           >
-          <a href="{% url 'sale_products' %}" class="block text-xl font-bold"
-            >Sale</a
+            Admin
+          </a>
+
+          <a
+            href="{% url 'bulk_add_products' %}"
+            class="block text-lg font-semibold text-gray-900"
           >
+            Add products
+          </a>
+          <a
+            href="{% url 'draft_products' %}"
+            class="block text-lg font-semibold text-gray-900"
+          >
+            Drafts
+          </a>
+          <hr class="my-6" />
+          {% endif %}
+          <a href="{% url 'new_products' %}" class="block text-xl">New</a>
+          <a href="{% url 'sale_products' %}" class="block text-xl">Sale</a>
         </nav>
 
         <hr class="mb-6" />

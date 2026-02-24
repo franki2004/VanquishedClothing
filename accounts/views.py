@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+
 from orders.models import Order
 from .forms import LoginForm, RegisterForm
 
@@ -35,3 +36,4 @@ def logout_view(request):
 def account_dashboard(request):
     orders = Order.objects.filter(user=request.user).order_by("-created_at")
     return render(request, "accounts/dashboard.html", {"orders": orders})
+

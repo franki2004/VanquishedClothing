@@ -1,0 +1,113 @@
+{% extends "store/base.html" %} {% block title %}Draft Products{% endblock %} 
+{% block content %}
+<div class="max-w-7xl mx-auto pt-24 px-4">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-3xl font-bold">Draft Products</h1>
+
+    <a
+      href="{% url 'bulk_add_products' %}"
+      class="bg-black text-white px-4 py-2 rounded"
+    >
+      Add Products
+    </a>
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="overflow-x-auto border rounded">
+      <table class="min-w-full border-collapse">
+        <thead class="bg-gray-100 text-left">
+          <tr>
+            <th class="p-3 w-12">
+              <input type="checkbox" id="select-all" />
+            </th>
+            <th class="p-3">Product</th>
+            <th class="p-3">Category</th>
+            <th class="p-3">Price</th>
+            <th class="p-3">Discount</th>
+            <th class="p-3">Created</th>
+            <th class="p-3">Preview</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for product in drafts %}
+          <tr class="border-t hover:bg-gray-50">
+            <td class="p-3 text-center">
+              <input
+                type="checkbox"
+                name="selected_products"
+                value="{{ product.id }}"
+              />
+            </td>
+
+            <td class="p-3 font-medium">
+              {{ product.name }}
+              <div class="text-xs text-gray-500">SKU: {{ product.sku }}</div>
+            </td>
+
+            <td class="p-3">{{ product.category.name|default:"—" }}</td>
+
+            <td class="p-3">{{ product.price }} €.</td>
+
+            <td class="p-3">
+              {% if product.discount_percent %} {{ product.discount_percent }}%
+              {% else %} — {% endif %}
+            </td>
+
+            <td class="p-3">{{ product.created_at|date:"Y-m-d" }}</td>
+
+            <td class="p-3">
+              <a
+                href="{% url 'product' product.id %}"
+                target="_blank"
+                class="text-blue-600 hover:underline"
+              >
+                Preview
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="p-6 text-center text-gray-500">
+              No draft products
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Bulk actions -->
+    <div class="flex gap-4 mt-6">
+      <button
+        type="submit"
+        name="action"
+        value="activate"
+        class="bg-green-600 text-white px-6 py-2 rounded"
+      >
+        Set Active
+      </button>
+
+      <button
+        type="submit"
+        name="action"
+        value="archive"
+        class="bg-gray-600 text-white px-6 py-2 rounded"
+      >
+        Archive
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+  document.getElementById("select-all").addEventListener("change", function () {
+    document
+      .querySelectorAll('input[name="selected_products"]')
+      .forEach((cb) => (cb.checked = this.checked));
+  });
+</script>
+{% endblock %}

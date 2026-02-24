@@ -1,0 +1,182 @@
+{% extends "store/base.html" %} {% block title %}Add Products{% endblock %} {%
+block content %}
+<div class="max-w-7xl mx-auto py-24 px-4">
+  <h1 class="text-3xl font-bold mb-10">Bulk Add Products</h1>
+
+  <form method="post" enctype="multipart/form-data" class="space-y-12">
+    {% csrf_token %}
+
+    <!-- Category -->
+    <div>
+      <label class="block font-semibold mb-2">Category</label>
+      <select name="category" class="border px-4 py-3 w-full">
+        <option value="">—</option>
+        {% for category in categories %}
+        <option value="{{ category.id }}">{{ category.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Products container -->
+    <div id="products" class="space-y-8">
+      <div
+        class="product-row grid grid-cols-1 md:grid-cols-3 gap-6 p-4 border rounded-lg"
+      >
+        <!-- Left: Name & Price -->
+        <div class="space-y-4">
+          <input
+            name="name"
+            placeholder="Product Name"
+            class="border p-3 w-full"
+            required
+          />
+          <input
+            name="price"
+            placeholder="Price"
+            type="number"
+            step="0.01"
+            class="border p-3 w-full"
+            required
+          />
+
+          <!-- Tags multi-select -->
+          <label class="block font-semibold mt-2">Tags</label>
+          <select name="tags_0" multiple class="border p-2 w-full h-32">
+            {% for tag in tags %}
+            <option value="{{ tag.id }}">{{ tag.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Middle: Sizes -->
+        <div class="grid grid-cols-6 gap-2">
+          {% for size in sizes %}
+          <div class="flex flex-col items-center">
+            <label class="text-sm font-semibold">{{ size }}</label>
+            <input
+              name="stock_{{ size }}_0"
+              type="number"
+              class="border p-2 w-16 text-center"
+              min="0"
+              placeholder="Stock"
+            />
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- Right: Images -->
+        <div>
+          <label class="block font-semibold mb-2">Images (set order)</label>
+          <input
+            type="file"
+            name="images_0"
+            multiple
+            class="border p-2 w-full cursor-pointer"
+            onchange="previewImages(this, 0)"
+          />
+          <div id="preview-0" class="flex gap-4 flex-wrap mt-2"></div>
+        </div>
+      </div>
+    </div>
+
+    <button
+      type="button"
+      onclick="addRow()"
+      class="border px-5 py-2 cursor-pointer"
+    >
+      Add another product
+    </button>
+    <button
+      type="submit"
+      class="border bg-black text-white px-5 py-2 cursor-pointer"
+    >
+      Save as Draft
+    </button>
+  </form>
+</div>
+
+<script>
+      // Preview images
+      function previewImages(input, idx) {
+    const previewContainer = document.getElementById(`preview-${idx}`);
+    previewContainer.innerHTML = "";
+
+    Array.from(input.files).forEach((file, i) => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        // container for image + order input
+        const div = document.createElement("div");
+        div.className = "flex flex-col items-center w-24";
+
+        // image
+        const imgEl = document.createElement("img");
+        imgEl.src = e.target.result;
+        imgEl.className = "w-full h-24 object-cover border rounded";
+
+        // order input
+        const orderInput = document.createElement("input");
+        orderInput.type = "number";
+        orderInput.name = `image_order_${idx}_${i}`;
+        orderInput.min = 0;
+        orderInput.value = i; // default
+        orderInput.className = "mt-1 w-full border p-1 text-center text-sm";
+
+        div.appendChild(imgEl);
+        div.appendChild(orderInput);
+
+        previewContainer.appendChild(div);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+      // Add product row dynamically
+      let rowIndex = 1;
+      const sizes = {{ sizes|safe }};
+      const tagsOptions = `{% for tag in tags %}<option value="{{ tag.id }}">{{ tag.name }}</option>{% endfor %}`;
+
+      function addRow() {
+        const productsDiv = document.getElementById("products");
+
+        const div = document.createElement("div");
+        div.className = "product-row grid grid-cols-1 md:grid-cols-3 gap-6 p-4 border rounded-lg";
+
+        // Left: name, price, tags
+        let leftHTML = `
+          <div class="space-y-4">
+            <input name="name" placeholder="Product Name" class="border p-3 w-full" required>
+            <input name="price" placeholder="Price" type="number" step="0.01" class="border p-3 w-full" required>
+            <label class="block font-semibold mt-2">Tags</label>
+            <select name="tags_${rowIndex}" multiple class="border p-2 w-full h-32">
+              ${tagsOptions}
+            </select>
+          </div>
+        `;
+
+        // Middle: sizes
+        let sizesHTML = '<div class="grid grid-cols-6 gap-2">';
+        for (const size of sizes) {
+          sizesHTML += `
+            <div class="flex flex-col items-center">
+              <label class="text-sm font-semibold">${size}</label>
+              <input name="stock_${size}_${rowIndex}" type="number" class="border p-2 w-16 text-center" min="0" placeholder="Stock">
+            </div>
+          `;
+        }
+        sizesHTML += '</div>';
+
+        // Right: images
+        let imagesHTML = `
+          <div>
+            <label class="block font-semibold mb-2">Images</label>
+            <input type="file" name="images" multiple class="border p-2 w-full cursor-pointer" onchange="previewImages(this, ${rowIndex})">
+            <div id="preview-${rowIndex}" class="flex gap-2 flex-wrap mt-2"></div>
+          </div>
+        `;
+
+        div.innerHTML = leftHTML + sizesHTML + imagesHTML;
+        productsDiv.appendChild(div);
+        rowIndex++;
+      }
+</script>
+{% endblock %}
