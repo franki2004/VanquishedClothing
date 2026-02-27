@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseBadRequest
+from .forms import UserFieldUpdateForm
 
 from orders.models import Order
 from .forms import LoginForm, RegisterForm
@@ -34,6 +36,32 @@ def logout_view(request):
 
 @login_required
 def account_dashboard(request):
-    orders = Order.objects.filter(user=request.user).order_by("-created_at")
-    return render(request, "accounts/dashboard.html", {"orders": orders})
+    user = request.user
+    form_errors = {}
+    active_field = None
 
+    if request.method == "POST":
+        field = request.POST.get("field")
+        allowed_fields = ["email", "first_name", "last_name", "phone_number"]
+
+        if field in allowed_fields:
+            form = UserFieldUpdateForm(
+                request.POST,
+                instance=user,
+                field_name=field
+            )
+
+            if form.is_valid():
+                form.save()
+                return redirect("account_dashboard")
+            else:
+                form_errors = form.errors
+                active_field = field
+
+    orders = user.orders.prefetch_related("items__variant__product")
+
+    return render(request, "accounts/dashboard.html", {
+        "orders": orders,
+        "form_errors": form_errors,
+        "active_field": active_field
+    })

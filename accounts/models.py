@@ -1,7 +1,16 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 from django.utils import timezone
+from django.core.validators import RegexValidator, MinLengthValidator
 
+name_validator = RegexValidator(
+    regex=r'^[A-Z][a-z]+$',
+    message='Must start with uppercase letter, then lowercase letters only.'
+)
+phone_validator = RegexValidator(
+    regex=r'^\+?\d{8,15}$',
+    message='Phone number must be 8–15 digits, optional leading +.'
+)
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
         if not email:
@@ -25,10 +34,26 @@ class CustomUserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
-    email = models.EmailField(unique=True)
-    first_name = models.CharField(max_length=30, blank=True)
-    last_name = models.CharField(max_length=30, blank=True)
-    phone_number = models.CharField(max_length=20, blank=True)
+    email = models.EmailField(unique=True, blank=False, null=False)
+
+    first_name = models.CharField(
+        max_length=30,
+        blank=True,
+        validators=[MinLengthValidator(2), name_validator]
+    )
+
+    last_name = models.CharField(
+        max_length=30,
+        blank=True,
+        validators=[MinLengthValidator(2), name_validator]
+    )
+
+    phone_number = models.CharField(
+        max_length=20,
+        blank=True,
+        validators=[phone_validator]
+    )
+
     date_joined = models.DateTimeField(default=timezone.now)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
@@ -40,3 +65,11 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+
+    def save(self, *args, **kwargs):
+        # Automatically capitalize first and last names if set
+        if self.first_name:
+            self.first_name = self.first_name.capitalize()
+        if self.last_name:
+            self.last_name = self.last_name.capitalize()
+        super().save(*args, **kwargs)

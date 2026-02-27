@@ -1,32 +1,215 @@
-{% extends "store/base.html" %} {% block title %}Vanquished - Profile{% endblock%}
+{% extends "store/base.html" %} {% block title %}Vanquished - Profile{% endblock %} 
 {% block content %}
-<div class="max-w-4xl mx-auto mt-24 px-4">
-  <h1 class="text-2xl font-bold mb-6">My Account</h1>
 
-  <!-- User info -->
-  <div class="border p-4 mb-8">
-    <p><strong>Email:</strong> {{ user.email }}</p>
-    <p><strong>Username:</strong> {{ user.username }}</p>
-    <a href="{% url 'logout' %}" class="inline-block mt-4 text-red-600">
-      Logout
-    </a>
-  </div>
+<div class="max-w-5xl mx-auto mt-24 px-4">
+  <h1 class="text-3xl font-bold mb-10">My Account</h1>
 
-  <!-- Orders -->
-  <h2 class="text-xl font-semibold mb-4">My Orders</h2>
+  <div class="grid md:grid-cols-3 gap-8">
+    <!-- Account Section -->
+    <div class="md:col-span-1">
+      <div class="bg-white shadow-lg rounded-2xl p-6 border">
+        <h2 class="text-xl font-semibold mb-6">Account Details</h2>
 
-  {% if orders %}
-  <div class="space-y-4">
-    {% for order in orders %}
-    <div class="border p-4">
-      <p><strong>Order #{{ order.id }}</strong></p>
-      <p>Status: {{ order.status }}</p>
-      <p>Total: {{ order.total_price }} €</p>
+        <!-- Email -->
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1">Email</label>
+          <form method="POST" class="flex gap-2 items-center field-form">
+            {% csrf_token %}
+            <input type="hidden" name="field" value="email" />
+
+            <input
+              type="email"
+              name="email"
+              value="{{ user.email }}"
+              disabled
+              class="editable w-full border rounded-lg px-3 py-2 bg-gray-100 focus:outline-none focus:ring focus:ring-black/20"
+            />
+
+            <button
+              type="button"
+              class="toggle-btn px-3 border rounded-lg h-10 hover:bg-gray-100"
+            >
+              ✎
+            </button>
+          </form>
+
+          {% if active_field == "email" and form_errors.email %}
+          <p class="text-red-600 text-sm mt-1">{{ form_errors.email.0 }}</p>
+          {% endif %}
+        </div>
+
+        <!-- First Name -->
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1">First Name</label>
+          <form method="POST" class="flex gap-2 items-center field-form">
+            {% csrf_token %}
+            <input type="hidden" name="field" value="first_name" />
+
+            <input
+              type="text"
+              name="first_name"
+              value="{{ user.first_name }}"
+              disabled
+              class="editable w-full border rounded-lg px-3 py-2 bg-gray-100 focus:outline-none focus:ring focus:ring-black/20"
+            />
+
+            <button
+              type="button"
+              class="toggle-btn px-3 border rounded-lg h-10 hover:bg-gray-100"
+            >
+              ✎
+            </button>
+          </form>
+
+          {% if active_field == "first_name" and form_errors.first_name %}
+          <p class="text-red-600 text-sm mt-1">
+            {{ form_errors.first_name.0 }}
+          </p>
+          {% endif %}
+        </div>
+
+        <!-- Last Name -->
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1">Last Name</label>
+          <form method="POST" class="flex gap-2 items-center field-form">
+            {% csrf_token %}
+            <input type="hidden" name="field" value="last_name" />
+
+            <input
+              type="text"
+              name="last_name"
+              value="{{ user.last_name }}"
+              disabled
+              class="editable w-full border rounded-lg px-3 py-2 bg-gray-100 focus:outline-none focus:ring focus:ring-black/20"
+            />
+
+            <button
+              type="button"
+              class="toggle-btn px-3 border rounded-lg h-10 hover:bg-gray-100"
+            >
+              ✎
+            </button>
+          </form>
+
+          {% if active_field == "last_name" and form_errors.last_name %}
+          <p class="text-red-600 text-sm mt-1">{{ form_errors.last_name.0 }}</p>
+          {% endif %}
+        </div>
+
+        <!-- Phone -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium mb-1">Phone</label>
+          <form method="POST" class="flex gap-2 items-center field-form">
+            {% csrf_token %}
+            <input type="hidden" name="field" value="phone_number" />
+
+            <input
+              type="text"
+              name="phone_number"
+              value="{{ user.phone_number }}"
+              disabled
+              class="editable w-full border rounded-lg px-3 py-2 bg-gray-100 focus:outline-none focus:ring focus:ring-black/20"
+            />
+
+            <button
+              type="button"
+              class="toggle-btn px-3 border rounded-lg h-10 hover:bg-gray-100"
+            >
+              ✎
+            </button>
+          </form>
+
+          {% if active_field == "phone_number" and form_errors.phone_number %}
+          <p class="text-red-600 text-sm mt-1">
+            {{ form_errors.phone_number.0 }}
+          </p>
+          {% endif %}
+        </div>
+      </div>
     </div>
-    {% endfor %}
+
+    <!-- Orders Section -->
+    <div class="md:col-span-2">
+      <h2 class="text-xl font-semibold mb-6">My Orders</h2>
+
+      {% if orders %}
+      <div class="space-y-6">
+        {% for order in orders %}
+        <div class="bg-white shadow-lg rounded-2xl border">
+          <!-- Order Header -->
+          <div class="flex justify-between items-center px-6 py-4 border-b">
+            <div>
+              <p class="font-semibold text-lg">Order #{{ order.id }}</p>
+              <p class="text-sm text-gray-500">
+                {{ order.created_at|date:"d M Y - H:i" }}
+              </p>
+            </div>
+
+            <span
+              class="px-3 py-1 text-sm rounded-full {% if order.status == 'pending' %} bg-yellow-100 text-yellow-800 {% elif order.status == 'accepted' %} bg-blue-100 text-blue-800 {% elif order.status == 'completed' %} bg-green-100 text-green-800 {% elif order.status == 'denied' %} bg-red-100 text-red-800 {% endif %}"
+            >
+              {{ order.get_status_display }}
+            </span>
+          </div>
+
+          <!-- Items -->
+          <div class="px-6 py-4 space-y-3">
+            {% for item in order.items.all %}
+            <div class="flex justify-between text-sm border-b pb-2">
+              <div>
+                <p class="font-medium">{{ item.variant.product.name }}</p>
+                <p class="text-gray-500">
+                  Size: {{ item.variant.size }} × {{ item.quantity }}
+                </p>
+              </div>
+              <div class="text-right">{{ item.total_price }} €</div>
+            </div>
+            {% endfor %}
+
+            <div class="flex justify-between font-semibold pt-2">
+              <span>Total</span>
+              <span>{{ order.total_price }} €</span>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="bg-gray-50 border rounded-2xl p-6 text-center text-gray-500">
+        No orders yet.
+      </div>
+      {% endif %}
+    </div>
   </div>
-  {% else %}
-  <p>No orders yet.</p>
-  {% endif %}
 </div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".field-form").forEach((form) => {
+      const input = form.querySelector(".editable");
+      const button = form.querySelector(".toggle-btn");
+      let editing = false;
+
+      button.addEventListener("click", function () {
+        if (!editing) {
+          editing = true;
+
+          input.disabled = false;
+          input.classList.remove("bg-gray-100");
+
+          button.textContent = "✔";
+
+          input.focus();
+
+          // move cursor to end
+          const length = input.value.length;
+          input.setSelectionRange(length, length);
+        } else {
+          form.submit();
+        }
+      });
+    });
+  });
+</script>
+
 {% endblock %}

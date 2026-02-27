@@ -70,10 +70,6 @@ class Product(models.Model):
             return self.price * (100 - self.discount_percent) / 100
         return self.price
 
-    def save(self, *args, **kwargs):
-        if not self.sku:
-            self.sku = f"P{self.pk or ''}".zfill(6)
-        super().save(*args, **kwargs)
 
 class ProductVariant(models.Model):
     SIZE_CHOICES = [

@@ -142,6 +142,9 @@ def bulk_add_products(request):
                 price = prices[idx]
                 slug = slugify(name)
 
+                category_id = request.POST.get(f"category_{idx}")
+                category = Category.objects.get(id=category_id) if category_id else None
+
                 product = Product.objects.create(
                     name=name,
                     slug=slug,
@@ -149,6 +152,8 @@ def bulk_add_products(request):
                     category=category,
                     status="draft",
                 )
+                product.sku = f"P{product.pk:06d}"
+                product.save(update_fields=["sku"])
                 products.append(product)
 
                 # Assign tags
