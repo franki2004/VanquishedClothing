@@ -1,65 +1,138 @@
-{% extends "store/base.html" %} {% block title %}{{ product.name }}{% endblock%}
+{% extends "store/base.html" %}
+{% block title %}{{ product.name }}{% endblock %}
 {% block content %}
-<div class="max-w-6xl mx-auto p-8 grid md:grid-cols-2 gap-8 mt-16">
-  <div class="relative">
-    <img
-      id="product-image"
-      src="{{ product.images.all.0.image.url }}"
-      alt="{{ product.name }}"
-      class="w-full h-auto rounded-none border-0"
-    />
-    <button
-      id="prev-btn"
-      class="absolute top-1/2 left-2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white px-3 py-2 rounded cursor-pointer"
-    >
-      &#10094;
-    </button>
-    <button
-      id="next-btn"
-      class="absolute top-1/2 right-2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white px-3 py-2 rounded cursor-pointer"
-    >
-      &#10095;
-    </button>
-  </div>
-  <div>
-    <h1 class="text-3xl font-bold mb-4 mt-12">{{ product.name }}</h1>
-    <p class="text-xl font-semibold mb-4">{{ product.price }} €</p>
-    <button class="bg-black text-white px-6 py-3 cursor-pointer mb-4 rounded">
-      Add to cart
-    </button>
 
-    <div class="text-center mb-4 mt-12">
-      <p class="text-lg font-bold mb-2">Description:</p>
-      <p class="text-gray-700">{{ product.description }}</p>
+<div class="max-w-7xl mx-auto px-6 lg:px-12 py-16 grid lg:grid-cols-2 gap-16">
+
+  <!-- LEFT: IMAGE -->
+  <div class="relative w-full">
+
+    {% if product.images.first %}
+      <img
+        id="product-image"
+        src="{{ product.images.first.image.url }}"
+        alt="{{ product.name }}"
+        class="w-full h-auto object-cover"
+      />
+    {% endif %}
+
+    {% if product.images.count > 1 %}
+      <button
+        id="prev-btn"
+        class="absolute left-0 top-1/2 -translate-y-1/2 px-4 py-3 text-2xl cursor-pointer">
+        &#10094;
+      </button>
+
+      <button
+        id="next-btn"
+        class="absolute right-0 top-1/2 -translate-y-1/2 px-4 py-3 text-2xl cursor-pointer">
+        &#10095;
+      </button>
+    {% endif %}
+
+  </div>
+
+
+  <!-- RIGHT: PRODUCT INFO -->
+  <div class="max-w-md lg:self-center">
+
+    <!-- Name -->
+    <h1 class="text-2xl lg:text-3xl font-medium mb-6">
+      {{ product.name }}
+    </h1>
+
+    <!-- Price -->
+    <div class="mb-6">
+      {% if product.discount_percent %}
+        <div class="flex items-center gap-3">
+          <span class="text-lg text-gray-400 line-through">
+            €{{ product.price }}
+          </span>
+          <span class="text-xl font-semibold">
+            €{{ product.final_price|floatformat:2 }}
+          </span>
+        </div>
+      {% else %}
+        <span class="text-xl font-semibold">
+          €{{ product.price }}
+        </span>
+      {% endif %}
     </div>
 
-    <div class="flex flex-col items-center gap-2">
-      {% for tag in product.tags.all %}
-      <span
-        class="inline-block bg-gray-200 px-3 py-1 rounded text-sm text-center w-max"
-      >
-        {{ tag.name }}
-      </span>
-      {% endfor %}
+    <!-- Divider -->
+    <hr class="mb-8 border-gray-200 opacity-40">
+
+    <!-- SIZE SELECTION -->
+    <div class="mb-10">
+
+      <p class="mb-4 text-sm tracking-wide uppercase">
+        Size
+      </p>
+
+      <div class="grid grid-cols-3 gap-3">
+
+        {% for variant in product.variants.all %}
+
+          {% if variant.stock > 0 %}
+            <button
+              class="border border-gray-300 py-3 text-sm flex items-center justify-center hover:bg-black hover:text-white transition cursor-pointer">
+              {{ variant.size }}
+            </button>
+          {% else %}
+            <div
+              class="border border-gray-200 py-3 text-sm text-gray-400 relative flex items-center justify-center overflow-hidden">
+
+              {{ variant.size }}
+
+              <span class="absolute w-[140%] h-[1px] bg-gray-300 rotate-[-25deg]"></span>
+            </div>
+          {% endif %}
+
+        {% endfor %}
+
+      </div>
+
     </div>
+
+    <!-- ADD TO CART -->
+    <button
+      class="w-full bg-black text-white py-4 text-sm tracking-wide hover:opacity-90 transition cursor-pointer">
+      ADD TO CART
+    </button>
+
+    <!-- DESCRIPTION -->
+    {% if product.description %}
+      <div class="mt-12 text-sm text-gray-600 leading-relaxed">
+        {{ product.description }}
+      </div>
+    {% endif %}
+
   </div>
+
 </div>
+
 
 <script>
   const images = [
     {% for img in product.images.all %}
-    "{{ img.image.url }}",
+      "{{ img.image.url }}",
     {% endfor %}
   ];
+
   let index = 0;
-  const imgElement = document.getElementById('product-image');
-  document.getElementById('prev-btn').addEventListener('click', ()=>{
-    index = (index - 1 + images.length) % images.length;
-    imgElement.src = images[index];
-  });
-  document.getElementById('next-btn').addEventListener('click', ()=>{
-    index = (index + 1) % images.length;
-    imgElement.src = images[index];
-  });
+  const imgElement = document.getElementById("product-image");
+
+  if (images.length > 1) {
+    document.getElementById("prev-btn").addEventListener("click", () => {
+      index = (index - 1 + images.length) % images.length;
+      imgElement.src = images[index];
+    });
+
+    document.getElementById("next-btn").addEventListener("click", () => {
+      index = (index + 1) % images.length;
+      imgElement.src = images[index];
+    });
+  }
 </script>
+
 {% endblock %}

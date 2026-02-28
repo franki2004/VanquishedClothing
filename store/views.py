@@ -14,13 +14,32 @@ def home(request):
 def returns(request):
     return render(request, 'store/returns.html')
 
-def collection(request, slug):
-    category = get_object_or_404(Category, slug=slug)
+def collection(request, slug=None):
+    category = None
+    products = Product.objects.filter(status="active")
 
-    products = Product.objects.filter(
-        category=category,
-        status="active",
-    )
+    # Category filtering
+    if slug:
+        category = get_object_or_404(Category, slug=slug)
+        products = products.filter(category=category)
+
+    # Sorting
+    sort = request.GET.get("sort")
+
+    if sort == "price_asc":
+        products = products.order_by("price")
+    elif sort == "price_desc":
+        products = products.order_by("-price")
+    elif sort == "az":
+        products = products.order_by("name")
+    elif sort == "za":
+        products = products.order_by("-name")
+    elif sort == "newest":
+        products = products.order_by("-created_at")
+    elif sort == "oldest":
+        products = products.order_by("created_at")
+
+    categories = Category.objects.all()
 
     return render(
         request,
@@ -28,8 +47,10 @@ def collection(request, slug):
         {
             "category": category,
             "products": products,
+            "categories": categories,
         },
     )
+
 def search(request):
     q = request.GET.get("q", "").strip()
 

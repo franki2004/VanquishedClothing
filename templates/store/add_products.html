@@ -1,6 +1,4 @@
-{% extends "store/base.html" %}
-{% block title %}Add Products{% endblock %}
-
+{% extends "store/base.html" %} {% block title %}Add Products{% endblock %} 
 {% block content %}
 <div class="max-w-7xl mx-auto py-24 px-4">
   <h1 class="text-3xl font-bold mb-10">Bulk Add Products</h1>
@@ -9,7 +7,7 @@
     {% csrf_token %}
 
     <div id="products" class="space-y-8">
-      <div class="product-row grid grid-cols-1 md:grid-cols-3 gap-6 p-4 border rounded-lg">
+      <div class="product-row grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 border rounded-lg">
         <!-- Left: Category, Name, Price, Sizes -->
         <div class="space-y-4">
           <!-- Category -->
@@ -17,20 +15,38 @@
           <select name="category_0" class="border px-4 py-3 w-full">
             <option value="">—</option>
             {% for category in categories %}
-              <option value="{{ category.id }}">{{ category.name }}</option>
+            <option value="{{ category.id }}">{{ category.name }}</option>
             {% endfor %}
           </select>
 
           <!-- Name & Price -->
-          <input name="name" placeholder="Product Name" class="border p-3 w-full" required>
-          <input name="price" placeholder="Price" type="number" step="0.01" class="border p-3 w-full" required>
+          <input
+            name="name"
+            placeholder="Product Name"
+            class="border p-3 w-full"
+            required
+          />
+          <input
+            name="price"
+            placeholder="Price"
+            type="number"
+            step="0.01"
+            class="border p-3 w-full"
+            required
+          />
 
           <!-- Sizes -->
           <div class="grid grid-cols-3 grid-rows-2 gap-4">
             {% for size in sizes %}
             <div class="flex flex-col items-center">
               <label class="text-sm font-semibold">{{ size }}</label>
-              <input name="stock_{{ size }}_0" type="number" class="border p-2 w-16 text-center" min="0" placeholder="Stock">
+              <input
+                name="stock_{{ size }}_0"
+                type="number"
+                class="border p-2 w-18 text-center"
+                min="0"
+                placeholder="Stock"
+              />
             </div>
             {% endfor %}
           </div>
@@ -41,7 +57,7 @@
           <label class="block font-semibold mb-2">Tags</label>
           <select name="tags_0" multiple class="border p-2 w-full h-48">
             {% for tag in tags %}
-              <option value="{{ tag.id }}">{{ tag.name }}</option>
+            <option value="{{ tag.id }}">{{ tag.name }}</option>
             {% endfor %}
           </select>
         </div>
@@ -49,14 +65,31 @@
         <!-- Right: Images -->
         <div>
           <label class="block font-semibold mb-2">Images</label>
-          <input type="file" name="images_0" multiple class="border p-2 w-full cursor-pointer" onchange="previewImages(this, 0)">
+          <input
+            type="file"
+            name="images_0"
+            multiple
+            class="border p-2 w-full cursor-pointer"
+            onchange="previewImages(this, 0)"
+          />
           <div id="preview-0" class="flex gap-4 flex-wrap mt-4"></div>
         </div>
       </div>
     </div>
 
-    <button type="button" onclick="addRow()" class="border px-5 py-2 cursor-pointer">Add another product</button>
-    <button type="submit" class="border bg-black text-white px-5 py-2 cursor-pointer">Save as Draft</button>
+    <button
+      type="button"
+      onclick="addRow()"
+      class="border px-5 py-2 cursor-pointer"
+    >
+      Add another product
+    </button>
+    <button
+      type="submit"
+      class="border bg-black text-white px-5 py-2 cursor-pointer"
+    >
+      Save as Draft
+    </button>
   </form>
 </div>
 
@@ -96,53 +129,69 @@
   }
 
   function addRow() {
-    const productsDiv = document.getElementById("products");
+  const productsDiv = document.getElementById("products");
 
-    const div = document.createElement("div");
-    div.className = "product-row grid grid-cols-1 md:grid-cols-3 gap-6 p-4 border rounded-lg";
+  const div = document.createElement("div");
+  div.className = "product-row grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 border rounded-lg";
 
-    // Left: Category, Name, Price, Sizes
-    let leftHTML = `
-      <div class="space-y-4">
-        <label class="block font-semibold">Category</label>
-        <select name="category_${rowIndex}" class="border px-4 py-3 w-full">
-          <option value="">—</option>
-          ${categoriesOptions}
-        </select>
-        <input name="name" placeholder="Product Name" class="border p-3 w-full" required>
-        <input name="price" placeholder="Price" type="number" step="0.01" class="border p-3 w-full" required>
-        <div class="grid grid-cols-3 grid-rows-2 gap-4">
-    `;
-    for (const size of sizes) {
-      leftHTML += `
-        <div class="flex flex-col items-center">
-          <label class="text-sm font-semibold">${size}</label>
-          <input name="stock_${size}_${rowIndex}" type="number" class="border p-2 w-16 text-center" min="0" placeholder="Stock">
-        </div>
-      `;
-    }
-    leftHTML += '</div>';
+  // LEFT COLUMN
+  let leftHTML = `
+    <div class="space-y-4">
+      <label class="block font-semibold">Category</label>
+      <select name="category_${rowIndex}" class="border px-4 py-3 w-full">
+        <option value="">—</option>
+        ${categoriesOptions}
+      </select>
 
-    // Middle: Tags
-    let middleHTML = `
-      <div>
-        <label class="block font-semibold mb-2">Tags</label>
-        <select name="tags_${rowIndex}" multiple class="border p-2 w-full h-48">${tagsOptions}</select>
+      <input name="name" placeholder="Product Name" class="border p-3 w-full" required>
+      <input name="price" placeholder="Price" type="number" step="0.01" class="border p-3 w-full" required>
+
+      <div class="grid grid-cols-3 grid-rows-2 gap-4">
+  `;
+
+  for (const size of sizes) {
+    leftHTML += `
+      <div class="flex flex-col items-center">
+        <label class="text-sm font-semibold">${size}</label>
+        <input name="stock_${size}_${rowIndex}" type="number"
+          class="border p-2 w-16 text-center"
+          min="0"
+          placeholder="Stock">
       </div>
     `;
-
-    // Right: Images
-    let rightHTML = `
-      <div>
-        <label class="block font-semibold mb-2">Images</label>
-        <input type="file" name="images_${rowIndex}" multiple class="border p-2 w-full cursor-pointer" onchange="previewImages(this, ${rowIndex})">
-        <div id="preview-${rowIndex}" class="flex gap-4 flex-wrap mt-4"></div>
-      </div>
-    `;
-
-    div.innerHTML = leftHTML + middleHTML + rightHTML;
-    productsDiv.appendChild(div);
-    rowIndex++;
   }
+
+  leftHTML += `
+      </div>
+    </div>
+  `;
+
+  // MIDDLE COLUMN
+  const middleHTML = `
+    <div>
+      <label class="block font-semibold mb-2">Tags</label>
+      <select name="tags_${rowIndex}" multiple class="border p-2 w-full h-48">
+        ${tagsOptions}
+      </select>
+    </div>
+  `;
+
+  // RIGHT COLUMN
+  const rightHTML = `
+    <div>
+      <label class="block font-semibold mb-2">Images</label>
+      <input type="file"
+        name="images_${rowIndex}"
+        multiple
+        class="border p-2 w-full cursor-pointer"
+        onchange="previewImages(this, ${rowIndex})">
+      <div id="preview-${rowIndex}" class="flex gap-4 flex-wrap mt-4"></div>
+    </div>
+  `;
+
+  div.innerHTML = leftHTML + middleHTML + rightHTML;
+  productsDiv.appendChild(div);
+  rowIndex++;
+}
 </script>
 {% endblock %}
