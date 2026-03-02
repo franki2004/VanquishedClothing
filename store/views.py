@@ -5,7 +5,9 @@ from django.db.models import Q
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db import transaction 
 from django.utils.text import slugify
-
+from orders.forms import AddToCartForm
+from orders.views import get_or_create_cart
+from orders.models import Cart, CartItem
 def home(request):
     categories = Category.objects.all()
     return render(request, 'store/home.html', {'categories': categories})
@@ -83,7 +85,34 @@ def product_detail(request, id):
             status="active",
         )
 
-    return render(request, "store/product.html", {"product": product})
+    if request.method == "POST":
+        form = AddToCartForm(request.POST, product=product)
+
+        if form.is_valid():
+            variant = form.cleaned_data["variant"]
+            cart = get_or_create_cart(request)
+
+            item, created = CartItem.objects.get_or_create(
+                cart=cart,
+                variant=variant,
+            )
+
+            if not created:
+                item.quantity += 1
+                item.save()
+
+            return redirect("cart")
+    else:
+        form = AddToCartForm(product=product)
+
+    return render(
+        request,
+        "store/product.html",
+        {
+            "product": product,
+            "form": form,
+        },
+    )
 
 def new_products(request):
     products = Product.objects.filter(

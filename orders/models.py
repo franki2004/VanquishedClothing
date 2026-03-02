@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings
-from store.models import Product, ProductVariant  # assuming your Product model is in store app
+from store.models import Product, ProductVariant
 
 class Order(models.Model):
     STATUS_CHOICES = [
@@ -64,3 +64,41 @@ class OrderItem(models.Model):
     @property
     def total_price(self):
         return self.quantity * self.price_snapshot
+
+class Cart(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+    session_key = models.CharField(max_length=40, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Cart {self.id}"
+
+    @property
+    def total_price(self):
+        return sum(item.total_price for item in self.items.all())
+
+
+class CartItem(models.Model):
+    cart = models.ForeignKey(
+        Cart,
+        related_name="items",
+        on_delete=models.CASCADE
+    )
+    variant = models.ForeignKey(
+        "store.ProductVariant",
+        on_delete=models.CASCADE
+    )
+    quantity = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        unique_together = ("cart", "variant")
+
+    @property
+    def total_price(self):
+        return self.variant.product.final_price * self.quantity
+

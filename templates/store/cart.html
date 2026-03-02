@@ -1,0 +1,87 @@
+{% extends "store/base.html" %}
+{% block title %}Your Bag{% endblock %}
+{% block content %}
+
+<div class="max-w-5xl mx-auto px-6 py-16 mt-24">
+
+  <h1 class="text-2xl font-medium mb-10">Your Bag</h1>
+
+  {% if cart.items.exists %}
+    <div class="space-y-8">
+
+      {% for item in cart.items.all %}
+        <div class="flex gap-6 border-b pb-6 items-center">
+
+          <!-- IMAGE -->
+          <a href="{% url 'product' item.variant.product.id %}">
+            {% if item.variant.product.images.first %}
+              <img
+                src="{{ item.variant.product.images.first.image.url }}"
+                class="w-32 object-fit">
+            {% endif %}
+          </a>
+
+          <!-- INFO -->
+          <div class="flex-1">
+
+            <a href="{% url 'product' item.variant.product.id %}"
+               class="font-medium hover:underline">
+              {{ item.variant.product.name }}
+            </a>
+
+            <p class="text-sm text-gray-500 mt-1">
+              Size: {{ item.variant.size }}
+            </p>
+
+            <p class="text-sm text-gray-500">
+              €{{ item.variant.product.final_price|floatformat:2 }}
+            </p>
+
+          </div>
+
+          <!-- QUANTITY CONTROL -->
+          <div class="flex items-center border border-gray-300">
+
+            <form method="post"
+                  action="{% url 'update_cart_item' item.id %}">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="decrease">
+              <button class="px-4 py-2 cursor-pointer">−</button>
+            </form>
+
+            <span class="px-4">
+              {{ item.quantity }}
+            </span>
+
+            <form method="post"
+                  action="{% url 'update_cart_item' item.id %}">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="increase">
+              <button class="px-4 py-2 cursor-pointer">+</button>
+            </form>
+
+          </div>
+
+          <!-- LINE TOTAL -->
+          <div class="w-24 text-right font-medium">
+            €{{ item.total_price|floatformat:2 }}
+          </div>
+
+        </div>
+      {% endfor %}
+
+    </div>
+
+    <div class="mt-12 text-right">
+      <p class="text-xl font-semibold">
+        Total: €{{ cart.total_price|floatformat:2 }}
+      </p>
+    </div>
+
+  {% else %}
+    <p>Your bag is empty.</p>
+  {% endif %}
+
+</div>
+
+{% endblock %}
