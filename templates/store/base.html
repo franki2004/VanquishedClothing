@@ -10,6 +10,10 @@
       src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
       defer
     ></script>
+    <link href="https://unpkg.com/filepond@^4/dist/filepond.css" rel="stylesheet" />
+
+<!-- FilePond scripts -->
+<script src="https://unpkg.com/filepond@^4/dist/filepond.js"></script>
   </head>
 
   <body class="bg-white text-gray-800">
@@ -75,12 +79,16 @@
             </a>
             {% endif %}
 
-            <a href="/cart/" class="relative">
+            <a href="{% url 'cart' %}" class="relative">
               <img src="{% static 'icons/bag.svg' %}" class="h-6 w-6" />
+
+              {% if cart_count > 0 %}
               <span
                 class="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full px-1"
-                >0</span
               >
+                {{ cart_count }}
+              </span>
+              {% endif %}
             </a>
           </div>
         </div>

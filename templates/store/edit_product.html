@@ -1,0 +1,230 @@
+{% extends "store/base.html" %}
+{% load dict_extras %}
+{% block title %}Edit Product{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto py-24 px-4">
+  <h1 class="text-3xl font-bold mb-10">Edit Product</h1>
+
+  <form method="post" enctype="multipart/form-data" class="space-y-12">
+    {% csrf_token %}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 border rounded-lg space-y-4">
+
+      <!-- LEFT: Category, Name, Price, Discount, Sizes -->
+      <div class="space-y-4">
+        <!-- Category -->
+        <label class="block font-semibold">Category</label>
+        <select name="category" class="border px-4 py-3 w-full cursor-pointer">
+          <option value="">—</option>
+          {% for category in categories %}
+          <option
+            value="{{ category.id }}"
+            {% if product.category and product.category.id == category.id %}selected{% endif %}>
+            {{ category.name }}
+          </option>
+          {% endfor %}
+        </select>
+
+        <!-- Name -->
+        <label class="block font-semibold">Product Name</label>
+        <input
+          name="name"
+          class="border p-3 w-full"
+          placeholder="Product Name"
+          value="{{ product.name }}"
+          required
+        />
+
+        <!-- Price -->
+        <label class="block font-semibold">Price</label>
+        <input
+          name="price"
+          type="number"
+          step="0.01"
+          class="border p-3 w-full"
+          placeholder="Price"
+          value="{{ product.price }}"
+          required
+        />
+
+        <!-- Discount -->
+        <label class="block font-semibold">Discount %</label>
+        <input
+          name="discount_percent"
+          type="number"
+          min="0"
+          max="100"
+          class="border p-3 w-full"
+          placeholder="Discount %"
+          value="{{ product.discount_percent }}"
+        />
+
+        <!-- Sizes -->
+        <div class="grid grid-cols-3 grid-rows-2 gap-4 mt-2">
+          {% for size in sizes %}
+          <div class="flex flex-col items-center">
+            <label class="text-sm font-semibold">{{ size }}</label>
+            <input
+              type="number"
+              name="stock_{{ size }}"
+              min="0"
+              placeholder="Stock"
+              class="border p-2 w-18 text-center"
+              value="{{ variant_stocks|get_item:size }}"
+            />
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- MIDDLE: Tags -->
+      <div>
+        <label class="block font-semibold mb-2">Tags</label>
+        <input
+          type="text"
+          placeholder="Search tags..."
+          class="border px-3 py-2 w-full mb-2 rounded"
+          onkeyup="filterTags(this)"
+        />
+        <div id="tags-container" class="flex flex-col gap-2 max-h-[400px] overflow-y-auto p-2 rounded">
+          {% for tag in tags %}
+          <label class="flex items-center gap-2 cursor-pointer border rounded-full px-3 py-1 hover:bg-gray-100 tag-item">
+            <input
+              type="checkbox"
+              name="tags"
+              value="{{ tag.id }}"
+              {% if tag.id in selected_tag_ids %}checked{% endif %}
+            />
+            {{ tag.name }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- RIGHT: Images -->
+      <div>
+        <label class="block font-semibold mb-2">Images</label>
+        <input
+          type="file"
+          name="images"
+          multiple
+          class="border p-2 w-full cursor-pointer"
+          onchange="previewImages(this)"
+        />
+        <div id="preview" class="flex gap-4 flex-wrap mt-4">
+          {% for img in images %}
+          <div class="flex flex-col items-center w-32 relative" data-image-id="{{ img.id }}">
+            <button
+              type="button"
+              onclick="removeExistingImage(this)"
+              class="absolute top-[-4px] right-[-4px] flex items-center bg-black justify-center hover:bg-red-600 text-white rounded w-4 h-4 transition cursor-pointer"
+            >
+              ×
+            </button>
+            <img src="{{ img.image.url }}" class="w-full h-32 object-cover border rounded"/>
+            <input
+              type="number"
+              name="image_order_{{ img.id }}"
+              value="{{ img.order }}"
+              class="mt-1 w-full border p-1 text-center text-sm"
+            />
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+    </div>
+
+    <button type="submit" class="border bg-black text-white px-5 py-2 cursor-pointer">
+      Save Changes
+    </button>
+    <input type="hidden" name="images_to_delete" id="images_to_delete" value=""/>
+  </form>
+</div>
+
+<script>
+let imagesToDelete = [];
+let selectedFiles = []; // Tracks new files only
+
+function filterTags(input) {
+  const filter = input.value.toLowerCase();
+  const container = document.getElementById("tags-container");
+  container.querySelectorAll(".tag-item").forEach(tag => {
+    tag.style.display = tag.innerText.toLowerCase().includes(filter) ? "flex" : "none";
+  });
+}
+
+// Remove existing image
+function removeExistingImage(btn) {
+  const container = btn.closest("[data-image-id]");
+  const imageId = container.dataset.imageId;
+  imagesToDelete.push(imageId);
+  document.getElementById("images_to_delete").value = imagesToDelete.join(",");
+  container.remove();
+}
+
+// Preview new uploaded images
+function previewImages(input) {
+  const previewContainer = document.getElementById("preview");
+  selectedFiles = selectedFiles.concat(Array.from(input.files));
+  input.value = ""; // clear input so user can select more files later
+
+  rebuildPreview();
+}
+
+// Rebuild preview for new images
+function rebuildPreview() {
+  const previewContainer = document.getElementById("preview");
+  
+  // Keep existing images in DOM (they already have data-image-id)
+  const existingImages = Array.from(previewContainer.querySelectorAll("[data-image-id]"));
+
+  // Remove old new previews
+  previewContainer.querySelectorAll(".new-image-preview").forEach(el => el.remove());
+
+  selectedFiles.forEach((file, i) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const div = document.createElement("div");
+      div.className = "flex flex-col items-center w-32 relative new-image-preview";
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.innerText = "×";
+      btn.className = "absolute top-[-4px] right-[-4px] flex items-center justify-center bg-black hover:bg-red-600 text-white rounded w-4 h-4 text-sm cursor-pointer";
+      btn.onclick = () => {
+        selectedFiles.splice(i, 1);
+        rebuildPreview();
+      };
+
+      const img = document.createElement("img");
+      img.src = e.target.result;
+      img.className = "w-full h-32 object-cover border rounded";
+
+      const orderInput = document.createElement("input");
+      orderInput.type = "number";
+      orderInput.name = `new_image_order_${i}`;
+      orderInput.value = i;
+      orderInput.className = "mt-1 w-full border p-1 text-center text-sm";
+
+      div.appendChild(btn);
+      div.appendChild(img);
+      div.appendChild(orderInput);
+
+      previewContainer.appendChild(div);
+    };
+    reader.readAsDataURL(file);
+  });
+
+  rebuildInputFiles();
+}
+
+// Update hidden input.files for submission
+function rebuildInputFiles() {
+  const input = document.querySelector('input[name="images"]');
+  if (!input) return;
+  const dt = new DataTransfer();
+  selectedFiles.forEach(f => dt.items.add(f));
+  input.files = dt.files;
+}
+</script>
+{% endblock %}

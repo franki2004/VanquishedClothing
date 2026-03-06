@@ -8,14 +8,14 @@
 
     <!-- CATEGORY BUTTONS ROW (centered) -->
     <div class="flex flex-wrap justify-center gap-4">
-        <a href="{% url 'new_products' %}"
-           class="px-6 py-3 text-base font-medium border border-gray-300 rounded-lg hover:bg-black hover:text-white transition">
-            New
+        <a href="{% url 'new_products' %}" class="px-6 py-3 text-base font-medium border border-gray-300 rounded-lg transition
+        {% if active_filter == 'new' %}bg-black text-white{% else %}hover:bg-black hover:text-white{% endif %}">
+          New
         </a>
 
-        <a href="{% url 'sale_products' %}"
-           class="px-6 py-3 text-base font-medium border border-gray-300 rounded-lg hover:bg-black hover:text-white transition">
-            Sale
+        <a href="{% url 'sale_products' %}" class="px-6 py-3 text-base font-medium border border-gray-300 rounded-lg transition
+        {% if active_filter == 'sale' %}bg-black text-white{% else %}hover:bg-black hover:text-white{% endif %}">
+          Sale
         </a>
 
         {% for cat in categories %}

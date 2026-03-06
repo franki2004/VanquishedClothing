@@ -81,23 +81,35 @@ class ProductVariant(models.Model):
         ("2XL", "2XL"),
     ]
 
+    SIZE_ORDER = {
+        "XS": 1,
+        "S": 2,
+        "M": 3,
+        "L": 4,
+        "XL": 5,
+        "2XL": 6,
+    }
+
     product = models.ForeignKey(
         Product,
         related_name="variants",
         on_delete=models.CASCADE,
     )
-
     size = models.CharField(
         max_length=5,
         choices=SIZE_CHOICES,
     )
-
     stock = models.PositiveIntegerField(default=0)
+    size_order = models.PositiveIntegerField(editable=False)
 
     class Meta:
         unique_together = ("product", "size")
-        ordering = ["size"]
+        ordering = ["size_order"]
 
+    def save(self, *args, **kwargs):
+        self.size_order = self.SIZE_ORDER[self.size]
+        super().save(*args, **kwargs)
+        
     def __str__(self):
         return f"{self.product.name} - {self.size}"
     

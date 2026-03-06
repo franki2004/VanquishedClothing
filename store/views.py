@@ -1,5 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from .models import Category, Product, ProductImage, ProductVariant, Tag
+import json
+from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from django.db.models import Q
 from django.contrib.admin.views.decorators import staff_member_required
@@ -7,7 +9,10 @@ from django.db import transaction
 from django.utils.text import slugify
 from orders.forms import AddToCartForm
 from orders.views import get_or_create_cart
-from orders.models import Cart, CartItem
+from orders.models import CartItem
+
+SIZES = ["XS", "S", "M", "L", "XL", "2XL"]
+
 def home(request):
     categories = Category.objects.all()
     return render(request, 'store/home.html', {'categories': categories})
@@ -50,6 +55,7 @@ def collection(request, slug=None):
             "category": category,
             "products": products,
             "categories": categories,
+            "active_filter": "category"
         },
     )
 
@@ -118,6 +124,21 @@ def new_products(request):
     products = Product.objects.filter(
         status="active"
     ).order_by("-created_at")
+    
+    sort = request.GET.get("sort")
+
+    if sort == "price_asc":
+        products = products.order_by("price")
+    elif sort == "price_desc":
+        products = products.order_by("-price")
+    elif sort == "az":
+        products = products.order_by("name")
+    elif sort == "za":
+        products = products.order_by("-name")
+    elif sort == "newest":
+        products = products.order_by("-created_at")
+    elif sort == "oldest":
+        products = products.order_by("created_at")
 
     return render(
         request,
@@ -125,6 +146,7 @@ def new_products(request):
         {
             "title": "New",
             "products": products,
+            "active_filter": "new"
         },
     )
 
@@ -134,12 +156,28 @@ def sale_products(request):
         discount_percent__gt=0,
     )
 
+    sort = request.GET.get("sort")
+
+    if sort == "price_asc":
+        products = products.order_by("price")
+    elif sort == "price_desc":
+        products = products.order_by("-price")
+    elif sort == "az":
+        products = products.order_by("name")
+    elif sort == "za":
+        products = products.order_by("-name")
+    elif sort == "newest":
+        products = products.order_by("-created_at")
+    elif sort == "oldest":
+        products = products.order_by("created_at")
+
     return render(
         request,
         "store/collection.html",
         {
             "title": "Sale",
             "products": products,
+            "active_filter": "sale"
         },
     )
 
@@ -176,63 +214,53 @@ def search_suggestions(request):
 def bulk_add_products(request):
     categories = Category.objects.all()
     tags = Tag.objects.all()
-    SIZES = ["XS", "S", "M", "L", "XL", "XXL"]
 
     if request.method == "POST":
         names = request.POST.getlist("name")
         prices = request.POST.getlist("price")
-        category_id = request.POST.get("category")
-        category = Category.objects.get(id=category_id) if category_id else None
-
+        discounts = request.POST.getlist("discount_percent")
         products = []
 
         with transaction.atomic():
-            # Create products
             for idx, name in enumerate(names):
                 price = prices[idx]
-                slug = slugify(name)
+                discount_raw = discounts[idx] if idx < len(discounts) else ""
+                discount = int(discount_raw) if discount_raw.strip() else 0
 
                 category_id = request.POST.get(f"category_{idx}")
                 category = Category.objects.get(id=category_id) if category_id else None
 
                 product = Product.objects.create(
                     name=name,
-                    slug=slug,
+                    slug=name.replace(" ", "-").lower(),
                     price=price,
                     category=category,
+                    discount_percent=discount,
                     status="draft",
                 )
                 product.sku = f"P{product.pk:06d}"
                 product.save(update_fields=["sku"])
                 products.append(product)
 
-                # Assign tags
+                # Tags
                 tag_ids = request.POST.getlist(f"tags_{idx}")
                 if tag_ids:
                     product.tags.set(tag_ids)
 
-                # Create variants per size
+                # Variants
                 for size in SIZES:
-                    field_name = f"stock_{size}_{idx}"
-                    stock_value = request.POST.get(field_name, "0").strip()
+                    stock_value = request.POST.get(f"stock_{size}_{idx}", "0").strip()
                     stock = int(stock_value) if stock_value.isdigit() else 0
-                    ProductVariant.objects.create(
-                        product=product,
-                        size=size,
-                        stock=stock,
-                    )
+                    ProductVariant.objects.create(product=product, size=size, stock=stock)
 
-            # Attach images per product
-            for idx, product in enumerate(products):
-                image_files = request.FILES.getlist(f"images_{idx}")
-                for order, img in enumerate(image_files):
-                    ProductImage.objects.create(
-                        product=product,
-                        image=img,
-                        order=int(request.POST.get(f"image_order_{idx}_{order}", order))
-                    )
+                # Images with order
+                files = request.FILES.getlist(f"images_{idx}")
+                orders = request.POST.getlist(f"image_order_{idx}[]")
+                for i, f in enumerate(files):
+                    order = int(orders[i]) if i < len(orders) else i
+                    ProductImage.objects.create(product=product, image=f, order=order)
 
-        return redirect("bulk_add_products")
+        return redirect("draft_products")
 
     return render(request, "store/add_products.html", {
         "categories": categories,
@@ -241,17 +269,110 @@ def bulk_add_products(request):
     })
 
 @staff_member_required
-def draft_products(request):
-    if request.method == "POST":
-        action = request.POST.get("action")
-        product_ids = request.POST.getlist("selected_products")
-        if product_ids:
-            products = Product.objects.filter(id__in=product_ids)
-            if action == "activate":
-                products.update(status="active")
-            elif action == "archive":
-                products.update(status="archived")
-        return redirect("draft_products")
+@require_POST
+def add_to_draft(request, id):
+    product = get_object_or_404(Product, id=id)
 
-    drafts = Product.objects.filter(status="draft").order_by("-created_at")
-    return render(request, "store/draft_products.html", {"drafts": drafts})
+    if product.status == "active":
+        product.status = "draft"
+        product.save(update_fields=["status"])
+
+    return redirect("draft_products")
+
+@staff_member_required
+def draft_products(request):
+
+    if request.method == "POST":
+        ids = request.POST.getlist("selected_products")
+        action = request.POST.get("action")
+
+        products = Product.objects.filter(id__in=ids)
+
+        if action == "activate":
+            products.update(status="active")
+
+        elif action == "archive":
+            products.update(status="archived")
+
+        elif action == "delete":
+            products.delete()
+
+    context = {
+        "active_products": Product.objects.filter(status="active"),
+        "drafts": Product.objects.filter(status="draft"),
+        "archived_products": Product.objects.filter(status="archived"),
+    }
+
+    return render(request, "store/draft_products.html", context)
+
+@staff_member_required
+def edit_product(request, id):
+    product = get_object_or_404(Product, id=id)
+
+    # Prepare selected tags for template
+    selected_tag_ids = list(product.tags.values_list("id", flat=True))
+
+    if request.method == "POST":
+        # Update basic fields
+        product.name = request.POST.get("name", product.name)
+        product.price = request.POST.get("price", product.price)
+        product.discount_percent = request.POST.get("discount_percent", product.discount_percent)
+        category_id = request.POST.get("category")
+        if category_id:
+            product.category_id = int(category_id)
+        product.save()
+
+        existing_variants = {v.size: v for v in product.variants.all()}
+
+        for size in SIZES:
+            stock_value = request.POST.get(f"stock_{size}")
+            if stock_value is not None:
+                if size in existing_variants:
+                    variant = existing_variants[size]
+                    variant.stock = int(stock_value) if stock_value else 0
+                    variant.save()
+                else:
+                    stock = int(stock_value) if stock_value else 0
+                    if stock > 0:
+                        ProductVariant.objects.create(product=product, size=size, stock=stock)
+
+        # Update tags
+        tag_ids = request.POST.getlist("tags")
+        product.tags.set(tag_ids)
+
+        # Delete images marked for deletion
+        images_to_delete = request.POST.get("images_to_delete", "")
+        if images_to_delete:
+            ids = [int(i) for i in images_to_delete.split(",") if i]
+            ProductImage.objects.filter(id__in=ids, product=product).delete()
+
+        # Update order of existing images
+        for img in product.images.all():
+            order = request.POST.get(f"image_order_{img.id}")
+            if order is not None:
+                img.order = int(order)
+                img.save(update_fields=["order"])
+
+        # Handle new uploaded images
+        image_files = request.FILES.getlist("images")
+        for i, img in enumerate(image_files):
+            order = request.POST.get(f"new_image_order_{i}", i)
+            ProductImage.objects.create(product=product, image=img, order=int(order))
+
+        return redirect("draft_products")
+    
+    variant_stocks = {v.size: v.stock for v in product.variants.all()}
+
+    return render(
+        request,
+        "store/edit_product.html",
+        {
+            "product": product,
+            "categories": Category.objects.all(),
+            "tags": Tag.objects.all(),
+            "sizes": SIZES,
+            "variant_stocks": variant_stocks,
+            "images": product.images.all(),
+            "selected_tag_ids": selected_tag_ids,
+        },
+    )

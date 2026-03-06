@@ -28,6 +28,7 @@
             <th class="p-3">Price</th>
             <th class="p-3">Discount</th>
             <th class="p-3">Created</th>
+            <th class="p-3">Edit</th>
             <th class="p-3">Preview</th>
           </tr>
         </thead>
@@ -58,7 +59,14 @@
             </td>
 
             <td class="p-3">{{ product.created_at|date:"Y-m-d" }}</td>
-
+            <td class="p-3">
+              <a
+                href="{% url 'edit_product' product.id %}"
+                class="text-green-600 hover:underline"
+              >
+                Edit
+              </a>
+            </td>
             <td class="p-3">
               <a
                 href="{% url 'product' product.id %}"
@@ -86,7 +94,7 @@
         type="submit"
         name="action"
         value="activate"
-        class="bg-green-600 text-white px-6 py-2 rounded"
+        class="bg-green-600 text-white px-6 py-2 rounded cursor-pointer"
       >
         Set Active
       </button>
@@ -95,9 +103,17 @@
         type="submit"
         name="action"
         value="archive"
-        class="bg-gray-600 text-white px-6 py-2 rounded"
+        class="bg-gray-600 text-white px-6 py-2 rounded cursor-pointer"
       >
         Archive
+      </button>
+      <button
+        type="submit"
+        name="action"
+        value="delete"
+        class="bg-red-600 text-white px-6 py-2 rounded cursor-pointer"
+      >
+        Delete
       </button>
     </div>
   </form>
