@@ -39,6 +39,7 @@ def account_dashboard(request):
     user = request.user
     form_errors = {}
     active_field = None
+    active_error = None
 
     if request.method == "POST":
         field = request.POST.get("field")
@@ -55,13 +56,14 @@ def account_dashboard(request):
                 form.save()
                 return redirect("account_dashboard")
             else:
-                form_errors = form.errors
                 active_field = field
+                active_error = form.errors.get(field, ["Invalid value"])[0]
 
     orders = user.orders.prefetch_related("items__variant__product")
 
     return render(request, "accounts/dashboard.html", {
         "orders": orders,
         "form_errors": form_errors,
-        "active_field": active_field
+        "active_field": active_field,
+        "active_error": active_error
     })

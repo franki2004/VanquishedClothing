@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth import get_user_model, authenticate
 from django.core.exceptions import ValidationError
 import re
+from django.core.validators import RegexValidator
 User = get_user_model()
 
 
@@ -87,48 +88,44 @@ class LoginForm(forms.Form):
     
 
 class UserFieldUpdateForm(forms.ModelForm):
+    field_name = None
+
+    phone_validator = RegexValidator(
+        regex=r'^\+?[0-9]{7,15}$',
+        message="Enter a valid phone number"
+    )
+
     class Meta:
         model = User
         fields = ["email", "first_name", "last_name", "phone_number"]
 
-    def __init__(self, *args, field_name=None, **kwargs):
+    def __init__(self, *args, **kwargs):
+        self.field_name = kwargs.pop("field_name", None)
         super().__init__(*args, **kwargs)
-        if field_name:
-            for name in list(self.fields.keys()):
-                if name != field_name:
-                    self.fields.pop(name)
+
+        for field in list(self.fields.keys()):
+            if field != self.field_name:
+                self.fields.pop(field)
 
     def clean_email(self):
-        email = self.cleaned_data.get("email")
-        if not email:
-            raise forms.ValidationError("Email is required.")
-
-        email = email.lower()
-
-        qs = User.objects.filter(email=email).exclude(pk=self.instance.pk)
-        if qs.exists():
-            raise forms.ValidationError("This email is already in use.")
-
-        return email
+        value = self.cleaned_data["email"]
+        if not value or "@" not in value:
+            raise ValidationError("Invalid email")
+        return value
 
     def clean_first_name(self):
-        value = self.cleaned_data.get("first_name", "").strip()
+        value = self.cleaned_data["first_name"]
         if len(value) < 2:
-            raise forms.ValidationError("First name must be at least 2 characters.")
-        if not value.isalpha():
-            raise forms.ValidationError("First name must contain only letters.")
-        return value.capitalize()
+            raise ValidationError("Too short")
+        return value
 
     def clean_last_name(self):
-        value = self.cleaned_data.get("last_name", "").strip()
+        value = self.cleaned_data["last_name"]
         if len(value) < 2:
-            raise forms.ValidationError("Last name must be at least 2 characters.")
-        if not value.isalpha():
-            raise forms.ValidationError("Last name must contain only letters.")
-        return value.capitalize()
+            raise ValidationError("Too short")
+        return value
 
     def clean_phone_number(self):
-        value = self.cleaned_data.get("phone_number", "").strip()
-        if value and not re.match(r'^\+?\d{8,15}$', value):
-            raise forms.ValidationError("Phone number must be 8–15 digits, optional leading +.")
+        value = self.cleaned_data["phone_number"]
+        self.phone_validator(value)
         return value

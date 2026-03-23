@@ -1,215 +1,262 @@
-{% extends "store/base.html" %} {% block title %}Vanquished - Profile{% endblock %} 
+{% extends "store/base.html" %}
+{% block title %}Vanquished - Profile{% endblock %}
+
 {% block content %}
 
-<div class="max-w-5xl mx-auto mt-24 px-4">
-  <h1 class="text-3xl font-bold mb-10">My Account</h1>
+<div class="max-w-6xl mx-auto mt-24 px-6">
 
-  <div class="grid md:grid-cols-3 gap-8">
-    <!-- Account Section -->
+  <!-- HEADER -->
+  <div class="flex justify-between items-center mb-10">
+    <h1 class="text-3xl font-bold">My Account</h1>
+  </div>
+
+  <div class="grid md:grid-cols-3 gap-10">
+
+    <!-- ACCOUNT -->
     <div class="md:col-span-1">
-      <div class="bg-white shadow-lg rounded-2xl p-6 border">
-        <h2 class="text-xl font-semibold mb-6">Account Details</h2>
+      <div class="bg-white border rounded-xl p-6 shadow-sm">
 
-        <!-- Email -->
-        <div class="mb-4">
-          <label class="block text-sm font-medium mb-1">Email</label>
+        <h2 class="text-lg font-semibold mb-6">Account Details</h2>
+
+        <!-- EMAIL -->
+        <div class="mb-5">
+          <label class="block text-xs text-gray-500 mb-1">Email</label>
+
           <form method="POST" class="flex gap-2 items-center field-form">
             {% csrf_token %}
-            <input type="hidden" name="field" value="email" />
+            <input type="hidden" name="field" value="email"/>
 
-            <input
-              type="email"
-              name="email"
-              value="{{ user.email }}"
-              disabled
-              class="editable w-full border rounded-lg px-3 py-2 bg-gray-100 focus:outline-none focus:ring focus:ring-black/20"
-            />
+            <input type="email"
+                   name="email"
+                   value="{{ user.email }}"
+                   disabled
+                   class="editable w-full border rounded px-3 py-2 bg-gray-100 focus:outline-none focus:ring-1 focus:ring-black"/>
 
-            <button
-              type="button"
-              class="toggle-btn px-3 border rounded-lg h-10 hover:bg-gray-100"
-            >
+            <button type="button"
+                    class="toggle-btn px-3 border rounded h-10 hover:bg-gray-100 cursor-pointer">
               ✎
             </button>
           </form>
 
-          {% if active_field == "email" and form_errors.email %}
-          <p class="text-red-600 text-sm mt-1">{{ form_errors.email.0 }}</p>
+          {% if active_field == "email" and active_error %}
+            <p class="text-red-600 text-xs mt-1">{{ active_error }}</p>
           {% endif %}
         </div>
 
-        <!-- First Name -->
-        <div class="mb-4">
-          <label class="block text-sm font-medium mb-1">First Name</label>
+        <!-- FIRST NAME -->
+        <div class="mb-5">
+          <label class="block text-xs text-gray-500 mb-1">First Name</label>
+
           <form method="POST" class="flex gap-2 items-center field-form">
             {% csrf_token %}
-            <input type="hidden" name="field" value="first_name" />
+            <input type="hidden" name="field" value="first_name"/>
 
-            <input
-              type="text"
-              name="first_name"
-              value="{{ user.first_name }}"
-              disabled
-              class="editable w-full border rounded-lg px-3 py-2 bg-gray-100 focus:outline-none focus:ring focus:ring-black/20"
-            />
+            <input type="text"
+                   name="first_name"
+                   value="{{ user.first_name }}"
+                   disabled
+                   class="editable w-full border rounded px-3 py-2 bg-gray-100 focus:outline-none focus:ring-1 focus:ring-black"/>
 
-            <button
-              type="button"
-              class="toggle-btn px-3 border rounded-lg h-10 hover:bg-gray-100"
-            >
+            <button type="button"
+                    class="toggle-btn px-3 border rounded h-10 hover:bg-gray-100 cursor-pointer">
               ✎
             </button>
           </form>
 
-          {% if active_field == "first_name" and form_errors.first_name %}
-          <p class="text-red-600 text-sm mt-1">
-            {{ form_errors.first_name.0 }}
-          </p>
+          {% if active_field == "first_name" and active_error %}
+            <p class="text-red-600 text-xs mt-1">{{ active_error }}</p>
           {% endif %}
         </div>
 
-        <!-- Last Name -->
-        <div class="mb-4">
-          <label class="block text-sm font-medium mb-1">Last Name</label>
+        <!-- LAST NAME -->
+        <div class="mb-5">
+          <label class="block text-xs text-gray-500 mb-1">Last Name</label>
+
           <form method="POST" class="flex gap-2 items-center field-form">
             {% csrf_token %}
-            <input type="hidden" name="field" value="last_name" />
+            <input type="hidden" name="field" value="last_name"/>
 
-            <input
-              type="text"
-              name="last_name"
-              value="{{ user.last_name }}"
-              disabled
-              class="editable w-full border rounded-lg px-3 py-2 bg-gray-100 focus:outline-none focus:ring focus:ring-black/20"
-            />
+            <input type="text"
+                   name="last_name"
+                   value="{{ user.last_name }}"
+                   disabled
+                   class="editable w-full border rounded px-3 py-2 bg-gray-100 focus:outline-none focus:ring-1 focus:ring-black"/>
 
-            <button
-              type="button"
-              class="toggle-btn px-3 border rounded-lg h-10 hover:bg-gray-100"
-            >
+            <button type="button"
+                    class="toggle-btn px-3 border rounded h-10 hover:bg-gray-100 cursor-pointer">
               ✎
             </button>
           </form>
 
-          {% if active_field == "last_name" and form_errors.last_name %}
-          <p class="text-red-600 text-sm mt-1">{{ form_errors.last_name.0 }}</p>
+          {% if active_field == "last_name" and active_error %}
+            <p class="text-red-600 text-xs mt-1">{{ active_error }}</p>
           {% endif %}
         </div>
 
-        <!-- Phone -->
-        <div class="mb-6">
-          <label class="block text-sm font-medium mb-1">Phone</label>
+        <!-- PHONE -->
+        <div class="mb-5">
+          <label class="block text-xs text-gray-500 mb-1">Phone</label>
+
           <form method="POST" class="flex gap-2 items-center field-form">
             {% csrf_token %}
-            <input type="hidden" name="field" value="phone_number" />
+            <input type="hidden" name="field" value="phone_number"/>
 
-            <input
-              type="text"
-              name="phone_number"
-              value="{{ user.phone_number }}"
-              disabled
-              class="editable w-full border rounded-lg px-3 py-2 bg-gray-100 focus:outline-none focus:ring focus:ring-black/20"
-            />
+            <input type="text"
+                   name="phone_number"
+                   value="{{ user.phone_number }}"
+                   disabled
+                   class="editable w-full border rounded px-3 py-2 bg-gray-100 focus:outline-none focus:ring-1 focus:ring-black"/>
 
-            <button
-              type="button"
-              class="toggle-btn px-3 border rounded-lg h-10 hover:bg-gray-100"
-            >
+            <button type="button"
+                    class="toggle-btn px-3 border rounded h-10 hover:bg-gray-100 cursor-pointer">
               ✎
             </button>
           </form>
 
-          {% if active_field == "phone_number" and form_errors.phone_number %}
-          <p class="text-red-600 text-sm mt-1">
-            {{ form_errors.phone_number.0 }}
-          </p>
+          {% if active_field == "phone_number" and active_error %}
+            <p class="text-red-600 text-xs mt-1">{{ active_error }}</p>
           {% endif %}
+        </div>
+        <div class="mt-6">
+          <button id="logoutBtn"
+                  class="w-full bg-red-500 text-white py-2 rounded hover:bg-red-500 cursor-pointer">
+            Logout
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- Orders Section -->
+    <!-- ORDERS -->
     <div class="md:col-span-2">
       <h2 class="text-xl font-semibold mb-6">My Orders</h2>
 
       {% if orders %}
       <div class="space-y-6">
+
         {% for order in orders %}
-        <div class="bg-white shadow-lg rounded-2xl border">
-          <!-- Order Header -->
+        <div class="bg-white border rounded-xl shadow-sm">
+
+          <!-- HEADER -->
           <div class="flex justify-between items-center px-6 py-4 border-b">
             <div>
-              <p class="font-semibold text-lg">Order #{{ order.id }}</p>
-              <p class="text-sm text-gray-500">
+              <p class="font-semibold">Order #{{ order.id }}</p>
+              <p class="text-xs text-gray-500">
                 {{ order.created_at|date:"d M Y - H:i" }}
               </p>
             </div>
 
-            <span
-              class="px-3 py-1 text-sm rounded-full {% if order.status == 'pending' %} bg-yellow-100 text-yellow-800 {% elif order.status == 'accepted' %} bg-blue-100 text-blue-800 {% elif order.status == 'completed' %} bg-green-100 text-green-800 {% elif order.status == 'denied' %} bg-red-100 text-red-800 {% endif %}"
-            >
+            <span class="px-3 py-1 text-xs rounded
+              {% if order.status == 'pending' %} bg-yellow-100 text-yellow-800
+              {% elif order.status == 'accepted' %} bg-blue-100 text-blue-800
+              {% elif order.status == 'completed' %} bg-green-100 text-green-800
+              {% elif order.status == 'denied' %} bg-red-100 text-red-800
+              {% endif %}">
               {{ order.get_status_display }}
             </span>
           </div>
 
-          <!-- Items -->
-          <div class="px-6 py-4 space-y-3">
+          <!-- ITEMS -->
+          <div class="px-6 py-4 space-y-2">
+
             {% for item in order.items.all %}
-            <div class="flex justify-between text-sm border-b pb-2">
+            <div class="flex justify-between text-sm border-b pb-2 last:border-0">
               <div>
-                <p class="font-medium">{{ item.variant.product.name }}</p>
-                <p class="text-gray-500">
-                  Size: {{ item.variant.size }} × {{ item.quantity }}
+                <p class="font-medium">
+                  {{ item.variant.product.name }}
+                </p>
+                <p class="text-gray-500 text-xs">
+                  Size {{ item.variant.size }} × {{ item.quantity }}
                 </p>
               </div>
-              <div class="text-right">{{ item.total_price }} €</div>
+
+              <div class="text-right font-medium">
+                €{{ item.total_price|floatformat:2 }}
+              </div>
             </div>
             {% endfor %}
 
-            <div class="flex justify-between font-semibold pt-2">
+            <div class="flex justify-between font-semibold pt-3">
               <span>Total</span>
-              <span>{{ order.total_price }} €</span>
+              <span>€{{ order.total_price|floatformat:2 }}</span>
             </div>
+
           </div>
         </div>
         {% endfor %}
+
       </div>
+
       {% else %}
-      <div class="bg-gray-50 border rounded-2xl p-6 text-center text-gray-500">
+      <div class="bg-gray-50 border rounded-xl p-8 text-center text-gray-500">
         No orders yet.
       </div>
       {% endif %}
     </div>
+
   </div>
+  <div id="logoutModal"
+     class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+
+  <div class="bg-white rounded-lg p-6 w-full max-w-sm">
+
+    <h3 class="text-lg font-semibold mb-4">Confirm Logout</h3>
+    <p class="text-sm text-gray-600 mb-6">
+      Are you sure you want to logout?
+    </p>
+
+    <div class="flex justify-end gap-3">
+      <button id="cancelLogout"
+              class="px-4 py-2 border rounded cursor-pointer">
+        Cancel
+      </button>
+
+      <a href="{% url 'logout' %}"
+         class="px-4 py-2 bg-red-600 text-white rounded cursor-pointer">
+        Logout
+      </a>
+    </div>
+
+  </div>
+</div>
 </div>
 
 <script>
-  document.addEventListener("DOMContentLoaded", function () {
-    document.querySelectorAll(".field-form").forEach((form) => {
-      const input = form.querySelector(".editable");
-      const button = form.querySelector(".toggle-btn");
-      let editing = false;
+document.addEventListener("DOMContentLoaded", function () {
 
-      button.addEventListener("click", function () {
-        if (!editing) {
-          editing = true;
+  // EDIT TOGGLE
+  document.querySelectorAll(".field-form").forEach((form) => {
+    const input = form.querySelector(".editable");
+    const button = form.querySelector(".toggle-btn");
+    let editing = false;
 
-          input.disabled = false;
-          input.classList.remove("bg-gray-100");
-
-          button.textContent = "✔";
-
-          input.focus();
-
-          // move cursor to end
-          const length = input.value.length;
-          input.setSelectionRange(length, length);
-        } else {
-          form.submit();
-        }
-      });
+    button.addEventListener("click", function () {
+      if (!editing) {
+        editing = true;
+        input.disabled = false;
+        input.classList.remove("bg-gray-100");
+        button.textContent = "✔";
+        input.focus();
+      } else {
+        form.submit();
+      }
     });
   });
+
+  // LOGOUT MODAL
+  const modal = document.getElementById("logoutModal");
+  const openBtn = document.getElementById("logoutBtn");
+  const cancelBtn = document.getElementById("cancelLogout");
+
+  openBtn.addEventListener("click", () => {
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+  });
+
+  cancelBtn.addEventListener("click", () => {
+    modal.classList.add("hidden");
+  });
+
+});
 </script>
 
 {% endblock %}
