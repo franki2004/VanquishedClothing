@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from store.models import Product, ProductVariant
+from accounts.models import Address
 
 class Order(models.Model):
     STATUS_CHOICES = [
@@ -12,9 +13,25 @@ class Order(models.Model):
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT, # NEEDS CHANGE
+        related_name="orders",
+    )
+
+    address = models.ForeignKey(
+        Address,
         on_delete=models.PROTECT,
         related_name="orders",
     )
+
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2)
+    delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    cod_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total = models.DecimalField(max_digits=10, decimal_places=2)
+
+    payment_method = models.CharField(max_length=10, choices=[
+        ("card", "Card"),
+        ("cod", "Cash on Delivery"),
+    ])
 
     status = models.CharField(
         max_length=20,
@@ -27,13 +44,6 @@ class Order(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
-
-    def __str__(self):
-        return f"Order #{self.id}"
-
-    @property
-    def total_price(self):
-        return sum(item.total_price for item in self.items.all())
 
 
 class OrderItem(models.Model):

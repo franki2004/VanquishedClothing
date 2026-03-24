@@ -1,7 +1,10 @@
-from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from .models import ProductVariant, CartItem, Cart, Order
-from django.shortcuts import render, redirect
+from .models import CartItem, Cart, Order, OrderItem
+from accounts.models import Address
+from django.shortcuts import get_object_or_404, render, redirect
+from django.contrib.auth.decorators import login_required
+from decimal import Decimal
+import stripe
 
 def get_or_create_cart(request):
     if request.user.is_authenticated:
@@ -21,9 +24,9 @@ def cart_view(request):
 
     items = cart.items.select_related("variant__product")
 
-    subtotal = sum(item.total_price for item in items)
+    subtotal = sum((item.total_price for item in items), Decimal("0.00"))
 
-    delivery_fee = 5 if subtotal < 100 and subtotal > 0 else 0
+    delivery_fee = Decimal("5.00") if subtotal < 100 and subtotal > 0 else Decimal("0.00")
     total = subtotal + delivery_fee
 
     context = {
@@ -63,11 +66,125 @@ def update_cart_item(request, item_id):
 
     return redirect("cart")
 
+@login_required
 def checkout(request):
-    if not request.user.is_authenticated:
-        return redirect("login")
+    cart = get_or_create_cart(request)
+    COD_PERCENT = Decimal("0.03")
 
-    return render(request, "store/checkout.html")
+    if request.method == "POST":
+
+        action = request.POST.get("address_action")
+
+        # ADDRESS SAVE (ADD + EDIT)
+        if action == "save":
+            address_id = request.POST.get("address_id")
+
+            instance = None
+            if address_id:
+                instance = request.user.addresses.filter(id=address_id).first()
+
+            form = AddressForm(request.POST, instance=instance)
+
+            if form.is_valid():
+                address = form.save(commit=False)
+                address.user = request.user
+                address.save()
+                return redirect("checkout")
+
+        # ADDRESS DELETE
+        elif action == "delete":
+            address_id = request.POST.get("address_id")
+            addr = request.user.addresses.filter(id=address_id).first()
+            if addr:
+                addr.delete()
+            return redirect("checkout")
+
+        # COMPLETE ORDER
+        elif "address_id" in request.POST:
+
+            addr = request.user.addresses.get(id=request.POST.get("address_id"))
+            payment_method = request.POST.get("payment_method")
+
+            if payment_method not in ["card", "cod"]:
+                return redirect("checkout")
+
+            items = cart.items.select_related("variant__product")
+
+            subtotal = sum((item.total_price for item in items), Decimal("0.00"))
+            delivery_fee = Decimal("5.00") if subtotal < 100 and subtotal > 0 else Decimal("0.00")
+
+            cod_fee = Decimal("0.00")
+            if payment_method == "cod":
+                cod_fee = (subtotal * COD_PERCENT).quantize(Decimal("0.01"))
+
+            total = (subtotal + delivery_fee + cod_fee).quantize(Decimal("0.01"))
+
+            order = Order.objects.create(
+                user=request.user,
+                address=addr,
+                subtotal=subtotal,
+                delivery_fee=delivery_fee,
+                cod_fee=cod_fee,
+                total=total,
+                payment_method=payment_method,
+                status="pending"
+            )
+
+            for item in items:
+                OrderItem.objects.create(
+                    order=order,
+                    variant=item.variant,
+                    quantity=item.quantity,
+                    price_snapshot=item.variant.product.final_price,
+                )
+
+            cart.items.all().delete()
+
+            if payment_method == "card":
+                line_items = []
+
+                for item in order.items.all():
+                    line_items.append({
+                        "price_data": {
+                            "currency": "eur",
+                            "product_data": {
+                                "name": item.variant.product.name,
+                            },
+                            "unit_amount": int(item.price_snapshot * 100),
+                        },
+                        "quantity": item.quantity,
+                    })
+
+                session = stripe.checkout.Session.create(
+                    payment_method_types=["card"],
+                    line_items=line_items,
+                    mode="payment",
+                    success_url=request.build_absolute_uri(f"/order-success/{order.id}/"),
+                    cancel_url=request.build_absolute_uri("/checkout/"),
+                )
+
+                return redirect(session.url)
+
+            return redirect("order_success", order_id=order.id)
+
+    # GET
+    items = cart.items.select_related("variant__product")
+
+    subtotal = sum((item.total_price for item in items), Decimal("0.00"))
+    delivery_fee = Decimal("5.00") if subtotal < 100 and subtotal > 0 else Decimal("0.00")
+    total = subtotal + delivery_fee
+
+    addresses = request.user.addresses.all()
+    selected_address = request.user.addresses.filter(is_default=True).first() or addresses.first()
+
+    return render(request, "store/checkout.html", {
+        "items": items,
+        "subtotal": subtotal,
+        "delivery_fee": delivery_fee,
+        "total": total,
+        "addresses": addresses,
+        "selected_address": selected_address,
+    })
 
 def checkout_guest(request):
     if request.method == "POST":
@@ -90,3 +207,32 @@ def checkout_guest(request):
         return redirect("success")
 
     return render(request, "store/checkout_guest.html")
+
+def stripe_checkout(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+
+    line_items = [{
+        "price_data": {
+            "currency": "eur",
+            "product_data": {"name": item.product.name},
+            "unit_amount": int(item.price * 100),  # in cents
+        },
+        "quantity": item.quantity,
+    } for item in order.items.all()]
+
+    session = stripe.checkout.Session.create(
+        payment_method_types=["card"],
+        line_items=line_items,
+        mode="payment",
+        success_url=request.build_absolute_uri(f"/order-success/{order.id}/"),
+        cancel_url=request.build_absolute_uri("/checkout/"),
+    )
+
+    return redirect(session.url)
+
+def order_success(request, order_id):
+    order = get_object_or_404(Order, id=order_id, user=request.user)
+
+    return render(request, "store/order_success.html", {
+        "order": order
+    })

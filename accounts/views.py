@@ -2,8 +2,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseBadRequest
-from .forms import UserFieldUpdateForm
-
+from .forms import UserFieldUpdateForm, AddressForm
 from orders.models import Order
 from .forms import LoginForm, RegisterForm
 
@@ -40,30 +39,60 @@ def account_dashboard(request):
     form_errors = {}
     active_field = None
     active_error = None
+    address_form = None
+    address_action = None
+    active_address = None
 
     if request.method == "POST":
+
+        # USER FIELD UPDATE
         field = request.POST.get("field")
         allowed_fields = ["email", "first_name", "last_name", "phone_number"]
-
+    
         if field in allowed_fields:
-            form = UserFieldUpdateForm(
-                request.POST,
-                instance=user,
-                field_name=field
-            )
-
+            form = UserFieldUpdateForm(request.POST, instance=user, field_name=field)
             if form.is_valid():
                 form.save()
                 return redirect("account_dashboard")
             else:
                 active_field = field
                 active_error = form.errors.get(field, ["Invalid value"])[0]
+    
+        # ADDRESS LOGIC
+        action = request.POST.get("address_action")
+    
+        if action == "save":
+            address_id = request.POST.get("address_id")
+    
+            instance = None
+            if address_id:
+                instance = user.addresses.filter(id=address_id).first()
+    
+            form = AddressForm(request.POST, instance=instance)
+    
+            if form.is_valid():
+                address = form.save(commit=False)
+                address.user = user
+                address.save()
+                return redirect("account_dashboard")
+    
+        elif action == "delete":
+            address_id = request.POST.get("address_id")
+            address = user.addresses.filter(id=address_id).first()
+            if address:
+                address.delete()
+                return redirect("account_dashboard")
 
-    orders = user.orders.prefetch_related("items__variant__product")
+    orders = user.orders.prefetch_related("items__variant__product").select_related("address")
+    addresses = user.addresses.all()
 
     return render(request, "accounts/dashboard.html", {
         "orders": orders,
         "form_errors": form_errors,
         "active_field": active_field,
-        "active_error": active_error
+        "active_error": active_error,
+        "addresses": addresses,
+        "address_form": address_form,
+        "address_action": address_action,
+        "active_address": active_address
     })

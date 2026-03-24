@@ -41,7 +41,7 @@
                 <form method="post" action="{% url 'update_cart_item' item.id %}">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="decrease">
-                  <button class="px-3 py-2">−</button>
+                  <button class="px-3 py-2 cursor-pointer">−</button>
                 </form>
 
                 <span class="px-4">{{ item.quantity }}</span>
@@ -49,7 +49,7 @@
                 <form method="post" action="{% url 'update_cart_item' item.id %}">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="increase">
-                  <button class="px-3 py-2">+</button>
+                  <button class="px-3 py-2 cursor-pointer">+</button>
                 </form>
               </div>
 

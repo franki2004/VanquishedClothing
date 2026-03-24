@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.db import models
 from django.utils import timezone
 from django.core.validators import RegexValidator, MinLengthValidator
+from django.conf import settings
 
 name_validator = RegexValidator(
     regex=r'^[A-Z][a-z]+$',
@@ -67,9 +68,37 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return self.email
 
     def save(self, *args, **kwargs):
-        # Automatically capitalize first and last names if set
         if self.first_name:
             self.first_name = self.first_name.capitalize()
         if self.last_name:
             self.last_name = self.last_name.capitalize()
+        super().save(*args, **kwargs)
+
+class Address(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="addresses"
+    )
+
+    address_line = models.CharField(max_length=255)
+    city = models.CharField(max_length=100)
+    postal_code = models.CharField(max_length=20)
+
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        # max 5 addresses
+        if not self.pk and self.user.addresses.count() >= 5:
+            raise ValueError("Max 5 addresses allowed")
+
+        # auto default if first
+        if self.user.addresses.count() == 0:
+            self.is_default = True
+
+        # enforce single default
+        if self.is_default:
+            self.user.addresses.update(is_default=False)
+
         super().save(*args, **kwargs)

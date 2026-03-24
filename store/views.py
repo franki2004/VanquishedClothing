@@ -1,12 +1,10 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from .models import Category, Product, ProductImage, ProductVariant, Tag
-import json
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from django.db.models import Q
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db import transaction 
-from django.utils.text import slugify
 from orders.forms import AddToCartForm
 from orders.views import get_or_create_cart
 from orders.models import CartItem

@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth import get_user_model, authenticate
 from django.core.exceptions import ValidationError
 import re
+from .models import Address
 from django.core.validators import RegexValidator
 User = get_user_model()
 
@@ -129,3 +130,17 @@ class UserFieldUpdateForm(forms.ModelForm):
         value = self.cleaned_data["phone_number"]
         self.phone_validator(value)
         return value
+    
+
+
+
+class AddressForm(forms.ModelForm):
+    class Meta:
+        model = Address
+        fields = ["address_line", "city", "postal_code", "is_default"]
+        widgets = {
+            "address_line": forms.TextInput(attrs={"class": "border rounded w-full px-3 py-2"}),
+            "city": forms.TextInput(attrs={"class": "border rounded w-full px-3 py-2"}),
+            "postal_code": forms.TextInput(attrs={"class": "border rounded w-full px-3 py-2"}),
+            "is_default": forms.CheckboxInput(attrs={"class": "mr-2"}),
+        }
