@@ -374,3 +374,4 @@ def edit_product(request, id):
             "selected_tag_ids": selected_tag_ids,
         },
     )
+

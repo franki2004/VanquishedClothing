@@ -134,13 +134,49 @@ class UserFieldUpdateForm(forms.ModelForm):
 
 
 
+from django import forms
+from .models import Address
+
+
 class AddressForm(forms.ModelForm):
     class Meta:
         model = Address
-        fields = ["address_line", "city", "postal_code", "is_default"]
+        fields = [
+            "address_line",
+            "city",
+            "postal_code",
+            "is_default",
+        ]
+
         widgets = {
-            "address_line": forms.TextInput(attrs={"class": "border rounded w-full px-3 py-2"}),
-            "city": forms.TextInput(attrs={"class": "border rounded w-full px-3 py-2"}),
-            "postal_code": forms.TextInput(attrs={"class": "border rounded w-full px-3 py-2"}),
-            "is_default": forms.CheckboxInput(attrs={"class": "mr-2"}),
+            "address_line": forms.TextInput(attrs={
+                "id": "modalAddress",
+                "class": "border rounded w-full px-3 py-2",
+                "placeholder": "Street, number, entrance, floor..."
+            }),
+            "city": forms.TextInput(attrs={
+                "id": "modalCity",
+                "class": "border rounded w-full px-3 py-2",
+                "placeholder": "City"
+            }),
+            "postal_code": forms.TextInput(attrs={
+                 "id": "modalPostal",
+                "class": "border rounded w-full px-3 py-2",
+                "placeholder": "Postal Code"
+            }),
+            "is_default": forms.CheckboxInput(attrs={
+                "class": "mr-2"
+            }),
         }
+
+    def clean_address_line(self):
+        value = self.cleaned_data.get("address_line", "").strip()
+        if len(value) < 5:
+            raise forms.ValidationError("Address is too short.")
+        return value
+
+    def clean_city(self):
+        value = self.cleaned_data.get("city", "").strip()
+        if len(value) < 2:
+            raise forms.ValidationError("City is too short.")
+        return value

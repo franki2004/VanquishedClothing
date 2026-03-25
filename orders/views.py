@@ -1,6 +1,9 @@
 from django.views.decorators.http import require_POST
 from .models import CartItem, Cart, Order, OrderItem
-from accounts.models import Address
+from store.models import ProductVariant
+from django.db import transaction
+from django.contrib.admin.views.decorators import staff_member_required
+from accounts.forms import AddressForm
 from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib.auth.decorators import login_required
 from decimal import Decimal
@@ -75,13 +78,10 @@ def checkout(request):
 
         action = request.POST.get("address_action")
 
-        # ADDRESS SAVE (ADD + EDIT)
+        # SAVE ADDRESS
         if action == "save":
             address_id = request.POST.get("address_id")
-
-            instance = None
-            if address_id:
-                instance = request.user.addresses.filter(id=address_id).first()
+            instance = request.user.addresses.filter(id=address_id).first() if address_id else None
 
             form = AddressForm(request.POST, instance=instance)
 
@@ -89,24 +89,33 @@ def checkout(request):
                 address = form.save(commit=False)
                 address.user = request.user
                 address.save()
-                return redirect("checkout")
+            return redirect("checkout")
 
-        # ADDRESS DELETE
-        elif action == "delete":
+        # DELETE ADDRESS
+        if action == "delete":
             address_id = request.POST.get("address_id")
             addr = request.user.addresses.filter(id=address_id).first()
             if addr:
                 addr.delete()
             return redirect("checkout")
 
-        # COMPLETE ORDER
-        elif "address_id" in request.POST:
+        # CREATE ORDER
+        if action == "order":
 
-            addr = request.user.addresses.get(id=request.POST.get("address_id"))
+            addr = request.user.addresses.filter(id=request.POST.get("address_id")).first()
+            if not addr:
+                return redirect("checkout")
+
             payment_method = request.POST.get("payment_method")
 
-            if payment_method not in ["card", "cod"]:
+            first_name = request.POST.get("first_name", "").strip()
+            last_name = request.POST.get("last_name", "").strip()
+            phone = request.POST.get("phone", "").strip()
+
+            if not first_name or not last_name or not phone:
                 return redirect("checkout")
+
+            full_name = f"{first_name} {last_name}"
 
             items = cart.items.select_related("variant__product")
 
@@ -121,7 +130,11 @@ def checkout(request):
 
             order = Order.objects.create(
                 user=request.user,
-                address=addr,
+                full_name=full_name,
+                phone=phone,
+                city=addr.city,
+                postal_code=addr.postal_code,
+                street=addr.address_line,
                 subtotal=subtotal,
                 delivery_fee=delivery_fee,
                 cod_fee=cod_fee,
@@ -141,8 +154,53 @@ def checkout(request):
             cart.items.all().delete()
 
             if payment_method == "card":
-                line_items = []
 
+                with transaction.atomic():
+
+                    # CHECK + RESERVE STOCK
+                    for item in items:
+                        variant = item.variant
+
+                        if variant.quantity < item.quantity:
+                            return redirect("checkout")  # or show error
+
+                    # CREATE ORDER FIRST
+                    order = Order.objects.create(
+                        user=request.user,
+                        full_name=full_name,
+                        phone=phone,
+                        city=addr.city,
+                        postal_code=addr.postal_code,
+                        street=addr.address_line,
+                        additional_info="",
+
+                        subtotal=subtotal,
+                        delivery_fee=delivery_fee,
+                        cod_fee=cod_fee,
+                        total=total,
+                        payment_method=payment_method,
+
+                        status="accepted"  # CRITICAL
+                    )
+
+                    for item in items:
+                        OrderItem.objects.create(
+                            order=order,
+                            variant=item.variant,
+                            quantity=item.quantity,
+                            price_snapshot=item.variant.product.final_price,
+                        )
+
+                    # DECREASE STOCK IMMEDIATELY
+                    for item in items:
+                        variant = item.variant
+                        variant.quantity -= item.quantity
+                        variant.save()
+
+                    cart.items.all().delete()
+
+                # STRIPE SESSION AFTER STOCK LOCK
+                line_items = []
                 for item in order.items.all():
                     line_items.append({
                         "price_data": {
@@ -151,7 +209,7 @@ def checkout(request):
                                 "name": item.variant.product.name,
                             },
                             "unit_amount": int(item.price_snapshot * 100),
-                        },
+                     },
                         "quantity": item.quantity,
                     })
 
@@ -165,9 +223,6 @@ def checkout(request):
 
                 return redirect(session.url)
 
-            return redirect("order_success", order_id=order.id)
-
-    # GET
     items = cart.items.select_related("variant__product")
 
     subtotal = sum((item.total_price for item in items), Decimal("0.00"))
@@ -235,4 +290,49 @@ def order_success(request, order_id):
 
     return render(request, "store/order_success.html", {
         "order": order
+    })
+
+@staff_member_required
+def admin_orders(request):
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        order_id = request.POST.get("order_id")
+
+        order = get_object_or_404(Order, id=order_id)
+
+        # prevent double processing
+        if order.status != "pending":
+            return redirect("admin_orders")
+
+        if action == "accept":
+
+            with transaction.atomic():
+                for item in order.items.select_related("variant"):
+
+                    variant = ProductVariant.objects.select_for_update().get(id=item.variant.id)
+
+                    if variant.stock < item.quantity:
+                        return redirect("admin_orders")
+
+                    variant.stock -= item.quantity
+                    variant.save()
+
+                order.status = "accepted"
+                order.save()
+
+        elif action == "deny":
+            comment = request.POST.get("comment", "").strip()
+
+            order.status = "denied"
+            order.comment = comment
+            order.save()
+
+        return redirect("admin_orders")
+
+    orders = Order.objects.prefetch_related("items__variant__product")\
+                          .order_by("created_at")  # oldest first
+
+    return render(request, "store/admin_orders.html", {
+        "orders": orders
     })

@@ -1,7 +1,7 @@
 from django.db import models
 from django.conf import settings
-from store.models import Product, ProductVariant
-from accounts.models import Address
+from store.models import ProductVariant
+
 
 class Order(models.Model):
     STATUS_CHOICES = [
@@ -13,15 +13,19 @@ class Order(models.Model):
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT, # NEEDS CHANGE
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="orders",
     )
 
-    address = models.ForeignKey(
-        Address,
-        on_delete=models.PROTECT,
-        related_name="orders",
-    )
+    # SNAPSHOT (IMMUTABLE)
+    full_name = models.CharField(max_length=255)
+    phone = models.CharField(max_length=20)
+    city = models.CharField(max_length=100)
+    postal_code = models.CharField(max_length=20, blank=True)
+    street = models.CharField(max_length=255)
+    additional_info = models.TextField(blank=True)
 
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
     delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -68,12 +72,10 @@ class OrderItem(models.Model):
     class Meta:
         unique_together = ("order", "variant")
 
-    def __str__(self):
-        return f"{self.quantity} × {self.variant.product.name} ({self.variant.size})"
-
     @property
     def total_price(self):
         return self.quantity * self.price_snapshot
+
 
 class Cart(models.Model):
     user = models.ForeignKey(
@@ -84,9 +86,6 @@ class Cart(models.Model):
     )
     session_key = models.CharField(max_length=40, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Cart {self.id}"
 
     @property
     def total_price(self):
@@ -111,4 +110,3 @@ class CartItem(models.Model):
     @property
     def total_price(self):
         return self.variant.product.final_price * self.quantity
-

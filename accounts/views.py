@@ -42,7 +42,8 @@ def account_dashboard(request):
     address_form = None
     address_action = None
     active_address = None
-
+    address_form = AddressForm()
+    
     if request.method == "POST":
 
         # USER FIELD UPDATE
@@ -83,7 +84,7 @@ def account_dashboard(request):
                 address.delete()
                 return redirect("account_dashboard")
 
-    orders = user.orders.prefetch_related("items__variant__product").select_related("address")
+    orders = user.orders.prefetch_related("items__variant__product")
     addresses = user.addresses.all()
 
     return render(request, "accounts/dashboard.html", {
