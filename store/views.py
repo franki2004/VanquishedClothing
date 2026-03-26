@@ -8,6 +8,7 @@ from django.db import transaction
 from orders.forms import AddToCartForm
 from orders.views import get_or_create_cart
 from orders.models import CartItem
+from django.core.paginator import Paginator
 
 SIZES = ["XS", "S", "M", "L", "XL", "2XL"]
 
@@ -19,16 +20,32 @@ def home(request):
 def returns(request):
     return render(request, 'store/returns.html')
 
-def collection(request, slug=None):
+def collection(request, slug=None, filter_type=None):
     category = None
+
     products = Product.objects.filter(status="active")
 
-    # Category filtering
-    if slug:
+    if filter_type == "new":
+        products = products.order_by("-created_at")
+        active_filter = "new"
+        title = "New"
+
+    elif filter_type == "sale":
+        products = products.filter(discount_percent__gt=0)
+        active_filter = "sale"
+        title = "Sale"
+
+    elif slug:
         category = get_object_or_404(Category, slug=slug)
         products = products.filter(category=category)
+        active_filter = "category"
+        title = category.name
 
-    # Sorting
+    else:
+        active_filter = "category"
+        title = "All"
+
+    # SORTING (overrides default ordering if provided)
     sort = request.GET.get("sort")
 
     if sort == "price_asc":
@@ -44,6 +61,11 @@ def collection(request, slug=None):
     elif sort == "oldest":
         products = products.order_by("created_at")
 
+    # PAGINATION
+    paginator = Paginator(products, 42)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
     categories = Category.objects.all()
 
     return render(
@@ -51,9 +73,11 @@ def collection(request, slug=None):
         "store/collection.html",
         {
             "category": category,
-            "products": products,
+            "title": title,
+            "products": page_obj,
+            "page_obj": page_obj,
             "categories": categories,
-            "active_filter": "category"
+            "active_filter": active_filter,
         },
     )
 
@@ -115,67 +139,6 @@ def product_detail(request, id):
         {
             "product": product,
             "form": form,
-        },
-    )
-
-def new_products(request):
-    products = Product.objects.filter(
-        status="active"
-    ).order_by("-created_at")
-    
-    sort = request.GET.get("sort")
-
-    if sort == "price_asc":
-        products = products.order_by("price")
-    elif sort == "price_desc":
-        products = products.order_by("-price")
-    elif sort == "az":
-        products = products.order_by("name")
-    elif sort == "za":
-        products = products.order_by("-name")
-    elif sort == "newest":
-        products = products.order_by("-created_at")
-    elif sort == "oldest":
-        products = products.order_by("created_at")
-
-    return render(
-        request,
-        "store/collection.html",
-        {
-            "title": "New",
-            "products": products,
-            "active_filter": "new"
-        },
-    )
-
-def sale_products(request):
-    products = Product.objects.filter(
-        status="active",
-        discount_percent__gt=0,
-    )
-
-    sort = request.GET.get("sort")
-
-    if sort == "price_asc":
-        products = products.order_by("price")
-    elif sort == "price_desc":
-        products = products.order_by("-price")
-    elif sort == "az":
-        products = products.order_by("name")
-    elif sort == "za":
-        products = products.order_by("-name")
-    elif sort == "newest":
-        products = products.order_by("-created_at")
-    elif sort == "oldest":
-        products = products.order_by("created_at")
-
-    return render(
-        request,
-        "store/collection.html",
-        {
-            "title": "Sale",
-            "products": products,
-            "active_filter": "sale"
         },
     )
 

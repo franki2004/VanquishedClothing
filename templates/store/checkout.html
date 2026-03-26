@@ -7,7 +7,6 @@
 
 <form method="POST" id="checkoutForm">
   {% csrf_token %}
-
   <input type="hidden" name="address_action" id="addressActionInput" value="order">
   <input type="hidden" name="address_id" id="selectedAddressInput" value="{{ selected_address.id }}">
   <input type="hidden" name="payment_method" id="paymentMethodInput" value="card">
@@ -16,7 +15,6 @@
 
     <!-- LEFT -->
     <div class="lg:col-span-2 space-y-10">
-
       <h1 class="text-3xl font-semibold">Checkout</h1>
 
       <!-- CUSTOMER -->
@@ -24,18 +22,32 @@
         <h2 class="text-lg font-semibold mb-4">Customer</h2>
 
         <div class="grid md:grid-cols-2 gap-4">
-          <input name="first_name" value="{{ user.first_name }}" class="border rounded-lg px-4 py-2 w-full" placeholder="First Name">
-          <input name="last_name" value="{{ user.last_name }}" class="border rounded-lg px-4 py-2 w-full" placeholder="Last Name">
+          <div>
+            {{ customer_form.first_name }}
+            {% if customer_form.first_name.errors %}
+              <p class="text-red-600 text-sm mt-1">{{ customer_form.first_name.errors.0 }}</p>
+            {% endif %}
+          </div>
+          <div>
+            {{ customer_form.last_name }}
+            {% if customer_form.last_name.errors %}
+              <p class="text-red-600 text-sm mt-1">{{ customer_form.last_name.errors.0 }}</p>
+            {% endif %}
+          </div>
         </div>
 
-        <input name="phone" value="{{ user.phone_number }}" class="border rounded-lg px-4 py-2 mt-4 w-full" placeholder="Phone Number">
+        <div class="mt-4">
+          {{ customer_form.phone }}
+          {% if customer_form.phone.errors %}
+            <p class="text-red-600 text-sm mt-1">{{ customer_form.phone.errors.0 }}</p>
+          {% endif %}
+        </div>
       </div>
 
       <!-- DELIVERY ADDRESS -->
       <div>
         <h2 class="text-lg font-semibold mb-4">Delivery Address</h2>
 
-        <!-- ADD -->
         {% if addresses|length < 5 %}
         <button type="button" id="openAddressModal"
           class="cursor-pointer border-2 border-dashed rounded-xl p-6 flex items-center justify-center gap-3 w-full hover:bg-gray-50">
@@ -44,38 +56,20 @@
         </button>
         {% endif %}
 
-        <!-- LIST -->
         <div class="space-y-4 mt-4">
           {% for addr in addresses %}
           <div class="address-box cursor-pointer border rounded-xl p-5 relative transition {% if addr == selected_address %}ring-2 ring-black{% endif %}"
                data-id="{{ addr.id }}">
-
             <p class="font-medium">{{ addr.address_line }}</p>
             <p class="text-sm text-gray-500">{{ addr.city }}, {{ addr.postal_code }}</p>
-
-            {% if addr.is_default %}
-            <span class="text-xs text-green-600">Default</span>
-            {% endif %}
-
+            {% if addr.is_default %}<span class="text-xs text-green-600">Default</span>{% endif %}
             <div class="absolute top-4 right-4 flex gap-3 items-center">
-
-              <!-- EDIT -->
-              <button type="button"
-                class="editAddressBtn cursor-pointer"
-                data-id="{{ addr.id }}"
-                data-address="{{ addr.address_line }}"
-                data-city="{{ addr.city }}"
-                data-postal="{{ addr.postal_code }}">
+              <button type="button" class="editAddressBtn" data-id="{{ addr.id }}" data-address="{{ addr.address_line }}" data-city="{{ addr.city }}" data-postal="{{ addr.postal_code }}">
                 <img src="{% static 'icons/pen.svg' %}" class="w-5 h-5 cursor-pointer">
               </button>
-
-              <!-- DELETE -->
-              <button type="button"
-                class="deleteAddressBtn cursor-pointer"
-                data-id="{{ addr.id }}">
+              <button type="button" class="deleteAddressBtn" data-id="{{ addr.id }}">
                 <img src="{% static 'icons/trash.svg' %}" class="w-5 h-5 cursor-pointer">
               </button>
-
             </div>
           </div>
           {% endfor %}
@@ -87,7 +81,6 @@
         <h2 class="text-lg font-semibold mb-4">Payment</h2>
 
         <div class="grid gap-3">
-
           <div class="payment-option border rounded-xl p-4 cursor-pointer flex justify-between items-center ring-2 ring-black">
             <div class="flex items-center gap-3">
               <input type="radio" value="card" class="hidden" checked>
@@ -115,7 +108,6 @@
             </div>
             <span class="text-sm text-gray-500">+3%</span>
           </div>
-
         </div>
       </div>
 
@@ -124,44 +116,20 @@
     <!-- RIGHT -->
     <div class="lg:col-span-1">
       <div class="sticky top-28 bg-white border rounded-xl p-6 shadow-sm">
-
         <h2 class="text-xl font-semibold mb-6">Summary</h2>
-
         {% for item in items %}
-        <div class="flex justify-between text-sm">
-          <span>{{ item.variant.product.name }} × {{ item.quantity }}</span>
-          <span>€{{ item.total_price|floatformat:2 }}</span>
-        </div>
+          <div class="flex justify-between text-sm">
+            <span>{{ item.variant.product.name }} × {{ item.quantity }}</span>
+            <span>€{{ item.total_price|floatformat:2 }}</span>
+          </div>
         {% endfor %}
-
         <hr class="my-4">
-
-        <div class="flex justify-between text-sm">
-          <span>Subtotal</span>
-          <span>€{{ subtotal }}</span>
-        </div>
-
-        <div class="flex justify-between text-sm">
-          <span>Delivery</span>
-          <span>€{{ delivery_fee }}</span>
-        </div>
-
-        <div class="flex justify-between text-sm">
-          <span>COD Fee</span>
-          <span id="codFee">€0.00</span>
-        </div>
-
+        <div class="flex justify-between text-sm"><span>Subtotal</span><span>€{{ subtotal }}</span></div>
+        <div class="flex justify-between text-sm"><span>Delivery</span><span>€{{ delivery_fee }}</span></div>
+        <div class="flex justify-between text-sm"><span>COD Fee</span><span id="codFee">€0.00</span></div>
         <hr class="my-4">
-
-        <div class="flex justify-between font-semibold">
-          <span>Total</span>
-          <span id="totalValue">€{{ total }}</span>
-        </div>
-
-        <button class="w-full mt-6 bg-black text-white py-3 rounded cursor-pointer">
-          Complete Order
-        </button>
-
+        <div class="flex justify-between font-semibold"><span>Total</span><span id="totalValue">€{{ total }}</span></div>
+        <button class="w-full mt-6 bg-black text-white py-3 rounded cursor-pointer">Complete Order</button>
       </div>
     </div>
 

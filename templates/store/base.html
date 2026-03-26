@@ -11,81 +11,71 @@
       defer
     ></script>
     <link href="https://unpkg.com/filepond@^4/dist/filepond.css" rel="stylesheet" />
-
-<!-- FilePond scripts -->
-<script src="https://unpkg.com/filepond@^4/dist/filepond.js"></script>
+    <script src="https://unpkg.com/filepond@^4/dist/filepond.js"></script>
   </head>
 
-  <body class="bg-white text-gray-800">
+  <body class="bg-white text-gray-800 flex flex-col min-h-screen">
     <div
       x-data="{
-    menuOpen: false,
-    searchOpen: false,
-    query: '',
-    results: [],
-    async search() {
-      if (this.query.length < 2) {
-        this.results = []
-        return
-      }
-      const res = await fetch(`/search/suggestions/?q=${encodeURIComponent(this.query)}`)
-      this.results = await res.json()
-    }
-  }"
+        menuOpen: false,
+        searchOpen: false,
+        query: '',
+        results: [],
+        async search() {
+          if (this.query.length < 2) {
+            this.results = []
+            return
+          }
+          const res = await fetch(`/search/suggestions/?q=${encodeURIComponent(this.query)}`)
+          this.results = await res.json()
+        }
+      }"
     >
       <!-- HEADER -->
       <header
         class="fixed top-0 left-0 w-full z-50 pointer-events-auto"
-        style="
-          mix-blend-mode: difference;
-          filter: invert(1);
-          isolation: isolate;
-        "
+        style="mix-blend-mode: difference; filter: invert(1); isolation: isolate;"
       >
-        <div
-          class="max-w-7xl mx-auto h-16 flex items-center justify-between px-4"
-        >
-          <!-- Menu -->
-          <button @click="menuOpen = true" class="text-2xl cursor-pointer">
-            ☰
-          </button>
+        <div class="max-w-7xl mx-auto h-16 px-4 relative flex items-center justify-between">
+          <!-- LEFT -->
+          <div class="flex items-center gap-3 min-w-[80px]">
+            <button @click="menuOpen = true" class="text-2xl cursor-pointer">☰</button>
+            <button @click="searchOpen = true" class="cursor-pointer md:hidden">
+              <img src="{% static 'icons/search.svg' %}" class="h-6 w-6" />
+            </button>
+          </div>
 
-          <!-- Logo -->
-          <div class="absolute left-1/2 -translate-x-1/2">
-            <a href="{% url 'home' %}">
+          <!-- LOGO -->
+          <div class="absolute left-1/2 -translate-x-1/2 pointer-events-none">
+            <a href="{% url 'home' %}" class="pointer-events-auto">
               <img
                 src="{% static 'images/logo.png' %}"
                 alt="Vanquished"
-                class="w-40 filter invert mix-blend-difference"
+                class="w-24 sm:w-28 md:w-32 lg:w-40 filter invert mix-blend-difference"
               />
             </a>
           </div>
 
-          <!-- Icons -->
-          <div class="flex items-center space-x-4">
-            <button @click="searchOpen = true" class="cursor-pointer">
+          <!-- RIGHT -->
+          <div class="flex items-center gap-4 justify-end min-w-[80px]">
+            <button @click="searchOpen = true" class="cursor-pointer hidden md:block">
               <img src="{% static 'icons/search.svg' %}" class="h-6 w-6" />
             </button>
 
             {% if user.is_authenticated %}
-            <!-- Logged-in user -->
-            <a href="{% url 'account_dashboard' %}" class="cursor-pointer">
+            <a href="{% url 'account_dashboard' %}">
               <img src="{% static 'icons/user.svg' %}" class="h-6 w-6" />
             </a>
             {% else %}
-            <!-- Guest -->
-            <a href="{% url 'login' %}" class="cursor-pointer">
+            <a href="{% url 'login' %}">
               <img src="{% static 'icons/user.svg' %}" class="h-6 w-6" />
             </a>
             {% endif %}
 
             <a href="{% url 'cart' %}" class="relative">
               <img src="{% static 'icons/bag.svg' %}" class="h-6 w-6" />
-
               {% if cart_count > 0 %}
-              <span
-                class="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full px-1"
-              >
+              <span class="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full px-1">
                 {{ cart_count }}
               </span>
               {% endif %}
@@ -100,24 +90,17 @@
         x-transition.opacity
         class="fixed inset-0 flex items-start justify-center pt-20 z-50"
       >
-        <!-- Background overlay -->
         <div
           class="fixed inset-0 bg-black/50 transition-opacity"
           @click="searchOpen = false"
         ></div>
 
-        <!-- Modal box -->
         <div
           class="relative bg-white w-full max-w-2xl rounded shadow-lg overflow-hidden max-h-[80vh] flex flex-col"
           x-transition
         >
-          <!-- Search input -->
           <div class="p-4 border-b">
-            <form
-              action="{% url 'search' %}"
-              method="get"
-              @submit="results = []"
-            >
+            <form action="{% url 'search' %}" method="get" @submit="results = []">
               <input
                 type="text"
                 name="q"
@@ -131,7 +114,6 @@
             </form>
           </div>
 
-          <!-- Scrollable results -->
           <div class="overflow-y-auto" :class="results.length ? 'py-2' : ''">
             <template x-for="item in results" :key="item.id">
               <a
@@ -147,36 +129,22 @@
                 />
                 <div class="flex flex-col justify-center text-center">
                   <span class="text-base font-medium" x-text="item.name"></span>
-                  <span
-                    class="text-sm font-semibold text-gray-700 mt-1"
-                    x-text="item.price + ' лв'"
-                  ></span>
+                  <span class="text-sm font-semibold text-gray-700 mt-1" x-text="item.price + ' лв'"></span>
                 </div>
               </a>
             </template>
           </div>
 
-          <!-- Optional: Show all results button -->
-          <div
-            class="p-4 text-center inline-block bg-black"
-            x-show="results.length"
-          >
-            <a
-              :href="`{% url 'search' %}?q=${query}`"
-              class="text-white cursor-pointer b-rounded p-2"
-            >
+          <div class="p-4 text-center inline-block bg-black" x-show="results.length">
+            <a :href="`{% url 'search' %}?q=${query}`" class="text-white cursor-pointer b-rounded p-2">
               Show all results
             </a>
           </div>
         </div>
       </div>
+
       <!-- MENU OVERLAY -->
-      <div
-        x-show="menuOpen"
-        x-transition.opacity
-        class="fixed inset-0 bg-black/50 z-40"
-        @click="menuOpen = false"
-      ></div>
+      <div x-show="menuOpen" x-transition.opacity class="fixed inset-0 bg-black/50 z-40" @click="menuOpen = false"></div>
 
       <!-- SIDE MENU -->
       <aside
@@ -189,35 +157,14 @@
         x-transition:leave-end="-translate-x-full"
         class="fixed top-0 left-0 w-72 h-full bg-white z-50 p-6"
       >
-        <button @click="menuOpen = false" class="text-3xl mb-6">&times;</button>
+        <button @click="menuOpen = false" class="text-3xl mb-6 cursor-pointer">&times;</button>
 
         <nav class="space-y-4 mb-6">
           {% if user.is_staff %}
-
-          <a
-            href="{% url 'admin:index' %}"
-            class="block text-lg font-semibold text-gray-900"
-          >
-            Admin
-          </a>
-          <a
-            href="{% url 'admin_orders' %}"
-            class="block text-lg font-semibold text-gray-900"
-          >
-            Orders
-          </a>
-          <a
-            href="{% url 'bulk_add_products' %}"
-            class="block text-lg font-semibold text-gray-900"
-          >
-            Add products
-          </a>
-          <a
-            href="{% url 'draft_products' %}"
-            class="block text-lg font-semibold text-gray-900"
-          >
-            Drafts
-          </a>
+          <a href="{% url 'admin:index' %}" class="block text-lg font-semibold text-gray-900">Admin</a>
+          <a href="{% url 'admin_orders' %}" class="block text-lg font-semibold text-gray-900">Orders</a>
+          <a href="{% url 'bulk_add_products' %}" class="block text-lg font-semibold text-gray-900">Add products</a>
+          <a href="{% url 'draft_products' %}" class="block text-lg font-semibold text-gray-900">Drafts</a>
           <hr class="my-6" />
           {% endif %}
           <a href="{% url 'new_products' %}" class="block text-xl">New</a>
@@ -228,48 +175,34 @@
 
         <div class="space-y-3">
           {% for category in categories %}
-          <a href="{% url 'collection' category.slug %}" class="block text-lg">
-            {{ category.name }}
-          </a>
+          <a href="{% url 'collection' category.slug %}" class="block text-lg">{{ category.name }}</a>
           {% endfor %}
         </div>
       </aside>
+
     </div>
 
     <!-- Main content -->
-    <main class>{% block content %}{% endblock %}</main>
+    <main class="flex-1">{% block content %}{% endblock %}</main>
 
     <!-- Footer -->
-    <footer class="bg-white text-gray-700 pt-12 pb-8">
+    <footer class="bg-white text-gray-700 pt-12 pb-8 mt-auto">
       <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 px-4">
         <!-- Column 1: Brand + Description -->
         <div>
           <h2 class="text-2xl font-bold mb-4">VANQUISHED</h2>
           <p class="text-sm mb-4">
-            Premium streetwear & fashionable essentials. Designed with quality &
-            inspired by culture.
+            Premium streetwear & fashionable essentials. Designed with quality & inspired by culture.
           </p>
           <div class="flex space-x-4">
             <a href="#" class="text-gray-500 hover:text-gray-800">
-              <img
-                src="{% static 'icons/facebook.svg' %}"
-                class="h-5 w-5"
-                alt="Facebook"
-              />
+              <img src="{% static 'icons/facebook.svg' %}" class="h-5 w-5" alt="Facebook" />
             </a>
             <a href="#" class="text-gray-500 hover:text-gray-800">
-              <img
-                src="{% static 'icons/instagram.svg' %}"
-                class="h-5 w-5"
-                alt="Instagram"
-              />
+              <img src="{% static 'icons/instagram.svg' %}" class="h-5 w-5" alt="Instagram" />
             </a>
             <a href="#" class="text-gray-500 hover:text-gray-800">
-              <img
-                src="{% static 'icons/tiktok.svg' %}"
-                class="h-5 w-5"
-                alt="TikTok"
-              />
+              <img src="{% static 'icons/tiktok.svg' %}" class="h-5 w-5" alt="TikTok" />
             </a>
           </div>
         </div>
@@ -278,25 +211,10 @@
         <div>
           <h3 class="text-lg font-semibold mb-4">Shop</h3>
           <ul class="space-y-2 text-sm">
-            <li>
-              <a href="{% url 'new_products' %}" class="hover:underline"
-                >New Arrivals</a
-              >
-            </li>
-            <li>
-              <a href="{% url 'sale_products' %}" class="hover:underline"
-                >Sale</a
-              >
-            </li>
+            <li><a href="{% url 'new_products' %}" class="hover:underline">New Arrivals</a></li>
+            <li><a href="{% url 'sale_products' %}" class="hover:underline">Sale</a></li>
             {% for category in categories %}
-            <li>
-              <a
-                href="{% url 'collection' category.slug %}"
-                class="hover:underline"
-              >
-                {{ category.name }}
-              </a>
-            </li>
+            <li><a href="{% url 'collection' category.slug %}" class="hover:underline">{{ category.name }}</a></li>
             {% endfor %}
           </ul>
         </div>
@@ -305,24 +223,10 @@
         <div>
           <h3 class="text-lg font-semibold mb-4">Help</h3>
           <ul class="space-y-2 text-sm">
-            <li>
-              <a href="{% url 'search' %}?q=shipping" class="hover:underline">
-                Shipping
-              </a>
-            </li>
-            <li>
-              <a href="{% url 'returns' %}" class="cursor-pointer"> Returns </a>
-            </li>
-            <li>
-              <a href="{% url 'search' %}?q=faq" class="hover:underline">
-                FAQ
-              </a>
-            </li>
-            <li>
-              <a href="{% url 'search' %}?q=support" class="hover:underline">
-                Support
-              </a>
-            </li>
+            <li><a href="{% url 'search' %}?q=shipping" class="hover:underline">Shipping</a></li>
+            <li><a href="{% url 'returns' %}" class="cursor-pointer">Returns</a></li>
+            <li><a href="{% url 'search' %}?q=faq" class="hover:underline">FAQ</a></li>
+            <li><a href="{% url 'search' %}?q=support" class="hover:underline">Support</a></li>
           </ul>
         </div>
 
@@ -335,9 +239,7 @@
         </div>
       </div>
 
-      <div
-        class="border-t border-gray-200 mt-8 pt-6 text-center text-sm text-gray-500"
-      >
+      <div class="border-t border-gray-200 mt-8 pt-6 text-center text-sm text-gray-500">
         © 2026 VANQUISHED. All rights reserved.
       </div>
     </footer>

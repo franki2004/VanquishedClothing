@@ -9,7 +9,24 @@
   <h1 class="text-3xl font-semibold mb-10">Orders</h1>
 
   <div class="space-y-6">
+    <div class="flex gap-3 mb-6">
 
+      <a href="?status=pending"
+         class="px-4 py-2 rounded border {% if status_filter == 'pending' %}bg-black text-white{% endif %}">
+        Pending
+      </a>
+    
+      <a href="?status=accepted"
+         class="px-4 py-2 rounded border {% if status_filter == 'accepted' %}bg-black text-white{% endif %}">
+        Accepted
+      </a>
+    
+      <a href="?status=denied"
+         class="px-4 py-2 rounded border {% if status_filter == 'denied' %}bg-black text-white{% endif %}">
+        Denied
+      </a>
+    
+    </div>
     {% for order in orders %}
     <div class="bg-white border rounded-xl shadow-sm">
 
@@ -112,7 +129,28 @@
       </div>
     </div>
     {% endfor %}
+    <div class="flex justify-center mt-10 gap-2">
 
+      {% if page_obj.has_previous %}
+        <a href="?status={{ status_filter }}&page={{ page_obj.previous_page_number }}"
+           class="px-3 py-1 border rounded">Prev</a>
+      {% endif %}
+    
+      {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+          <span class="px-3 py-1 bg-black text-white rounded">{{ num }}</span>
+        {% else %}
+          <a href="?status={{ status_filter }}&page={{ num }}"
+             class="px-3 py-1 border rounded">{{ num }}</a>
+        {% endif %}
+      {% endfor %}
+    
+      {% if page_obj.has_next %}
+        <a href="?status={{ status_filter }}&page={{ page_obj.next_page_number }}"
+           class="px-3 py-1 border rounded">Next</a>
+      {% endif %}
+    
+    </div>
   </div>
 </div>
 
