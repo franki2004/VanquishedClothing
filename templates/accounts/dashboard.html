@@ -181,7 +181,7 @@
           >
             <p class="font-medium">{{ address.address_line }}</p>
             <p class="text-sm text-gray-500">
-              {{ address.city }}, {{ address.postal_code }}
+              {{ address.city }}, {{ address.postal_code }}, {{ address.country }}
             </p>
 
             {% if address.is_default %}
@@ -194,8 +194,10 @@
                 class="editAddressBtn cursor-pointer"
                 data-id="{{ address.id }}"
                 data-address="{{ address.address_line }}"
+                data-country="{{ address.country }}"
                 data-city="{{ address.city }}"
                 data-postal="{{ address.postal_code }}"
+                
               >
                 <img src="{% static 'icons/pen.svg' %}" class="w-5 h-5" />
               </button>
@@ -250,7 +252,7 @@
           <!-- DETAILS -->
           <div id="details-{{ order.id }}" class="hidden border-t px-6 py-4">
             <p class="text-sm mb-2">
-              Address: {{ order.street }}, {{ order.city }}
+              Address: {{ order.street }}, {{ order.city }}, {{ order.country }}
             </p>
 
             <p class="text-sm mb-4">
@@ -329,6 +331,9 @@
       <div class="mb-3">
         {{ address_form.address_line }} {{ address_form.address_line.errors }}
       </div>
+      <div class="mb-3">
+        {{ address_form.country }} {{ address_form.country.errors }}
+      </div>
 
       <div class="mb-3">
         {{ address_form.city }} {{ address_form.city.errors }}
@@ -337,6 +342,7 @@
       <div class="mb-3">
         {{ address_form.postal_code }} {{ address_form.postal_code.errors }}
       </div>
+      
 
       <div class="flex items-center mb-4">
         {{ address_form.is_default }}
@@ -461,6 +467,7 @@
         document.getElementById("modalTitle").textContent = "Edit Address";
         document.getElementById("editAddressId").value = btn.dataset.id;
         document.getElementById("modalAddress").value = btn.dataset.address;
+        document.getElementById("modalCountry").value = btn.dataset.country;
         document.getElementById("modalCity").value = btn.dataset.city;
         document.getElementById("modalPostal").value = btn.dataset.postal;
       });

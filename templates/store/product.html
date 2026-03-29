@@ -59,35 +59,21 @@
       <p class="mb-4 text-sm tracking-wide uppercase">Size</p>
 
       <div class="grid grid-cols-3 gap-3">
-        {% for variant in product.variants.all %} {% if variant.stock > 0 %}
-
+        {% for variant in product.variants.all %} 
+        {% if variant.available_quantity > 0 %}
         <label class="cursor-pointer">
-          <input
-            type="radio"
-            name="variant"
-            value="{{ variant.id }}"
-            class="hidden peer"
-          />
-
-          <div
-            class="border border-gray-300 py-3 text-sm flex items-center justify-center hover:bg-black hover:text-white transition peer-checked:bg-black peer-checked:text-white"
-          >
+          <input type="radio" name="variant" value="{{ variant.id }}" class="hidden peer" />
+          <div class="border border-gray-300 py-3 text-sm flex items-center justify-center hover:bg-black hover:text-white transition peer-checked:bg-black peer-checked:text-white">
             {{ variant.size }}
           </div>
         </label>
-
         {% else %}
-
-        <div
-          class="border border-gray-200 py-3 text-sm text-gray-400 relative flex items-center justify-center overflow-hidden"
-        >
+        <div class="border border-gray-200 py-3 text-sm text-gray-400 relative flex items-center justify-center overflow-hidden">
           {{ variant.size }}
-          <span
-            class="absolute w-[140%] h-[1px] bg-gray-300 rotate-[-25deg]"
-          ></span>
+          <span class="absolute w-[140%] h-[1px] bg-gray-300 rotate-[-25deg]"></span>
         </div>
-
-        {% endif %} {% endfor %}
+        {% endif %}
+        {% endfor %}
       </div>
 
       {% if form.errors %}

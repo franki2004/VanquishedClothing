@@ -8,3 +8,5 @@ __pycache__/
 # Django media / static if needed
 media/
 staticfiles/
+
+.env

@@ -25,6 +25,7 @@ class Order(models.Model):
     city = models.CharField(max_length=100)
     postal_code = models.CharField(max_length=20, blank=True)
     street = models.CharField(max_length=255)
+    country = models.CharField(max_length=255)
     additional_info = models.TextField(blank=True)
 
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)

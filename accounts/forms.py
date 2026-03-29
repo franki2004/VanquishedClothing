@@ -138,6 +138,7 @@ from django import forms
 from .models import Address
 
 
+# forms.py
 class AddressForm(forms.ModelForm):
     class Meta:
         model = Address
@@ -145,6 +146,7 @@ class AddressForm(forms.ModelForm):
             "address_line",
             "city",
             "postal_code",
+            "country",
             "is_default",
         ]
 
@@ -160,9 +162,14 @@ class AddressForm(forms.ModelForm):
                 "placeholder": "City"
             }),
             "postal_code": forms.TextInput(attrs={
-                 "id": "modalPostal",
+                "id": "modalPostal",
                 "class": "border rounded w-full px-3 py-2",
                 "placeholder": "Postal Code"
+            }),
+            "country": forms.TextInput(attrs={
+                "id": "modalCountry",
+                "class": "border rounded w-full px-3 py-2",
+                "placeholder": "Country"
             }),
             "is_default": forms.CheckboxInput(attrs={
                 "class": "mr-2"

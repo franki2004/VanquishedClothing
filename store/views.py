@@ -120,14 +120,17 @@ def product_detail(request, id):
             variant = form.cleaned_data["variant"]
             cart = get_or_create_cart(request)
 
-            item, created = CartItem.objects.get_or_create(
-                cart=cart,
-                variant=variant,
-            )
+            available = variant.available_quantity()
+            item, created = CartItem.objects.get_or_create(cart=cart, variant=variant)
 
             if not created:
-                item.quantity += 1
-                item.save()
+                if item.quantity < available:
+                    item.quantity += 1
+                    item.save()
+            else:
+                if available > 0:
+                    item.quantity = 1
+                    item.save()
 
             return redirect("cart")
     else:

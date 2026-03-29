@@ -74,6 +74,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             self.last_name = self.last_name.capitalize()
         super().save(*args, **kwargs)
 
+# models.py
 class Address(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -81,9 +82,10 @@ class Address(models.Model):
         related_name="addresses"
     )
 
-    address_line = models.CharField(max_length=255)
-    city = models.CharField(max_length=100)
-    postal_code = models.CharField(max_length=20)
+    address_line = models.CharField(max_length=255, null=False, blank=False)
+    city = models.CharField(max_length=100, null=False, blank=False)
+    postal_code = models.CharField(max_length=20, null=False, blank=False)
+    country = models.CharField(max_length=100, null=False, blank=False)  
 
     is_default = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
