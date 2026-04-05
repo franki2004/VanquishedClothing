@@ -1,5 +1,7 @@
 {% extends "store/base.html" %}
+{% load static %}
 {% block title %}Bulk Add Products{% endblock %}
+
 {% block content %}
 <div class="max-w-7xl mx-auto py-24 px-4">
   <h1 class="text-3xl font-bold mb-10">Bulk Add Products</h1>
@@ -8,7 +10,7 @@
     {% csrf_token %}
     <div id="products" class="space-y-8">
 
-      <div class="product-row relative grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 border rounded-lg">
+      <div class="product-row relative grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 border -lg">
         <button type="button" onclick="removeRow(this)"
           class="absolute top-2 right-4 text-gray-500 hover:text-red-600 text-xl font-bold cursor-pointer">×</button>
 
@@ -45,11 +47,11 @@
         <!-- MIDDLE: Tags -->
         <div>
           <label class="block font-semibold mb-2">Tags</label>
-          <input type="text" placeholder="Search tags..." class="border px-3 py-2 w-full mb-2 rounded"
+          <input type="text" placeholder="Search tags..." class="border px-3 py-2 w-full mb-2 "
             onkeyup="filterTags(this, 0)" id="tags-search-0" />
-          <div id="tags-container-0" class="flex flex-col gap-2 max-h-[400px] overflow-y-auto p-2 rounded">
+          <div id="tags-container-0" class="flex flex-col gap-2 max-h-[400px] overflow-y-auto p-2 ">
             {% for tag in tags %}
-            <label class="flex items-center gap-2 cursor-pointer border rounded-full px-3 py-1 hover:bg-gray-100 tag-item">
+            <label class="flex items-center gap-2 cursor-pointer border -full px-3 py-1 hover:bg-gray-100 tag-item">
               <input type="checkbox" name="tags_0" value="{{ tag.id }}" />
               <span class="text-sm">{{ tag.name }}</span>
             </label>
@@ -107,7 +109,7 @@ function previewImages(input, idx) {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.innerText = "×";
-      btn.className = "absolute top-[-4px] right-[-4px] flex items-center justify-center bg-black hover:bg-red-600 text-white rounded w-4 h-4 text-sm cursor-pointer";
+      btn.className = "absolute top-[-4px] right-[-4px] flex items-center justify-center bg-black hover:bg-red-600 text-white  w-4 h-4 text-sm cursor-pointer";
 
       // Remove file from selectedFiles and rebuild input.files
       btn.onclick = () => {
@@ -118,7 +120,7 @@ function previewImages(input, idx) {
 
       const img = document.createElement("img");
       img.src = e.target.result;
-      img.className = "w-full h-32 object-cover border rounded";
+      img.className = "w-full h-32 object-cover border ";
 
       const order = document.createElement("input");
       order.type = "number";
@@ -149,7 +151,7 @@ function rebuildInputFiles(idx) {
 function addRow() {
   const productsDiv = document.getElementById("products");
   const div = document.createElement("div");
-  div.className = "product-row relative grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 border rounded-lg";
+  div.className = "product-row relative grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 border";
 
   div.innerHTML = `
     <button type="button" onclick="removeRow(this)"
@@ -172,8 +174,8 @@ function addRow() {
 
     <div>
       <label class="block font-semibold mb-2">Tags</label>
-      <input type="text" placeholder="Search tags..." class="border px-3 py-2 w-full mb-2 rounded" onkeyup="filterTags(this, ${rowIndex})" id="tags-search-${rowIndex}" />
-      <div id="tags-container-${rowIndex}" class="flex flex-col gap-2 max-h-[400px] overflow-y-auto p-2 rounded">
+      <input type="text" placeholder="Search tags..." class="border px-3 py-2 w-full mb-2 " onkeyup="filterTags(this, ${rowIndex})" id="tags-search-${rowIndex}" />
+      <div id="tags-container-${rowIndex}" class="flex flex-col gap-2 max-h-[400px] overflow-y-auto p-2 ">
         ${tags.map(t => `<label class="flex items-center gap-2 cursor-pointer border rounded-full px-3 py-1 hover:bg-gray-100 tag-item"><input type="checkbox" name="tags_${rowIndex}" value="${t.id}"><span class="text-sm">${t.name}</span></label>`).join('')}
       </div>
     </div>
@@ -197,4 +199,22 @@ function filterTags(input, idx) {
   });
 }
 </script>
+{% endblock %}
+
+{% block js %}
+<script>
+  window.APP_DATA = {
+    sizes: {{ sizes|safe }},
+    tags: [
+      {% for tag in tags %}
+        {id: {{ tag.id }}, name: "{{ tag.name }}"}{% if not forloop.last %},{% endif %}
+      {% endfor %}
+    ],
+    categoriesOptions: `{% for category in categories %}
+      <option value="{{ category.id }}">{{ category.name }}</option>
+    {% endfor %}`
+  };
+</script>
+
+<script src="{% static 'store/js/add_products.js' %}"></script>
 {% endblock %}

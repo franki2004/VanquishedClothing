@@ -1,4 +1,5 @@
 {% extends "store/base.html" %} {% block title %}{{ product.name }} {%endblock%}
+{% load static %}
 {% block content %}
 
 <div class="max-w-7xl mx-auto px-6 lg:px-12 py-16 grid lg:grid-cols-2 gap-16">
@@ -137,27 +138,13 @@
     color: white;
   }
 </style>
+{% block js %}
 <script>
-  const images = [
+  window.PRODUCT_IMAGES = [
     {% for img in product.images.all %}
-      "{{ img.image.url }}",
+      "{{ img.image.url }}"{% if not forloop.last %},{% endif %}
     {% endfor %}
   ];
-
-  let index = 0;
-  const imgElement = document.getElementById("product-image");
-
-  if (images.length > 1) {
-    document.getElementById("prev-btn").addEventListener("click", () => {
-      index = (index - 1 + images.length) % images.length;
-      imgElement.src = images[index];
-    });
-
-    document.getElementById("next-btn").addEventListener("click", () => {
-      index = (index + 1) % images.length;
-      imgElement.src = images[index];
-    });
-  }
 </script>
-
+<script src="{% static 'js/product.js' %}"></script>{% endblock %}
 {% endblock %}

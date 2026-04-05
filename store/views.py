@@ -22,7 +22,6 @@ def returns(request):
 
 def collection(request, slug=None, filter_type=None):
     category = None
-
     products = Product.objects.filter(status="active")
 
     if filter_type == "new":
@@ -40,14 +39,41 @@ def collection(request, slug=None, filter_type=None):
         products = products.filter(category=category)
         active_filter = "category"
         title = category.name
-
     else:
         active_filter = "category"
         title = "All"
 
-    # SORTING (overrides default ordering if provided)
-    sort = request.GET.get("sort")
+    min_price = request.GET.get("min_price")
+    max_price = request.GET.get("max_price")
 
+    if min_price:
+        products = products.filter(price__gte=min_price)
+    if max_price:
+        products = products.filter(price__lte=max_price)
+
+    sizes = request.GET.getlist("size")
+    if sizes:
+        products = products.filter(
+            variants__size__in=sizes,
+            variants__stock__gt=0
+        ).distinct()
+    selected_sizes = request.GET.getlist("size")
+
+    limited = request.GET.get("limited")
+    if limited == "true":
+        products = products.filter(is_limited=True)
+
+    discount = request.GET.get("discount")
+    if discount == "10":
+        products = products.filter(discount_percent__gte=10)
+    elif discount == "20":
+        products = products.filter(discount_percent__gte=20)
+    elif discount == "30":
+        products = products.filter(discount_percent__gte=30)
+    elif discount == "50":
+        products = products.filter(discount_percent__gte=50)
+
+    sort = request.GET.get("sort")
     if sort == "price_asc":
         products = products.order_by("price")
     elif sort == "price_desc":
@@ -61,25 +87,22 @@ def collection(request, slug=None, filter_type=None):
     elif sort == "oldest":
         products = products.order_by("created_at")
 
-    # PAGINATION
     paginator = Paginator(products, 42)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
     categories = Category.objects.all()
 
-    return render(
-        request,
-        "store/collection.html",
-        {
-            "category": category,
-            "title": title,
-            "products": page_obj,
-            "page_obj": page_obj,
-            "categories": categories,
-            "active_filter": active_filter,
-        },
-    )
+    return render(request, "store/collection.html", {
+        "category": category,
+        "title": title,
+        "products": page_obj,
+        "page_obj": page_obj,
+        "categories": categories,
+        "active_filter": active_filter,
+        "selected_sizes": selected_sizes,
+        "sizes": SIZES
+    })
 
 def search(request):
     q = request.GET.get("q", "").strip()

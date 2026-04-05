@@ -1,4 +1,6 @@
 {% extends "store/base.html" %} {% block title %}Draft Products{% endblock %} 
+{% load static %}
+
 {% block content %}
 <div class="max-w-7xl mx-auto pt-24 px-4">
   <!-- Header -->
@@ -7,7 +9,7 @@
 
     <a
       href="{% url 'bulk_add_products' %}"
-      class="bg-black text-white px-4 py-2 rounded"
+      class="bg-black text-white px-4 py-2 "
     >
       Add Products
     </a>
@@ -16,7 +18,7 @@
   <form method="post">
     {% csrf_token %}
 
-    <div class="overflow-x-auto border rounded">
+    <div class="overflow-x-auto border ">
       <table class="min-w-full border-collapse">
         <thead class="bg-gray-100 text-left">
           <tr>
@@ -94,7 +96,7 @@
         type="submit"
         name="action"
         value="activate"
-        class="bg-green-600 text-white px-6 py-2 rounded cursor-pointer"
+        class="bg-green-600 text-white px-6 py-2  cursor-pointer"
       >
         Set Active
       </button>
@@ -103,7 +105,7 @@
         type="submit"
         name="action"
         value="archive"
-        class="bg-gray-600 text-white px-6 py-2 rounded cursor-pointer"
+        class="bg-gray-600 text-white px-6 py-2  cursor-pointer"
       >
         Archive
       </button>
@@ -111,19 +113,13 @@
         type="submit"
         name="action"
         value="delete"
-        class="bg-red-600 text-white px-6 py-2 rounded cursor-pointer"
+        class="bg-red-600 text-white px-6 py-2  cursor-pointer"
       >
         Delete
       </button>
     </div>
   </form>
 </div>
-
-<script>
-  document.getElementById("select-all").addEventListener("change", function () {
-    document
-      .querySelectorAll('input[name="selected_products"]')
-      .forEach((cb) => (cb.checked = this.checked));
-  });
-</script>
 {% endblock %}
+
+{% block js %} <script src="{% static 'js/draft_products.js' %}"></script> {% endblock %}

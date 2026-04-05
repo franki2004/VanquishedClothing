@@ -12,23 +12,23 @@
     <div class="flex gap-3 mb-6">
 
       <a href="?status=pending"
-         class="px-4 py-2 rounded border {% if status_filter == 'pending' %}bg-black text-white{% endif %}">
+         class="px-4 py-2 border {% if status_filter == 'pending' %}bg-black text-white{% endif %}">
         Pending
       </a>
     
       <a href="?status=accepted"
-         class="px-4 py-2 rounded border {% if status_filter == 'accepted' %}bg-black text-white{% endif %}">
+         class="px-4 py-2 border {% if status_filter == 'accepted' %}bg-black text-white{% endif %}">
         Accepted
       </a>
     
       <a href="?status=denied"
-         class="px-4 py-2 rounded border {% if status_filter == 'denied' %}bg-black text-white{% endif %}">
+         class="px-4 py-2 border {% if status_filter == 'denied' %}bg-black text-white{% endif %}">
         Denied
       </a>
     
     </div>
     {% for order in orders %}
-    <div class="bg-white border rounded-xl shadow-sm">
+    <div class="bg-white border shadow-sm">
 
       <!-- HEADER -->
       <div class="flex justify-between items-center px-6 py-4">
@@ -39,7 +39,7 @@
           </p>
         </div>
 
-        <span class="px-3 py-1 text-xs rounded
+        <span class="px-3 py-1 text-xs
           {% if order.status == 'pending' %} bg-yellow-100 text-yellow-800
           {% elif order.status == 'accepted' %} bg-blue-100 text-blue-800
           {% elif order.status == 'denied' %} bg-red-100 text-red-800
@@ -109,7 +109,7 @@
             <input type="hidden" name="order_id" value="{{ order.id }}">
             <input type="hidden" name="action" value="accept">
 
-            <button class="bg-green-600 text-white px-4 py-2 rounded cursor-pointer">
+            <button class="bg-green-600 text-white px-4 py-2 cursor-pointer">
               Accept
             </button>
           </form>
@@ -117,7 +117,7 @@
           <!-- DECLINE -->
           <button
             type="button"
-            class="bg-red-600 text-white px-4 py-2 rounded cursor-pointer openDenyModal"
+            class="bg-red-600 text-white px-4 py-2 cursor-pointer openDenyModal"
             data-id="{{ order.id }}"
           >
             Decline
@@ -133,21 +133,21 @@
 
       {% if page_obj.has_previous %}
         <a href="?status={{ status_filter }}&page={{ page_obj.previous_page_number }}"
-           class="px-3 py-1 border rounded">Prev</a>
+           class="px-3 py-1 border">Prev</a>
       {% endif %}
     
       {% for num in page_obj.paginator.page_range %}
         {% if page_obj.number == num %}
-          <span class="px-3 py-1 bg-black text-white rounded">{{ num }}</span>
+          <span class="px-3 py-1 bg-black text-white">{{ num }}</span>
         {% else %}
           <a href="?status={{ status_filter }}&page={{ num }}"
-             class="px-3 py-1 border rounded">{{ num }}</a>
+             class="px-3 py-1 border">{{ num }}</a>
         {% endif %}
       {% endfor %}
     
       {% if page_obj.has_next %}
         <a href="?status={{ status_filter }}&page={{ page_obj.next_page_number }}"
-           class="px-3 py-1 border rounded">Next</a>
+           class="px-3 py-1 border">Next</a>
       {% endif %}
     
     </div>
@@ -156,7 +156,7 @@
 
 <!-- DENY MODAL -->
 <div id="denyModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center">
-  <div class="bg-white rounded-xl p-6 w-full max-w-md">
+  <div class="bg-white p-6 w-full max-w-md">
 
     <h3 class="font-semibold mb-4">Decline Order</h3>
 
@@ -168,18 +168,18 @@
       <textarea
         name="comment"
         placeholder="Reason for decline..."
-        class="w-full border rounded px-3 py-2 mb-4"
+        class="w-full border px-3 py-2 mb-4"
       ></textarea>
 
       <div class="flex justify-end gap-3">
         <button
           type="button"
           id="closeDeny"
-          class="border px-4 py-2 rounded cursor-pointer"
+          class="border px-4 py-2 cursor-pointer"
         >
           Cancel
         </button>
-        <button class="bg-red-600 text-white px-4 py-2 rounded cursor-pointer">
+        <button class="bg-red-600 text-white px-4 py-2 cursor-pointer">
           Decline
         </button>
       </div>
@@ -188,21 +188,6 @@
   </div>
 </div>
 
-<script>
-const denyModal = document.getElementById("denyModal");
-
-document.querySelectorAll(".openDenyModal").forEach(btn => {
-  btn.addEventListener("click", () => {
-    denyModal.classList.remove("hidden");
-    denyModal.classList.add("flex");
-    document.getElementById("denyOrderId").value = btn.dataset.id;
-  });
-});
-
-document.getElementById("closeDeny").onclick = () => {
-  denyModal.classList.add("hidden");
-  denyModal.classList.remove("flex");
-};
-</script>
-
 {% endblock %}
+
+{% block js %} <script src="{% static 'js/admin_orders.js' %}"></script> {% endblock %}

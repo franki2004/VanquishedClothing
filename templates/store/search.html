@@ -6,7 +6,7 @@
 
 <section class="max-w-7xl mx-auto p-8 grid grid-cols-2 md:grid-cols-4 gap-6">
   {% for product in products %}
-    <a href="{% url 'product' product.id %}" class="border rounded overflow-hidden hover:shadow-lg transition">
+    <a href="{% url 'product' product.id %}" class="border  overflow-hidden hover:shadow-lg transition">
       {% if product.images.all %}
         <img src="{{ product.images.all.0.image.url }}" class="w-full h-auto">
       {% endif %}

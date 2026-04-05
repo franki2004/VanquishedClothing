@@ -12,6 +12,8 @@
     ></script>
     <link href="https://unpkg.com/filepond@^4/dist/filepond.css" rel="stylesheet" />
     <script src="https://unpkg.com/filepond@^4/dist/filepond.js"></script>
+    {% block js %}{% endblock %}
+
   </head>
 
   <body class="bg-white text-gray-800 flex flex-col min-h-screen">
@@ -37,7 +39,6 @@
         style="mix-blend-mode: difference; filter: invert(1); isolation: isolate;"
       >
         <div class="max-w-7xl mx-auto h-16 px-4 relative flex items-center justify-between">
-          <!-- LEFT -->
           <div class="flex items-center gap-3 min-w-[80px]">
             <button @click="menuOpen = true" class="text-2xl cursor-pointer">☰</button>
             <button @click="searchOpen = true" class="cursor-pointer md:hidden">
@@ -45,7 +46,6 @@
             </button>
           </div>
 
-          <!-- LOGO -->
           <div class="absolute left-1/2 -translate-x-1/2 pointer-events-none">
             <a href="{% url 'home' %}" class="pointer-events-auto">
               <img
@@ -96,7 +96,7 @@
         ></div>
 
         <div
-          class="relative bg-white w-full max-w-2xl rounded shadow-lg overflow-hidden max-h-[80vh] flex flex-col"
+          class="relative bg-white w-full max-w-2xl shadow-lg overflow-hidden max-h-[80vh] flex flex-col"
           x-transition
         >
           <div class="p-4 border-b">
@@ -136,7 +136,7 @@
           </div>
 
           <div class="p-4 text-center inline-block bg-black" x-show="results.length">
-            <a :href="`{% url 'search' %}?q=${query}`" class="text-white cursor-pointer b-rounded p-2">
+            <a :href="`{% url 'search' %}?q=${query}`" class="text-white cursor-pointer p-2">
               Show all results
             </a>
           </div>
@@ -188,7 +188,6 @@
     <!-- Footer -->
     <footer class="bg-white text-gray-700 pt-12 pb-8 mt-auto">
       <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 px-4">
-        <!-- Column 1: Brand + Description -->
         <div>
           <h2 class="text-2xl font-bold mb-4">VANQUISHED</h2>
           <p class="text-sm mb-4">
@@ -207,7 +206,6 @@
           </div>
         </div>
 
-        <!-- Column 2: Shop Links -->
         <div>
           <h3 class="text-lg font-semibold mb-4">Shop</h3>
           <ul class="space-y-2 text-sm">
@@ -219,7 +217,6 @@
           </ul>
         </div>
 
-        <!-- Column 3: Customer Service -->
         <div>
           <h3 class="text-lg font-semibold mb-4">Help</h3>
           <ul class="space-y-2 text-sm">
@@ -230,7 +227,6 @@
           </ul>
         </div>
 
-        <!-- Column 4: Contact Info -->
         <div>
           <h3 class="text-lg font-semibold mb-4">Contact</h3>
           <p class="text-sm mb-1">Email: support@vanquished.com</p>

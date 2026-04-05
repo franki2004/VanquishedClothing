@@ -15,11 +15,11 @@
         <div class="space-y-6">
 
           {% for item in cart.items.all %}
-            <div class="flex gap-6 border rounded p-4 items-center shadow-sm">
+            <div class="flex gap-6 border p-4 items-center shadow-sm">
 
               <a href="{% url 'product' item.variant.product.id %}">
                 <img src="{{ item.variant.product.images.first.image.url }}"
-                     class="w-48 object-fit rounded">
+                     class="w-48 object-fit">
               </a>
 
               <div class="flex-1">
@@ -37,7 +37,7 @@
                 </p>
               </div>
 
-              <div class="flex items-center border rounded overflow-hidden">
+              <div class="flex items-center border overflow-hidden">
                 <form method="post" action="{% url 'update_cart_item' item.id %}">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="decrease">
@@ -68,7 +68,7 @@
 
     <!-- RIGHT: SUMMARY -->
     {% if cart.items.exists %}
-    <div class="border rounded p-6 shadow-sm h-fit">
+    <div class="border p-6 shadow-sm h-fit">
 
   <h2 class="text-xl font-semibold mb-6">Summary</h2>
 
@@ -121,17 +121,17 @@
   <div class="mt-6 space-y-3">
     {% if user.is_authenticated %}
       <a href="{% url 'checkout' %}"
-         class="block w-full text-center bg-black text-white py-3 rounded">
+         class="block w-full text-center bg-black text-white py-3">
         Checkout
       </a>
     {% else %}
       <a href="{% url 'checkout_guest' %}"
-         class="block w-full text-center bg-black text-white py-3 rounded">
+         class="block w-full text-center bg-black text-white py-3">
         Checkout as Guest
       </a>
 
       <a href="{% url 'login' %}"
-         class="block w-full text-center border py-3 rounded">
+         class="block w-full text-center border py-3">
         Login & Checkout
       </a>
     {% endif %}

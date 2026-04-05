@@ -30,7 +30,7 @@
     <!-- LEFT -->
     <div class="md:col-span-1">
       <!-- ACCOUNT -->
-      <div class="bg-white border rounded-xl p-6 shadow-sm">
+      <div class="bg-white border p-6 shadow-sm">
         <h2 class="text-lg font-semibold mb-6">Account Details</h2>
 
         <!-- EMAIL -->
@@ -46,12 +46,12 @@
               name="email"
               value="{{ user.email }}"
               disabled
-              class="editable w-full border rounded px-3 py-2 bg-gray-100"
+              class="editable w-full border  px-3 py-2 bg-gray-100"
             />
 
             <button
               type="button"
-              class="toggle-btn px-3 border rounded h-10 cursor-pointer"
+              class="toggle-btn px-3 border  h-10 cursor-pointer"
             >
               ✎
             </button>
@@ -75,12 +75,12 @@
               name="first_name"
               value="{{ user.first_name }}"
               disabled
-              class="editable w-full border rounded px-3 py-2 bg-gray-100"
+              class="editable w-full border  px-3 py-2 bg-gray-100"
             />
 
             <button
               type="button"
-              class="toggle-btn px-3 border rounded h-10 cursor-pointer"
+              class="toggle-btn px-3 border  h-10 cursor-pointer"
             >
               ✎
             </button>
@@ -104,12 +104,12 @@
               name="last_name"
               value="{{ user.last_name }}"
               disabled
-              class="editable w-full border rounded px-3 py-2 bg-gray-100"
+              class="editable w-full border  px-3 py-2 bg-gray-100"
             />
 
             <button
               type="button"
-              class="toggle-btn px-3 border rounded h-10 cursor-pointer"
+              class="toggle-btn px-3 border  h-10 cursor-pointer"
             >
               ✎
             </button>
@@ -133,12 +133,12 @@
               name="phone_number"
               value="{{ user.phone_number }}"
               disabled
-              class="editable w-full border rounded px-3 py-2 bg-gray-100"
+              class="editable w-full border  px-3 py-2 bg-gray-100"
             />
 
             <button
               type="button"
-              class="toggle-btn px-3 border rounded h-10 cursor-pointer"
+              class="toggle-btn px-3 border  h-10 cursor-pointer"
             >
               ✎
             </button>
@@ -151,21 +151,21 @@
 
         <button
           id="logoutBtn"
-          class="w-full bg-red-500 text-white py-2 rounded cursor-pointer"
+          class="w-full bg-red-500 text-white py-2  cursor-pointer"
         >
           Logout
         </button>
       </div>
 
       <!-- ADDRESSES -->
-      <div class="mt-8 bg-white border rounded-xl p-6 shadow-sm">
+      <div class="mt-8 bg-white border p-6 shadow-sm">
         <h2 class="text-lg font-semibold mb-4">My Addresses</h2>
 
         <div class="space-y-4">
           {% if addresses|length < 5 %}
           <div
             id="addAddressTrigger"
-            class="border-2 border-dashed rounded-xl p-6 flex items-center justify-center gap-3 cursor-pointer hover:bg-gray-50"
+            class="border-2 border-dashed p-6 flex items-center justify-center gap-3 cursor-pointer hover:bg-gray-50"
           >
             <div
               class="w-10 h-10 rounded-full border flex items-center justify-center text-xl"
@@ -176,7 +176,7 @@
           </div>
           {% endif %} {% for address in addresses %}
           <div
-            class="address-box border rounded-xl p-5 relative"
+            class="address-box border p-5 relative"
             data-id="{{ address.id }}"
           >
             <p class="font-medium">{{ address.address_line }}</p>
@@ -222,7 +222,7 @@
 
       <div class="space-y-4">
         {% for order in orders %}
-        <div class="bg-white border rounded-xl shadow-sm">
+        <div class="bg-white border shadow-sm">
           <!-- HEADER -->
           <div class="flex justify-between items-center px-6 py-4">
             <div>
@@ -234,14 +234,14 @@
 
             <div class="flex gap-3 items-center">
               <span
-                class="px-3 py-1 text-xs rounded {% if order.status == 'pending' %} bg-yellow-100 text-yellow-800 {% elif order.status == 'accepted' %} bg-blue-100 text-blue-800 {% elif order.status == 'completed' %} bg-green-100 text-green-800 {% elif order.status == 'denied' %} bg-red-100 text-red-800 {% endif %}"
+                class="px-3 py-1 text-xs  {% if order.status == 'pending' %} bg-yellow-100 text-yellow-800 {% elif order.status == 'accepted' %} bg-blue-100 text-blue-800 {% elif order.status == 'completed' %} bg-green-100 text-green-800 {% elif order.status == 'denied' %} bg-red-100 text-red-800 {% endif %}"
               >
                 {{ order.get_status_display }}
               </span>
 
               <button
                 type="button"
-                class="toggle-details border px-3 py-1 rounded cursor-pointer"
+                class="toggle-details border px-3 py-1  cursor-pointer"
                 data-target="details-{{ order.id }}"
               >
                 Details
@@ -320,7 +320,7 @@
   id="addressModal"
   class="fixed inset-0 bg-black/50 hidden items-center justify-center"
 >
-  <div class="bg-white rounded-xl p-6 w-full max-w-md">
+  <div class="bg-white p-6 w-full max-w-md">
     <h3 id="modalTitle" class="font-semibold mb-4">Add Address</h3>
 
     <form method="POST">
@@ -353,11 +353,11 @@
         <button
           type="button"
           id="closeModal"
-          class="border px-4 py-2 rounded cursor-pointer"
+          class="border px-4 py-2  cursor-pointer"
         >
           Cancel
         </button>
-        <button class="bg-black text-white px-4 py-2 rounded cursor-pointer">
+        <button class="bg-black text-white px-4 py-2  cursor-pointer">
           Save
         </button>
       </div>
@@ -369,7 +369,7 @@
   id="deleteModal"
   class="fixed inset-0 bg-black/50 hidden items-center justify-center"
 >
-  <div class="bg-white rounded-xl p-6 w-full max-w-sm">
+  <div class="bg-white p-6 w-full max-w-sm">
     <p class="mb-4">Delete this address?</p>
 
     <form method="POST">
@@ -381,11 +381,11 @@
         <button
           type="button"
           id="cancelDelete"
-          class="border px-4 py-2 rounded cursor-pointer"
+          class="border px-4 py-2  cursor-pointer"
         >
           Cancel
         </button>
-        <button class="bg-red-600 text-white px-4 py-2 rounded cursor-pointer">
+        <button class="bg-red-600 text-white px-4 py-2  cursor-pointer">
           Delete
         </button>
       </div>
@@ -397,7 +397,7 @@
   id="logoutModal"
   class="fixed inset-0 bg-black/50 hidden items-center justify-center"
 >
-  <div class="bg-white rounded-xl p-6 w-full max-w-sm">
+  <div class="bg-white p-6 w-full max-w-sm">
     <p class="mb-4">Are you sure you want to logout?</p>
 
     <form method="POST" action="{% url 'logout' %}">
@@ -406,104 +406,16 @@
         <button
           type="button"
           id="cancelLogout"
-          class="border px-4 py-2 rounded cursor-pointer"
+          class="border px-4 py-2  cursor-pointer"
         >
           Cancel
         </button>
-        <button class="bg-red-600 text-white px-4 py-2 rounded cursor-pointer">
+        <button class="bg-red-600 text-white px-4 py-2  cursor-pointer">
           Logout
         </button>
       </div>
     </form>
   </div>
 </div>
-
-<!-- JS -->
-
-<script>
-  document.addEventListener("DOMContentLoaded", function () {
-    // EDIT USER FIELDS
-    document.querySelectorAll(".field-form").forEach((form) => {
-      const input = form.querySelector(".editable");
-      const btn = form.querySelector(".toggle-btn");
-      let editing = false;
-
-      btn.addEventListener("click", () => {
-        if (!editing) {
-          editing = true;
-          input.disabled = false;
-          btn.textContent = "✔";
-          input.focus();
-        } else {
-          form.submit();
-        }
-      });
-    });
-
-    // DETAILS TOGGLE
-    document.querySelectorAll(".toggle-details").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        document.getElementById(btn.dataset.target).classList.toggle("hidden");
-      });
-    });
-
-    // ADD / EDIT MODAL
-    const modal = document.getElementById("addressModal");
-
-    document
-      .getElementById("addAddressTrigger")
-      ?.addEventListener("click", () => {
-        modal.classList.remove("hidden");
-        modal.classList.add("flex");
-        document.getElementById("modalTitle").textContent = "Add Address";
-      });
-
-    document.querySelectorAll(".editAddressBtn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        modal.classList.remove("hidden");
-        modal.classList.add("flex");
-
-        document.getElementById("modalTitle").textContent = "Edit Address";
-        document.getElementById("editAddressId").value = btn.dataset.id;
-        document.getElementById("modalAddress").value = btn.dataset.address;
-        document.getElementById("modalCountry").value = btn.dataset.country;
-        document.getElementById("modalCity").value = btn.dataset.city;
-        document.getElementById("modalPostal").value = btn.dataset.postal;
-      });
-    });
-
-    document.getElementById("closeModal").onclick = () =>
-      modal.classList.add("hidden");
-
-    // DELETE MODAL
-    const deleteModal = document.getElementById("deleteModal");
-
-    document.querySelectorAll(".deleteAddressBtn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        deleteModal.classList.remove("hidden");
-        deleteModal.classList.add("flex");
-        document.getElementById("deleteAddressId").value = btn.dataset.id;
-      });
-    });
-
-    document.getElementById("cancelDelete").onclick = () =>
-      deleteModal.classList.add("hidden");
-  });
-  // LOGOUT MODAL
-  const logoutBtn = document.getElementById("logoutBtn");
-  const logoutModal = document.getElementById("logoutModal");
-  const cancelLogout = document.getElementById("cancelLogout");
-
-  logoutBtn.addEventListener("click", () => {
-    logoutModal.classList.remove("hidden");
-    logoutModal.classList.add("flex");
-  });
-
-  cancelLogout.addEventListener("click", () => {
-    logoutModal.classList.add("hidden");
-  });
-</script>
-
 {% endblock %}
+{% block js %} <script src="{% static 'js/dashboard.js' %}"></script> {% endblock %}

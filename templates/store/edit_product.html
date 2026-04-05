@@ -1,5 +1,6 @@
 {% extends "store/base.html" %}
 {% load dict_extras %}
+{% load static %}
 {% block title %}Edit Product{% endblock %}
 {% block content %}
 <div class="max-w-7xl mx-auto py-24 px-4">
@@ -7,7 +8,7 @@
 
   <form method="post" enctype="multipart/form-data" class="space-y-12">
     {% csrf_token %}
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 border rounded-lg space-y-4">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 border space-y-4">
 
       <!-- LEFT: Category, Name, Price, Discount, Sizes -->
       <div class="space-y-4">
@@ -82,10 +83,10 @@
         <input
           type="text"
           placeholder="Search tags..."
-          class="border px-3 py-2 w-full mb-2 rounded"
+          class="border px-3 py-2 w-full mb-2 "
           onkeyup="filterTags(this)"
         />
-        <div id="tags-container" class="flex flex-col gap-2 max-h-[400px] overflow-y-auto p-2 rounded">
+        <div id="tags-container" class="flex flex-col gap-2 max-h-[400px] overflow-y-auto p-2 ">
           {% for tag in tags %}
           <label class="flex items-center gap-2 cursor-pointer border rounded-full px-3 py-1 hover:bg-gray-100 tag-item">
             <input
@@ -116,11 +117,11 @@
             <button
               type="button"
               onclick="removeExistingImage(this)"
-              class="absolute top-[-4px] right-[-4px] flex items-center bg-black justify-center hover:bg-red-600 text-white rounded w-4 h-4 transition cursor-pointer"
+              class="absolute top-[-4px] right-[-4px] flex items-center bg-black justify-center hover:bg-red-600 text-white  w-4 h-4 transition cursor-pointer"
             >
               ×
             </button>
-            <img src="{{ img.image.url }}" class="w-full h-32 object-cover border rounded"/>
+            <img src="{{ img.image.url }}" class="w-full h-32 object-cover border "/>
             <input
               type="number"
               name="image_order_{{ img.id }}"
@@ -141,90 +142,7 @@
   </form>
 </div>
 
-<script>
-let imagesToDelete = [];
-let selectedFiles = []; // Tracks new files only
-
-function filterTags(input) {
-  const filter = input.value.toLowerCase();
-  const container = document.getElementById("tags-container");
-  container.querySelectorAll(".tag-item").forEach(tag => {
-    tag.style.display = tag.innerText.toLowerCase().includes(filter) ? "flex" : "none";
-  });
-}
-
-// Remove existing image
-function removeExistingImage(btn) {
-  const container = btn.closest("[data-image-id]");
-  const imageId = container.dataset.imageId;
-  imagesToDelete.push(imageId);
-  document.getElementById("images_to_delete").value = imagesToDelete.join(",");
-  container.remove();
-}
-
-// Preview new uploaded images
-function previewImages(input) {
-  const previewContainer = document.getElementById("preview");
-  selectedFiles = selectedFiles.concat(Array.from(input.files));
-  input.value = ""; // clear input so user can select more files later
-
-  rebuildPreview();
-}
-
-// Rebuild preview for new images
-function rebuildPreview() {
-  const previewContainer = document.getElementById("preview");
-  
-  // Keep existing images in DOM (they already have data-image-id)
-  const existingImages = Array.from(previewContainer.querySelectorAll("[data-image-id]"));
-
-  // Remove old new previews
-  previewContainer.querySelectorAll(".new-image-preview").forEach(el => el.remove());
-
-  selectedFiles.forEach((file, i) => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const div = document.createElement("div");
-      div.className = "flex flex-col items-center w-32 relative new-image-preview";
-
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.innerText = "×";
-      btn.className = "absolute top-[-4px] right-[-4px] flex items-center justify-center bg-black hover:bg-red-600 text-white rounded w-4 h-4 text-sm cursor-pointer";
-      btn.onclick = () => {
-        selectedFiles.splice(i, 1);
-        rebuildPreview();
-      };
-
-      const img = document.createElement("img");
-      img.src = e.target.result;
-      img.className = "w-full h-32 object-cover border rounded";
-
-      const orderInput = document.createElement("input");
-      orderInput.type = "number";
-      orderInput.name = `new_image_order_${i}`;
-      orderInput.value = i;
-      orderInput.className = "mt-1 w-full border p-1 text-center text-sm";
-
-      div.appendChild(btn);
-      div.appendChild(img);
-      div.appendChild(orderInput);
-
-      previewContainer.appendChild(div);
-    };
-    reader.readAsDataURL(file);
-  });
-
-  rebuildInputFiles();
-}
-
-// Update hidden input.files for submission
-function rebuildInputFiles() {
-  const input = document.querySelector('input[name="images"]');
-  if (!input) return;
-  const dt = new DataTransfer();
-  selectedFiles.forEach(f => dt.items.add(f));
-  input.files = dt.files;
-}
-</script>
+{% block js %}
+<script src="{% static 'store/js/edit_products.js' %}"></script>
+{% endblock %}
 {% endblock %}
