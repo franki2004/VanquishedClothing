@@ -30,24 +30,25 @@ class CustomerForm(forms.Form):
     first_name = forms.CharField(
         max_length=50,
         widget=forms.TextInput(attrs={
-            "class": "border rounded-lg px-4 py-2 w-full",
+            "class": "border  px-4 py-2 w-full",
             "placeholder": "First Name"
         })
     )
     last_name = forms.CharField(
         max_length=50,
         widget=forms.TextInput(attrs={
-            "class": "border rounded-lg px-4 py-2 w-full",
+            "class": "border  px-4 py-2 w-full",
             "placeholder": "Last Name"
         })
     )
     phone = forms.CharField(
         validators=[phone_validator],
         widget=forms.TextInput(attrs={
-            "class": "border rounded-lg px-4 py-2 w-full",
+            "class": "border px-4 py-2 w-full",
             "placeholder": "Phone Number"
         })
     )
+    email = forms.EmailField(required=True)
 
     def clean_first_name(self):
         value = self.cleaned_data.get("first_name", "").strip()

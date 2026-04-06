@@ -7,7 +7,7 @@ from django.core.validators import RegexValidator
 User = get_user_model()
 
 
-TAILWIND_INPUT_CLASSES = "w-full border border-gray-300 rounded px-3 py-2 mt-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+TAILWIND_INPUT_CLASSES = "w-full border border-gray-300  px-3 py-2 mt-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
 
 class PasswordInputPreserve(forms.PasswordInput):
     def __init__(self, *args, **kwargs):
@@ -153,22 +153,22 @@ class AddressForm(forms.ModelForm):
         widgets = {
             "address_line": forms.TextInput(attrs={
                 "id": "modalAddress",
-                "class": "border rounded w-full px-3 py-2",
+                "class": "border  w-full px-3 py-2",
                 "placeholder": "Street, number, entrance, floor..."
             }),
             "city": forms.TextInput(attrs={
                 "id": "modalCity",
-                "class": "border rounded w-full px-3 py-2",
+                "class": "border  w-full px-3 py-2",
                 "placeholder": "City"
             }),
             "postal_code": forms.TextInput(attrs={
                 "id": "modalPostal",
-                "class": "border rounded w-full px-3 py-2",
+                "class": "border  w-full px-3 py-2",
                 "placeholder": "Postal Code"
             }),
             "country": forms.TextInput(attrs={
                 "id": "modalCountry",
-                "class": "border rounded w-full px-3 py-2",
+                "class": "border  w-full px-3 py-2",
                 "placeholder": "Country"
             }),
             "is_default": forms.CheckboxInput(attrs={

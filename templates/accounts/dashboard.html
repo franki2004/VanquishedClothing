@@ -252,6 +252,9 @@
           <!-- DETAILS -->
           <div id="details-{{ order.id }}" class="hidden border-t px-6 py-4">
             <p class="text-sm mb-2">
+              Email: {{ order.email }}
+            </p>
+            <p class="text-sm mb-2">
               Address: {{ order.street }}, {{ order.city }}, {{ order.country }}
             </p>
 
@@ -271,17 +274,6 @@
                 <div>€{{ item.total_price|floatformat:2 }}</div>
               </div>
               {% endfor %}
-              <div class="pagination">
-                {% if orders.has_previous %}
-                  <a href="?page={{ orders.previous_page_number }}">Previous</a>
-                {% endif %}
-              
-                <span>Page {{ orders.number }} of {{ orders.paginator.num_pages }}</span>
-              
-                {% if orders.has_next %}
-                  <a href="?page={{ orders.next_page_number }}">Next</a>
-                {% endif %}
-              </div>
             </div>
 
             <div class="text-sm space-y-1">

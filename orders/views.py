@@ -18,6 +18,7 @@ from .forms import CustomerForm
 from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 
 User = get_user_model()
 
@@ -93,9 +94,8 @@ def update_cart_item(request, item_id):
 
 
 # ---------------------------
-# CHECKOUT ------------ NEEDS DELIVERY FEE FIXES
+# CHECKOUT ------------ 
 # ---------------------------
-@login_required
 def checkout(request):
     cart = get_or_create_cart(request)
     items = cart.items.select_related("variant__product")
@@ -104,48 +104,50 @@ def checkout(request):
     delivery_fee = Decimal("5.00") if 0 < subtotal < 100 else Decimal("0.00")
     total = subtotal + delivery_fee
 
-    addresses = request.user.addresses.all()
-    selected_address = addresses.filter(is_default=True).first() or addresses.first()
+    user = request.user if request.user.is_authenticated else None
 
+    if not request.session.session_key:
+        request.session.create()
+    session_key = request.session.session_key
+
+    addresses = user.addresses.all() if user else []
+    selected_address = (
+        addresses.filter(is_default=True).first() or addresses.first()
+        if user else None
+    )
+
+    # ---------------------------
+    # POST
+    # ---------------------------
     if request.method == "POST":
+        payment_method = request.POST.get("payment_method")
         customer_form = CustomerForm(request.POST)
 
-        address_id = request.POST.get("address_id")
-        address_instance = None
-        if address_id and address_id.isdigit():
-            address_instance = request.user.addresses.filter(id=int(address_id)).first()
+        if user:
+            # Address handling for logged-in users
+            address_id = request.POST.get("address_id")
+            address_instance = (
+                addresses.filter(id=int(address_id)).first()
+                if address_id and address_id.isdigit()
+                else None
+            )
 
-        address_form = AddressForm(request.POST or None, instance=address_instance)
+            address_form = AddressForm(request.POST or None, instance=address_instance)
+            action = request.POST.get("address_action", "order")
 
-        action = request.POST.get("address_action")
-
-        # ---------------------------
-        # SAVE ADDRESS
-        # ---------------------------
-        if action == "save":
-            if address_form.is_valid():
+            if action == "save" and address_form.is_valid():
                 addr = address_form.save(commit=False)
-                addr.user = request.user
+                addr.user = user
                 addr.save()
                 return redirect("checkout")
-            # if invalid, fall through to render with errors
 
-        # ---------------------------
-        # DELETE ADDRESS
-        # ---------------------------
-        elif action == "delete":
-            if address_instance:
+            if action == "delete" and address_instance:
                 address_instance.delete()
-            return redirect("checkout")
+                return redirect("checkout")
 
-        # ---------------------------
-        # PLACE ORDER
-        # ---------------------------
-        elif action == "order":
             if not customer_form.is_valid() or not address_instance:
                 if not address_instance:
-                    customer_form.add_error(None, "Please select or add a valid address.")
-                # Render with errors
+                    customer_form.add_error(None, "Select address.")
                 return render(request, "store/checkout.html", {
                     "items": items,
                     "subtotal": subtotal,
@@ -157,152 +159,159 @@ def checkout(request):
                     "address_form": address_form,
                 })
 
-            payment_method = request.POST.get("payment_method")
             first_name = customer_form.cleaned_data["first_name"]
             last_name = customer_form.cleaned_data["last_name"]
             phone = customer_form.cleaned_data["phone"]
-            full_name = f"{first_name} {last_name}"
+            email = customer_form.cleaned_data["email"]  # <-- added
+            addr_info = address_instance
 
-            cod_fee = Decimal("0.00")
-            if payment_method == "cod":
-                cod_fee = (subtotal * COD_PERCENT).quantize(Decimal("0.01"))
+        else:
+            # Guest checkout
+            if not customer_form.is_valid():
+                return render(request, "store/checkout.html", {
+                    "items": items,
+                    "subtotal": subtotal,
+                    "delivery_fee": delivery_fee,
+                    "total": total,
+                    "addresses": [],
+                    "selected_address": None,
+                    "customer_form": customer_form,
+                    "address_form": None,
+                })
 
-            total_with_fees = (subtotal + delivery_fee + cod_fee).quantize(Decimal("0.01"))
+            first_name = customer_form.cleaned_data["first_name"]
+            last_name = customer_form.cleaned_data["last_name"]
+            phone = customer_form.cleaned_data["phone"]
+            email = customer_form.cleaned_data["email"]  # <-- added
+            addr_info = type("Addr", (), {
+                "city": request.POST.get("city"),
+                "postal_code": request.POST.get("postal_code"),
+                "address_line": request.POST.get("street"),
+                "country": request.POST.get("country"),
+            })()
 
-            # ---------------------------
-            # CARD PAYMENT
-            # ---------------------------
-            if payment_method == "card":
-                with transaction.atomic():
-                    for item in items.select_for_update():
-                        variant = item.variant
-                        if variant.available_quantity() < item.quantity:
-                            customer_form.add_error(None, f"Not enough stock for {variant}")
-                            return render(request, "store/checkout.html", {
-                                "items": items,
-                                "subtotal": subtotal,
-                                "delivery_fee": delivery_fee,
-                                "total": total,
-                                "addresses": addresses,
-                                "selected_address": selected_address,
-                                "customer_form": customer_form,
-                                "address_form": address_form,
-                            })
+        full_name = f"{first_name} {last_name}"
 
-                        ProductVariantReservation.objects.create(
-                            variant=variant,
-                            user=request.user,
-                            quantity=item.quantity,
-                            reserved_until=timezone.now() + timedelta(minutes=RESERVATION_MINUTES)
-                        )
+        cod_fee = Decimal("0.00")
+        if payment_method == "cod":
+            cod_fee = (subtotal * COD_PERCENT).quantize(Decimal("0.01"))
 
-                # BUILD STRIPE LINE ITEMS
-                line_items = [
-                    {
-                        "price_data": {
-                            "currency": "eur",
-                            "product_data": {
-                                "name": f"{item.variant.product.name} - {item.variant.size}"
-                            },
-                            "unit_amount": int(item.variant.product.final_price * 100),
-                        },
-                        "quantity": item.quantity,
-                    }
-                    for item in items
-                ]
+        total_with_fees = (subtotal + delivery_fee + cod_fee).quantize(Decimal("0.01"))
 
-                # ADD DELIVERY FEE AS SEPARATE ITEM
-                if delivery_fee > 0:
-                    line_items.append({
-                        "price_data": {
-                            "currency": "eur",
-                            "product_data": {
-                                "name": "Delivery Fee"
-                            },
-                            "unit_amount": int(delivery_fee * 100),
-                        },
-                        "quantity": 1,
-                    })
+        # ---------------------------
+        # CARD (STRIPE)
+        # ---------------------------
+        if payment_method == "card":
+            with transaction.atomic():
+                for item in items.select_for_update():
+                    variant = item.variant
+                    if variant.available_quantity() < item.quantity:
+                        return redirect("cart")
 
-                session = stripe.checkout.Session.create(
-                    payment_method_types=["card"],
-                    line_items=line_items,
-                    mode="payment",
-                    success_url=request.build_absolute_uri(reverse("checkout_success_page")),
-                    cancel_url=request.build_absolute_uri(reverse("checkout")),
-                    metadata={
-                        "user_id": request.user.id,
-                        "address_id": address_instance.id,
-                        "first_name": first_name,
-                        "last_name": last_name,
-                        "phone": phone,
-                        "city": address_instance.city,
-                        "postal_code": address_instance.postal_code,
-                        "street": address_instance.address_line,
-                        "country": address_instance.country,
-                        "delivery_fee": str(delivery_fee),
-                    }
-                )
-
-                return redirect(session.url)
-
-            # ---------------------------
-            # COD PAYMENT
-            # ---------------------------
-            else:
-                with transaction.atomic():
-                    for item in items.select_for_update():
-                        variant = item.variant
-                        if variant.available_quantity() < item.quantity:
-                            customer_form.add_error(None, f"Not enough stock for {variant}")
-                            return render(request, "store/checkout.html", {
-                                "items": items,
-                                "subtotal": subtotal,
-                                "delivery_fee": delivery_fee,
-                                "total": total,
-                                "addresses": addresses,
-                                "selected_address": selected_address,
-                                "customer_form": customer_form,
-                                "address_form": address_form,
-                            })
-
-                    order = Order.objects.create(
-                        user=request.user,
-                        full_name=full_name,
-                        phone=phone,
-                        city=address_instance.city,
-                        postal_code=address_instance.postal_code,
-                        street=address_instance.address_line,
-                        country=address_instance.country,
-                        subtotal=subtotal,
-                        delivery_fee=delivery_fee,
-                        cod_fee=cod_fee,
-                        total=total_with_fees,
-                        payment_method="cod",
-                        status="pending"
+                    ProductVariantReservation.objects.create(
+                        variant=variant,
+                        user=user if user else None,
+                        session_key=session_key if not user else None,
+                        quantity=item.quantity,
+                        reserved_until=timezone.now() + timedelta(minutes=RESERVATION_MINUTES)
                     )
 
-                    for item in items:
-                        OrderItem.objects.create(
-                            order=order,
-                            variant=item.variant,
-                            quantity=item.quantity,
-                            price_snapshot=item.variant.product.final_price
-                        )
+            line_items = [
+                {
+                    "price_data": {
+                        "currency": "eur",
+                        "product_data": {"name": f"{item.variant.product.name} - {item.variant.size}"},
+                        "unit_amount": int(item.variant.product.final_price * 100),
+                    },
+                    "quantity": item.quantity,
+                } for item in items
+            ]
 
-                    cart.items.all().delete()
-                    return redirect("checkout_success_page")
+            if delivery_fee > 0:
+                line_items.append({
+                    "price_data": {
+                        "currency": "eur",
+                        "product_data": {"name": "Delivery Fee"},
+                        "unit_amount": int(delivery_fee * 100),
+                    },
+                    "quantity": 1,
+                })
+
+            metadata = {
+                "user_id": str(user.id) if user else "",
+                "session_key": session_key if not user else "",
+                "first_name": first_name,
+                "last_name": last_name,
+                "phone": phone,
+                "email": email,  # <-- added
+                "city": addr_info.city,
+                "postal_code": addr_info.postal_code,
+                "street": addr_info.address_line,
+                "country": getattr(addr_info, "country", ""),
+                "delivery_fee": str(delivery_fee),
+                "address_id": str(addr_info.id) if user else "",
+            }
+
+            session = stripe.checkout.Session.create(
+                payment_method_types=["card"],
+                line_items=line_items,
+                mode="payment",
+                success_url=request.build_absolute_uri(reverse("checkout_success_page")),
+                cancel_url=request.build_absolute_uri(reverse("checkout")),
+                metadata=metadata
+            )
+            return redirect(session.url)
+
+        # ---------------------------
+        # COD
+        # ---------------------------
+        else:
+            with transaction.atomic():
+                for item in items.select_for_update():
+                    variant = item.variant
+                    if variant.available_quantity() < item.quantity:
+                        return redirect("cart")
+                    variant.stock -= item.quantity
+                    variant.save()
+
+                order = Order.objects.create(
+                    user=user,
+                    full_name=full_name,
+                    phone=phone,
+                    email=email,  # <-- added
+                    city=addr_info.city,
+                    postal_code=addr_info.postal_code,
+                    street=addr_info.address_line,
+                    country=getattr(addr_info, "country", ""),
+                    subtotal=subtotal,
+                    delivery_fee=delivery_fee,
+                    cod_fee=cod_fee,
+                    total=total_with_fees,
+                    payment_method="cod",
+                    status="pending"
+                )
+
+                for item in items:
+                    OrderItem.objects.create(
+                        order=order,
+                        variant=item.variant,
+                        quantity=item.quantity,
+                        price_snapshot=item.variant.product.final_price
+                    )
+
+                cart.items.all().delete()
+                return redirect("checkout_success_page")
 
     # ---------------------------
-    # GET REQUEST
+    # GET
     # ---------------------------
-    else:
-        customer_form = CustomerForm(initial={
-            "first_name": request.user.first_name,
-            "last_name": request.user.last_name,
-            "phone": getattr(request.user, "phone_number", "")
-        })
-        address_form = AddressForm()
+    customer_form = CustomerForm(initial={
+        "first_name": getattr(user, "first_name", ""),
+        "last_name": getattr(user, "last_name", ""),
+        "phone": getattr(user, "phone_number", ""),
+        "email": getattr(user, "email", "")
+    } if user else None)
+    address_form = AddressForm() if user else None
 
     return render(request, "store/checkout.html", {
         "items": items,
@@ -314,7 +323,6 @@ def checkout(request):
         "customer_form": customer_form,
         "address_form": address_form,
     })
-
 
 # ---------------------------
 # STRIPE WEBHOOK
@@ -335,17 +343,14 @@ def stripe_webhook(request):
         session = event["data"]["object"]
         metadata = session.get("metadata", {})
 
-        user_id = metadata.get("user_id")
-        session_key = metadata.get("session_key")
+        user_id = metadata.get("user_id") or None
+        session_key = metadata.get("session_key") or None
 
-        user = None
-        if user_id:
-            user = User.objects.filter(id=user_id).first()
+        user = User.objects.filter(id=user_id).first() if user_id else None
 
-        cart = None
         if user:
             cart = Cart.objects.filter(user=user).first()
-        elif session_key:
+        else:
             cart = Cart.objects.filter(session_key=session_key).first()
 
         if not cart:
@@ -361,9 +366,9 @@ def stripe_webhook(request):
 
                 reservation = ProductVariantReservation.objects.filter(
                     variant=variant,
-                    user=user if user else None,
-                    session_key=session_key if not user else None,
                     reserved_until__gt=timezone.now()
+                ).filter(
+                    Q(user=user) | Q(session_key=session_key)
                 ).first()
 
                 if not reservation or reservation.quantity < item.quantity:
@@ -377,11 +382,9 @@ def stripe_webhook(request):
 
             order = Order.objects.create(
                 user=user,
-                full_name=(
-                    f"{metadata.get('first_name', '')} {metadata.get('last_name', '')}".strip()
-                    or metadata.get("name")
-                ),
+                full_name=f"{metadata.get('first_name','')} {metadata.get('last_name','')}".strip(),
                 phone=metadata.get("phone"),
+                email=metadata.get("email") or "",  # <-- added
                 street=metadata.get("street"),
                 city=metadata.get("city"),
                 postal_code=metadata.get("postal_code"),
@@ -401,152 +404,21 @@ def stripe_webhook(request):
                     price_snapshot=item.variant.product.final_price
                 )
 
-            # cleanup reservations
             ProductVariantReservation.objects.filter(
-                user=user if user else None,
-                session_key=session_key if not user else None
+                Q(user=user) | Q(session_key=session_key)
             ).delete()
 
             cart.items.all().delete()
 
     return HttpResponse(status=200)
 
-def checkout_guest(request):
-    cart = get_or_create_cart(request)
-    items = cart.items.select_related("variant__product")
-
-    subtotal = sum((item.total_price for item in items), Decimal("0.00"))
-    delivery_fee = Decimal("5.00") if 0 < subtotal < 100 else Decimal("0.00")
-    total = subtotal + delivery_fee
-
-    if request.method == "POST":
-        name = request.POST.get("name")
-        phone = request.POST.get("phone")
-        city = request.POST.get("city")
-        postal_code = request.POST.get("postal_code")
-        street = request.POST.get("street")
-        payment_method = request.POST.get("payment_method")
-
-        if not request.session.session_key:
-            request.session.create()
-
-        session_key = request.session.session_key
-
-        # ---------------------------
-        # CARD (RESERVE STOCK + STRIPE)
-        # ---------------------------
-        if payment_method == "card":
-            with transaction.atomic():
-                for item in items.select_for_update():
-                    variant = item.variant
-
-                    if variant.available_quantity() < item.quantity:
-                        return redirect("cart")
-
-                    ProductVariantReservation.objects.create(
-                        variant=variant,
-                        session_key=session_key,
-                        quantity=item.quantity,
-                        reserved_until=timezone.now() + timedelta(minutes=RESERVATION_MINUTES)
-                    )
-
-            # BUILD LINE ITEMS (INCLUDING DELIVERY)
-            line_items = [
-                {
-                    "price_data": {
-                        "currency": "eur",
-                        "product_data": {
-                            "name": f"{item.variant.product.name} - {item.variant.size}"
-                        },
-                        "unit_amount": int(item.variant.product.final_price * 100),
-                    },
-                    "quantity": item.quantity,
-                }
-                for item in items
-            ]
-
-            if delivery_fee > 0:
-                line_items.append({
-                    "price_data": {
-                        "currency": "eur",
-                        "product_data": {
-                            "name": "Delivery Fee"
-                        },
-                        "unit_amount": int(delivery_fee * 100),
-                    },
-                    "quantity": 1,
-                })
-
-            session = stripe.checkout.Session.create(
-                payment_method_types=["card"],
-                line_items=line_items,
-                mode="payment",
-                success_url=request.build_absolute_uri(reverse("checkout_success_page")),
-                cancel_url=request.build_absolute_uri(reverse("checkout")),
-                metadata={
-                    "session_key": session_key,
-                    "name": name,
-                    "phone": phone,
-                    "city": city,
-                    "postal_code": postal_code,
-                    "street": street,
-                    "delivery_fee": str(delivery_fee),
-                }
-            )
-
-            return redirect(session.url)
-
-        # ---------------------------
-        # COD (DIRECT ORDER)
-        # ---------------------------
-        else:
-            with transaction.atomic():
-                for item in items.select_for_update():
-                    variant = item.variant
-                    if variant.available_quantity() < item.quantity:
-                        return redirect("cart")
-
-                    variant.stock -= item.quantity
-                    variant.save()
-
-                order = Order.objects.create(
-                    full_name=name,
-                    phone=phone,
-                    city=city,
-                    postal_code=postal_code,
-                    street=street,
-                    subtotal=subtotal,
-                    delivery_fee=delivery_fee,
-                    total=total,
-                    payment_method="cod",
-                    status="pending"
-                )
-
-                for item in items:
-                    OrderItem.objects.create(
-                        order=order,
-                        variant=item.variant,
-                        quantity=item.quantity,
-                        price_snapshot=item.variant.product.final_price
-                    )
-
-                cart.items.all().delete()
-                return redirect("checkout_success_page")
-
-    return render(request, "store/checkout_guest.html", {
-        "items": items,
-        "subtotal": subtotal,
-        "delivery_fee": delivery_fee,
-        "total": total,
-    })
-
 def checkout_success_page(request):
     return render(request, "store/checkout_success.html")
 
 # ---------------------------
-# ADMIN ORDERS
+# ADMIN ORDERS -- needs deny fix
 # ---------------------------
-@staff_member_required
+@staff_member_required 
 def admin_orders(request):
     if request.method == "POST":
         action = request.POST.get("action")

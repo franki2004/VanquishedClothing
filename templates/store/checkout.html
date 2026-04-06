@@ -20,26 +20,58 @@
       <!-- CUSTOMER -->
       <div class="bg-white border p-6 shadow-sm">
         <h2 class="text-lg font-semibold mb-4">Customer</h2>
-
+      
         <div class="grid md:grid-cols-2 gap-4">
           <div>
-            {{ customer_form.first_name }}
-            {% if customer_form.first_name.errors %}
+            <input 
+              name="first_name"
+              class="border w-full px-3 py-2"
+              placeholder="First Name"
+              value="{{ customer_form.first_name.value|default:'' }}"
+              required
+            >
+            {% if customer_form and customer_form.first_name.errors %}
               <p class="text-red-600 text-sm mt-1">{{ customer_form.first_name.errors.0 }}</p>
             {% endif %}
           </div>
+      
           <div>
-            {{ customer_form.last_name }}
-            {% if customer_form.last_name.errors %}
+            <input 
+              name="last_name"
+              class="border w-full px-3 py-2"
+              placeholder="Last Name"
+              value="{{ customer_form.last_name.value|default:'' }}"
+              required
+            >
+            {% if customer_form and customer_form.last_name.errors %}
               <p class="text-red-600 text-sm mt-1">{{ customer_form.last_name.errors.0 }}</p>
             {% endif %}
           </div>
         </div>
+      
+        <div class="mt-4">
+          <input 
+            name="phone"
+            class="border w-full px-3 py-2"
+            placeholder="Phone"
+            value="{{ customer_form.phone.value|default:'' }}"
+            required
+          >
+          {% if customer_form and customer_form.phone.errors %}
+            <p class="text-red-600 text-sm mt-1">{{ customer_form.phone.errors.0 }}</p>
+          {% endif %}
+        </div>
 
         <div class="mt-4">
-          {{ customer_form.phone }}
-          {% if customer_form.phone.errors %}
-            <p class="text-red-600 text-sm mt-1">{{ customer_form.phone.errors.0 }}</p>
+          <input 
+            name="email"
+            class="border w-full px-3 py-2"
+            placeholder="Email"
+            value="{{ customer_form.email.value|default:'' }}"
+            required
+          >
+          {% if customer_form and customer_form.phone.errors %}
+            <p class="text-red-600 text-sm mt-1">{{ customer_form.email.errors.0 }}</p>
           {% endif %}
         </div>
       </div>
@@ -47,38 +79,55 @@
       <!-- DELIVERY ADDRESS -->
       <div>
         <h2 class="text-lg font-semibold mb-4">Delivery Address</h2>
-
-        {% if addresses|length < 5 %}
-        <button type="button" id="openAddressModal"
-          class="cursor-pointer border-2 border-dashed p-6 flex items-center justify-center gap-3 w-full hover:bg-gray-50">
-          <div class="w-10 h-10 rounded-full border flex items-center justify-center text-xl">+</div>
-          <span>Add Address</span>
-        </button>
-        {% endif %}
-
-        <div class="space-y-4 mt-4">
-          {% for addr in addresses %}
-          <div class="address-box cursor-pointer border p-5 relative transition {% if addr == selected_address %}ring-2 ring-black{% endif %}"
-               data-id="{{ addr.id }}">
-            <p class="font-medium">{{ addr.address_line }}</p>
-            <p class="text-sm text-gray-500">{{ addr.country }}, {{ addr.city }}, {{ addr.postal_code }}</p>
-            {% if addr.is_default %}<span class="text-xs text-green-600">Default</span>{% endif %}
-            <div class="absolute top-4 right-4 flex gap-3 items-center">
-              <button type="button" class="editAddressBtn"
-                      data-id="{{ addr.id }}"
-                      data-address="{{ addr.address_line }}"
-                      data-country="{{ addr.country }}"
-                      data-city="{{ addr.city }}"
-                      data-postal="{{ addr.postal_code }}">
-                <img src="{% static 'icons/pen.svg' %}" class="w-5 h-5 cursor-pointer">
-              </button>
-              <button type="button" class="deleteAddressBtn" data-id="{{ addr.id }}">
-                <img src="{% static 'icons/trash.svg' %}" class="w-5 h-5 cursor-pointer">
-              </button>
+      
+        {% if user.is_authenticated %}
+      
+          {% if addresses|length < 5 %}
+          <button type="button" id="openAddressModal"
+            class="cursor-pointer border-2 border-dashed p-6 flex items-center justify-center gap-3 w-full hover:bg-gray-50">
+            <div class="w-10 h-10 rounded-full border flex items-center justify-center text-xl">+</div>
+            <span>Add Address</span>
+          </button>
+          {% endif %}
+      
+          <div class="space-y-4 mt-4">
+            {% for addr in addresses %}
+            <div class="address-box cursor-pointer border p-5 relative transition {% if addr == selected_address %}ring-2 ring-black{% endif %}"
+                 data-id="{{ addr.id }}">
+              <p class="font-medium">{{ addr.address_line }}</p>
+              <p class="text-sm text-gray-500">{{ addr.country }}, {{ addr.city }}, {{ addr.postal_code }}</p>
+      
+              <div class="absolute top-4 right-4 flex gap-3 items-center">
+                <button type="button" class="editAddressBtn"
+                        data-id="{{ addr.id }}"
+                        data-address="{{ addr.address_line }}"
+                        data-country="{{ addr.country }}"
+                        data-city="{{ addr.city }}"
+                        data-postal="{{ addr.postal_code }}">
+                  <img src="{% static 'icons/pen.svg' %}" class="w-5 h-5 cursor-pointer">
+                </button>
+      
+                <button type="button" class="deleteAddressBtn" data-id="{{ addr.id }}">
+                  <img src="{% static 'icons/trash.svg' %}" class="w-5 h-5 cursor-pointer">
+                </button>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+      
+        {% else %}
+      
+          <div class="bg-white border p-6 shadow-sm space-y-4">
+            <input name="street" class="border w-full px-3 py-2" placeholder="Street, number, entrance..." required>
+            <input name="city" class="border w-full px-3 py-2" placeholder="City" required>
+      
+            <div class="grid md:grid-cols-2 gap-4">
+              <input name="postal_code" class="border w-full px-3 py-2" placeholder="Postal Code" required>
+              <input name="country" class="border w-full px-3 py-2" placeholder="Country" required>
             </div>
           </div>
-          {% endfor %}
-        </div>
+      
+        {% endif %}
       </div>
 
       <!-- PAYMENT -->
