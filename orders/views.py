@@ -196,22 +196,37 @@ def checkout(request):
                             reserved_until=timezone.now() + timedelta(minutes=RESERVATION_MINUTES)
                         )
 
-                # Stripe session
+                # BUILD STRIPE LINE ITEMS
+                line_items = [
+                    {
+                        "price_data": {
+                            "currency": "eur",
+                            "product_data": {
+                                "name": f"{item.variant.product.name} - {item.variant.size}"
+                            },
+                            "unit_amount": int(item.variant.product.final_price * 100),
+                        },
+                        "quantity": item.quantity,
+                    }
+                    for item in items
+                ]
+
+                # ADD DELIVERY FEE AS SEPARATE ITEM
+                if delivery_fee > 0:
+                    line_items.append({
+                        "price_data": {
+                            "currency": "eur",
+                            "product_data": {
+                                "name": "Delivery Fee"
+                            },
+                            "unit_amount": int(delivery_fee * 100),
+                        },
+                        "quantity": 1,
+                    })
+
                 session = stripe.checkout.Session.create(
                     payment_method_types=["card"],
-                    line_items=[
-                        {
-                            "price_data": {
-                                "currency": "eur",
-                                "product_data": {
-                                    "name": f"{item.variant.product.name} - {item.variant.size}"
-                                },
-                                "unit_amount": int(item.variant.product.final_price * 100),
-                            },
-                            "quantity": item.quantity,
-                        }
-                        for item in items
-                    ],
+                    line_items=line_items,
                     mode="payment",
                     success_url=request.build_absolute_uri(reverse("checkout_success_page")),
                     cancel_url=request.build_absolute_uri(reverse("checkout")),
@@ -225,8 +240,10 @@ def checkout(request):
                         "postal_code": address_instance.postal_code,
                         "street": address_instance.address_line,
                         "country": address_instance.country,
+                        "delivery_fee": str(delivery_fee),
                     }
                 )
+
                 return redirect(session.url)
 
             # ---------------------------
@@ -318,54 +335,64 @@ def stripe_webhook(request):
         session = event["data"]["object"]
         metadata = session.get("metadata", {})
 
-        user = get_object_or_404(User, id=metadata.get("user_id"))
-        address_id = metadata.get("address_id")
+        user_id = metadata.get("user_id")
+        session_key = metadata.get("session_key")
 
-        cart = get_or_create_cart(user=user)
+        user = None
+        if user_id:
+            user = User.objects.filter(id=user_id).first()
+
+        cart = None
+        if user:
+            cart = Cart.objects.filter(user=user).first()
+        elif session_key:
+            cart = Cart.objects.filter(session_key=session_key).first()
+
+        if not cart:
+            return HttpResponse(status=200)
+
         items = cart.items.select_related("variant__product")
 
         with transaction.atomic():
             subtotal = Decimal("0.00")
-            delivery_fee = Decimal("0.00")
 
-            # Check all reservations and reduce stock
             for item in items.select_for_update():
                 variant = item.variant
+
                 reservation = ProductVariantReservation.objects.filter(
                     variant=variant,
-                    user=user,
+                    user=user if user else None,
+                    session_key=session_key if not user else None,
                     reserved_until__gt=timezone.now()
                 ).first()
 
-                # Skip items without valid reservation or insufficient quantity
                 if not reservation or reservation.quantity < item.quantity:
                     continue
 
                 variant.stock -= item.quantity
                 variant.save()
+
                 reservation.delete()
                 subtotal += item.total_price
 
-            if 0 < subtotal < 100:
-                delivery_fee = Decimal("5.00")
-
-            # Create order
             order = Order.objects.create(
                 user=user,
-                full_name=f"{metadata.get('first_name')} {metadata.get('last_name')}",
+                full_name=(
+                    f"{metadata.get('first_name', '')} {metadata.get('last_name', '')}".strip()
+                    or metadata.get("name")
+                ),
                 phone=metadata.get("phone"),
                 street=metadata.get("street"),
                 city=metadata.get("city"),
                 postal_code=metadata.get("postal_code"),
                 country=metadata.get("country"),
                 subtotal=subtotal,
-                delivery_fee=delivery_fee,
-                total=subtotal + delivery_fee,
+                delivery_fee=Decimal(metadata.get("delivery_fee", "0.00")),
+                total=Decimal(session["amount_total"]) / 100,
                 payment_method="card",
                 status="accepted"
             )
 
-            # Create order items
             for item in items:
                 OrderItem.objects.create(
                     order=order,
@@ -373,24 +400,14 @@ def stripe_webhook(request):
                     quantity=item.quantity,
                     price_snapshot=item.variant.product.final_price
                 )
-            
-            #Remove reserved items
-            for item in items:
-                ProductVariantReservation.objects.filter(user=user, variant=item.variant).delete()
 
-            # Clear the cart
+            # cleanup reservations
+            ProductVariantReservation.objects.filter(
+                user=user if user else None,
+                session_key=session_key if not user else None
+            ).delete()
+
             cart.items.all().delete()
-
-    elif event["type"] in ["checkout.session.expired", "checkout.session.canceled"]:
-        session = event["data"]["object"]
-        # Expire reservations for this session
-        reservation_ids = session.get("metadata", {}).get("reservation_ids", "")
-        for res_id in reservation_ids.split(","):
-            try:
-                res = ProductVariantReservation.objects.get(id=res_id)
-                res.expire() 
-            except ProductVariantReservation.DoesNotExist:
-                continue
 
     return HttpResponse(status=200)
 
@@ -416,7 +433,7 @@ def checkout_guest(request):
         session_key = request.session.session_key
 
         # ---------------------------
-        # CARD (RESERVE STOCK)
+        # CARD (RESERVE STOCK + STRIPE)
         # ---------------------------
         if payment_method == "card":
             with transaction.atomic():
@@ -433,24 +450,39 @@ def checkout_guest(request):
                         reserved_until=timezone.now() + timedelta(minutes=RESERVATION_MINUTES)
                     )
 
+            # BUILD LINE ITEMS (INCLUDING DELIVERY)
+            line_items = [
+                {
+                    "price_data": {
+                        "currency": "eur",
+                        "product_data": {
+                            "name": f"{item.variant.product.name} - {item.variant.size}"
+                        },
+                        "unit_amount": int(item.variant.product.final_price * 100),
+                    },
+                    "quantity": item.quantity,
+                }
+                for item in items
+            ]
+
+            if delivery_fee > 0:
+                line_items.append({
+                    "price_data": {
+                        "currency": "eur",
+                        "product_data": {
+                            "name": "Delivery Fee"
+                        },
+                        "unit_amount": int(delivery_fee * 100),
+                    },
+                    "quantity": 1,
+                })
+
             session = stripe.checkout.Session.create(
                 payment_method_types=["card"],
-                line_items=[
-                    {
-                        "price_data": {
-                            "currency": "eur",
-                            "product_data": {
-                                "name": f"{item.variant.product.name} - {item.variant.size}"
-                            },
-                            "unit_amount": int(item.variant.product.final_price * 100),
-                        },
-                        "quantity": item.quantity,
-                    }
-                    for item in items
-                ],
+                line_items=line_items,
                 mode="payment",
                 success_url=request.build_absolute_uri(reverse("checkout_success_page")),
-                cancel_url = request.build_absolute_uri(reverse("checkout")),
+                cancel_url=request.build_absolute_uri(reverse("checkout")),
                 metadata={
                     "session_key": session_key,
                     "name": name,
@@ -458,19 +490,24 @@ def checkout_guest(request):
                     "city": city,
                     "postal_code": postal_code,
                     "street": street,
+                    "delivery_fee": str(delivery_fee),
                 }
             )
 
             return redirect(session.url)
 
         # ---------------------------
-        # COD (PENDING ORDER ONLY)
+        # COD (DIRECT ORDER)
         # ---------------------------
         else:
             with transaction.atomic():
                 for item in items.select_for_update():
-                    if item.variant.available_quantity() < item.quantity:
+                    variant = item.variant
+                    if variant.available_quantity() < item.quantity:
                         return redirect("cart")
+
+                    variant.stock -= item.quantity
+                    variant.save()
 
                 order = Order.objects.create(
                     full_name=name,
