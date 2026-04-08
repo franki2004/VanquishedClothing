@@ -26,12 +26,12 @@ STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 
 
 
 
-CELERY_BROKER_URL = "redis://localhost:6379/0"  # Example using Redis
+CELERY_BROKER_URL = "redis://localhost:6379/0" 
 CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
 
 CELERY_BEAT_SCHEDULE = {
@@ -65,8 +65,10 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    "django.contrib.messages.middleware.MessageMiddleware"
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
 ]
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 ROOT_URLCONF = 'VanquishedClothing.urls'
 
