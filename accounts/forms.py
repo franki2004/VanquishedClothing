@@ -2,10 +2,13 @@ from django import forms
 from django.contrib.auth import get_user_model, authenticate
 from django.core.exceptions import ValidationError
 import re
+from django.urls import reverse
 from .models import Address
 from django.core.validators import RegexValidator
+from django.template.loader import render_to_string
+from django.core.mail import EmailMultiAlternatives
+from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
 User = get_user_model()
-
 
 TAILWIND_INPUT_CLASSES = "w-full border border-gray-300  px-3 py-2 mt-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
 
@@ -137,8 +140,6 @@ class UserFieldUpdateForm(forms.ModelForm):
 from django import forms
 from .models import Address
 
-
-# forms.py
 class AddressForm(forms.ModelForm):
     class Meta:
         model = Address
@@ -187,3 +188,55 @@ class AddressForm(forms.ModelForm):
         if len(value) < 2:
             raise forms.ValidationError("City is too short.")
         return value
+
+
+class StyledPasswordResetForm(PasswordResetForm):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["email"].widget.attrs.update({
+            "class": TAILWIND_INPUT_CLASSES
+        })
+
+    def send_mail(self, subject_template_name, email_template_name,
+                  context, from_email, to_email,
+                  html_email_template_name=None):
+
+        uid = context["uid"]
+        token = context["token"]
+
+        # SAFE FIX: use site domain from context (NOT request)
+        domain = context.get("domain", "127.0.0.1:8000")
+        protocol = context.get("protocol", "http")
+
+        reset_link = f"{protocol}://{domain}/account/reset/{uid}/{token}/"
+
+        html = render_to_string(
+            "accounts/password_reset_email.html",
+            {
+                "reset_link": reset_link,
+                "email": to_email,
+            }
+        )
+
+        msg = EmailMultiAlternatives(
+            subject="Reset your Vanquished password",
+            body="Reset your password using the link.",
+            from_email=from_email,
+            to=[to_email],
+        )
+
+        msg.attach_alternative(html, "text/html")
+        msg.send()
+
+
+class StyledSetPasswordForm(SetPasswordForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields["new_password1"].widget.attrs.update({
+            "class": TAILWIND_INPUT_CLASSES
+        })
+        self.fields["new_password2"].widget.attrs.update({
+            "class": TAILWIND_INPUT_CLASSES
+        })

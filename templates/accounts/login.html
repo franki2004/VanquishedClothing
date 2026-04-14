@@ -3,7 +3,7 @@
 <div class="min-h-screen flex items-center justify-center px-4 bg-gray-50">
   <form
     method="post"
-    class="w-full max-w-md space-y-6 bg-white p-8  shadow-md"
+    class="w-full max-w-md space-y-5 bg-white p-8  shadow-md"
   >
     {% csrf_token %}
     <h1 class="text-3xl font-bold text-center text-gray-800">Login</h1>
@@ -13,7 +13,9 @@
     <p class="text-red-600 text-sm">{{ field.errors.0 }}</p>
     {% endif %} 
     {% endfor %}
-
+      <a href="{% url 'password_reset' %}" class="text-blue-600 hover:underline text-sm "
+        >Forgot your password?</a
+      >
     <button
       type="submit"
       class="w-full bg-black text-white font-semibold py-3  mt-4 cursor-pointer"

@@ -1,0 +1,52 @@
+{% extends "store/base.html" %}
+{% block title %}Activate Account{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center bg-white text-black px-6">
+
+    <div class="w-full max-w-2xl border border-black p-12 text-center">
+
+        <!-- HEADER -->
+        <div class="mb-10">
+            <h1 class="text-4xl font-semibold tracking-wide uppercase">
+                Check your inbox
+            </h1>
+            <div class="mt-4  h-px bg-black mx-auto"></div>
+        </div>
+
+        <!-- MAIN MESSAGE -->
+        <div class="space-y-6 text-sm leading-relaxed text-gray-800">
+
+            <p class="text-base">
+                Your Vanquished account has been created.
+            </p>
+
+            <p>
+                We’ve sent an activation email with a secure link to your inbox.
+                Click the button inside the email to unlock your account.
+            </p>
+
+            <p>
+                Until activation is completed, access to orders and profile features is restricted.
+            </p>
+
+        </div>
+
+        <!-- VISUAL EMPHASIS BLOCK -->
+        <div class="mt-10 border border-black p-6">
+            <p class="uppercase tracking-widest text-xs mb-2">
+                Status
+            </p>
+            <p class="text-lg font-medium">
+                Pending activation
+            </p>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="mt-12 text-xs tracking-widest uppercase text-gray-600">
+            Vanquished Clothing
+        </div>
+
+    </div>
+</div>
+{% endblock %}

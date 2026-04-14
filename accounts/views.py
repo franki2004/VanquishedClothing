@@ -1,26 +1,41 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import get_user_model
 from .forms import UserFieldUpdateForm, AddressForm
-from orders.models import Order
 from .forms import LoginForm, RegisterForm
 from django.core.paginator import Paginator
+from .utils import send_activation_email
+from django.utils.http import urlsafe_base64_decode
+from .tokens import account_activation_token
+
+
+User = get_user_model()
 
 def register_view(request):
     if request.method == 'POST':
         form = RegisterForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            login(request, user)
-            return redirect('home')  
+            user = form.save(commit=False)
+            user.is_active = False
+            user.save()
+
+            send_activation_email(request, user)
+
+            return redirect("activation_sent")
     else:
         form = RegisterForm()
+
     return render(request, 'accounts/register.html', {'form': form})
+
+def activation_sent_view(request):
+    return render(request, "accounts/activation_sent.html")
 
 def login_view(request):
     if request.method == 'POST':
         form = LoginForm(request.POST)
         if form.is_valid():
+            
             login(request, form.cleaned_data['user'])
             return redirect('home') 
     else:
@@ -31,6 +46,22 @@ def login_view(request):
 def logout_view(request):
     logout(request)
     return redirect("home")
+
+def activate(request, uidb64, token):
+    try:
+        uid = urlsafe_base64_decode(uidb64).decode()
+        user = User.objects.get(pk=uid)
+    except:
+        user = None
+
+    if user and account_activation_token.check_token(user, token):
+        user.is_active = True
+        user.save()
+
+        login(request, user)
+        return redirect("home")
+
+    return redirect("login")
 
 
 @login_required
