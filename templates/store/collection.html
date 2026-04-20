@@ -92,35 +92,33 @@
     <div class="flex flex-col gap-6 mb-6">
 
       <h1 class="text-2xl md:text-3xl font-semibold tracking-tight mb-4 text-center">
-        {% if active_filter == "new" %}
-          New Arrivals
-        {% elif active_filter == "sale" %}
-          Sale
-        {% elif category %}
-          {{ category.name }}
-        {% else %}
-          Collection
-        {% endif %}
+        {{ title }}
       </h1>
 
       <!-- CATEGORY SCROLL -->
-      <div class="flex overflow-x-auto whitespace-nowrap gap-2 pb-2 justify-center">
-        <a href="{% url 'new_products' %}"
-           class="px-4 py-2 border {% if active_filter == 'new' %}bg-black text-white{% endif %}">
-          New
-        </a>
-
-        <a href="{% url 'sale_products' %}"
-           class="px-4 py-2 border {% if active_filter == 'sale' %}bg-black text-white{% endif %}">
-          Sale
-        </a>
-
-        {% for cat in categories %}
-        <a href="{% url 'collection' cat.slug %}"
-           class="px-4 py-2 border {% if category and category.id == cat.id %}bg-black text-white{% endif %}">
-          {{ cat.name }}
-        </a>
-        {% endfor %}
+      <div class="flex justify-center">
+        <div class="w-full max-w-4xl overflow-x-auto px-4">
+          <div class="flex whitespace-nowrap gap-2 justify-center min-w-max">
+            
+            <a href="{% url 'new_products' %}"
+               class="px-4 py-2 border shrink-0 {% if active_filter == 'new' %}bg-black text-white{% endif %}">
+              New
+            </a>
+      
+            <a href="{% url 'sale_products' %}"
+               class="px-4 py-2 border shrink-0 {% if active_filter == 'sale' %}bg-black text-white{% endif %}">
+              Sale
+            </a>
+      
+            {% for cat in categories %}
+            <a href="{% url 'collection' cat.slug %}"
+               class="px-4 py-2 border shrink-0 {% if category and category.id == cat.id %}bg-black text-white{% endif %}">
+              {{ cat.name }}
+            </a>
+            {% endfor %}
+      
+          </div>
+        </div>
       </div>
 
       <div class="flex items-center justify-end gap-4">
@@ -157,7 +155,7 @@
 
     <!-- PRODUCTS -->
     {% if products %}
-    <section class="grid grid-cols-2 lg:grid-cols-3 gap-10">
+    <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       {% for product in products %}
       <a href="{% url 'product' product.id %}" class="group">
 

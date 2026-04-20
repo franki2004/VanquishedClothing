@@ -86,9 +86,9 @@
           class="border px-3 py-2 w-full mb-2 "
           onkeyup="filterTags(this)"
         />
-        <div id="tags-container" class="flex flex-col gap-2 max-h-[400px] overflow-y-auto p-2 ">
+        <div id="tags-container" class="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
           {% for tag in tags %}
-          <label class="flex items-center gap-2 cursor-pointer border rounded-full px-3 py-1 hover:bg-gray-100 tag-item">
+          <label class="flex items-center gap-2 cursor-pointer border px-3 py-1 hover:bg-gray-100 tag-item">
             <input
               type="checkbox"
               name="tags"
@@ -143,6 +143,6 @@
 </div>
 
 {% block js %}
-<script src="{% static 'store/js/edit_products.js' %}"></script>
+<script src="{% static 'js/edit_products.js' %}"></script>
 {% endblock %}
 {% endblock %}

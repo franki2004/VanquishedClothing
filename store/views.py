@@ -12,6 +12,49 @@ from django.core.paginator import Paginator
 
 SIZES = ["XS", "S", "M", "L", "XL", "2XL"]
 
+def apply_filters(request, products):
+    min_price = request.GET.get("min_price")
+    max_price = request.GET.get("max_price")
+
+    if min_price:
+        products = products.filter(price__gte=min_price)
+    if max_price:
+        products = products.filter(price__lte=max_price)
+
+    sizes = request.GET.getlist("size")
+    if sizes:
+        products = products.filter(
+            variants__size__in=sizes,
+            variants__stock__gt=0
+        ).distinct()
+
+    selected_sizes = sizes
+
+    limited = request.GET.get("limited")
+    if limited == "true":
+        products = products.filter(is_limited=True)
+
+    discount = request.GET.get("discount")
+    if discount:
+        products = products.filter(discount_percent__gte=discount)
+
+    sort = request.GET.get("sort")
+    if sort == "price_asc":
+        products = products.order_by("price")
+    elif sort == "price_desc":
+        products = products.order_by("-price")
+    elif sort == "az":
+        products = products.order_by("name")
+    elif sort == "za":
+        products = products.order_by("-name")
+    elif sort == "newest":
+        products = products.order_by("-created_at")
+    elif sort == "oldest":
+        products = products.order_by("created_at")
+
+    return products, selected_sizes
+
+
 def home(request):
     categories = Category.objects.all()
     return render(request, 'store/home.html', {'categories': categories})
@@ -43,49 +86,7 @@ def collection(request, slug=None, filter_type=None):
         active_filter = "category"
         title = "All"
 
-    min_price = request.GET.get("min_price")
-    max_price = request.GET.get("max_price")
-
-    if min_price:
-        products = products.filter(price__gte=min_price)
-    if max_price:
-        products = products.filter(price__lte=max_price)
-
-    sizes = request.GET.getlist("size")
-    if sizes:
-        products = products.filter(
-            variants__size__in=sizes,
-            variants__stock__gt=0
-        ).distinct()
-    selected_sizes = request.GET.getlist("size")
-
-    limited = request.GET.get("limited")
-    if limited == "true":
-        products = products.filter(is_limited=True)
-
-    discount = request.GET.get("discount")
-    if discount == "10":
-        products = products.filter(discount_percent__gte=10)
-    elif discount == "20":
-        products = products.filter(discount_percent__gte=20)
-    elif discount == "30":
-        products = products.filter(discount_percent__gte=30)
-    elif discount == "50":
-        products = products.filter(discount_percent__gte=50)
-
-    sort = request.GET.get("sort")
-    if sort == "price_asc":
-        products = products.order_by("price")
-    elif sort == "price_desc":
-        products = products.order_by("-price")
-    elif sort == "az":
-        products = products.order_by("name")
-    elif sort == "za":
-        products = products.order_by("-name")
-    elif sort == "newest":
-        products = products.order_by("-created_at")
-    elif sort == "oldest":
-        products = products.order_by("created_at")
+    products, selected_sizes = apply_filters(request, products)
 
     paginator = Paginator(products, 42)
     page_number = request.GET.get("page")
@@ -107,24 +108,33 @@ def collection(request, slug=None, filter_type=None):
 def search(request):
     q = request.GET.get("q", "").strip()
 
-    products = (
-        Product.objects.filter(
-            Q(name__icontains=q) |
-            Q(tags__name__icontains=q),
-            status="active",
-        ).distinct()
-        if q
-        else Product.objects.none()
-    )
+    base_qs = Product.objects.filter(status="active")
 
-    return render(
-        request,
-        "store/search.html",
-        {
-            "query": q,
-            "products": products,
-        },
-    )
+    if q:
+        base_qs = base_qs.filter(
+            Q(name__icontains=q) |
+            Q(tags__name__icontains=q)
+        ).distinct()
+    else:
+        base_qs = Product.objects.none()
+
+    products, selected_sizes = apply_filters(request, base_qs)
+
+    paginator = Paginator(products, 42)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, "store/collection.html", {
+        "products": page_obj,
+        "page_obj": page_obj,
+        "categories": Category.objects.all(),
+        "selected_sizes": selected_sizes,
+        "sizes": SIZES,
+        "title": f"Search: {q}",
+        "active_filter": "search",
+        "query": q,
+        "category": None,
+    })
 
 def product_detail(request, id):
     if request.user.is_staff:
