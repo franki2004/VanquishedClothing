@@ -112,11 +112,23 @@ class ProductImage(models.Model):
 
     class Meta:
         ordering = ["order"]
-
+    
     def delete(self, *args, **kwargs):
-        self.image.delete(save=False)
-        super().delete(*args, **kwargs)
+            if self.image:
+                self.image.delete(save=False)
+            super().delete(*args, **kwargs)
 
+    
+    def save(self, *args, **kwargs):
+        try:
+            old = ProductImage.objects.get(pk=self.pk)
+            if old.image and old.image != self.image:
+                old.image.delete(save=False)
+        except ProductImage.DoesNotExist:
+            pass
+
+        super().save(*args, **kwargs)   
+    
     def __str__(self):
         return f"{self.product.name} [{self.order}]"
     
