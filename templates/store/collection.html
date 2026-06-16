@@ -309,12 +309,10 @@ else %} {{ category.name }} {% endif %} {% endblock %} {% block content %}
       class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
     >
       {% for product in products %}
-      <div x-data="{ active: 0, hover: false, total: {{ product.images.count }} }" class="group block px-2" > 
+      <div x-data="{ active: 0, hover: false, total: {{ product.images.count }}, get shownImage() { if (this.hover && this.active === 0 && this.total > 1) { return 1 } return this.active } }"> 
         <a href="{% url 'product' product.id %}" class="block"> {% if product.images.first %} 
           <div class="relative overflow-hidden bg-gray-50" style="aspect-ratio: 3/4;" @mouseenter="hover = true" @mouseleave="hover = false" > 
-            {% for image in product.images.all %} 
-            <img src="{{ image.image.url }}" alt="{{ product.name }}" x-show=" hover && active === 0 && total > 1 ? {{ forloop.counter0 }} === 1 : active === {{ forloop.counter0 }} " x-transition.opacity.duration.200ms class="absolute inset-0 w-full h-full object-cover" > 
-            {% endfor %} 
+            {% for image in product.images.all %} <img src="{{ image.image.url }}" alt="{{ product.name }}" x-show="shownImage === {{ forloop.counter0 }}" x-transition.opacity.duration.200ms class="absolute inset-0 w-full h-full object-cover" > {% endfor %}
           {% if product.discount_percent %} 
           <span class="absolute top-3 left-3 bg-black text-white text-xs px-2 py-1 tracking-wide z-20"> -{{ product.discount_percent }}% </span> 
           {% endif %} 
