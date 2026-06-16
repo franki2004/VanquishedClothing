@@ -1,20 +1,14 @@
-{% extends "store/base.html" %}
-{% block title %}
-{% if title %} {{ title }} {% else %} {{ category.name }} {% endif %}
-{% endblock %}
-
-{% block content %}
+{% extends "store/base.html" %} {% block title %} {% if title %} {{ title }} {%
+else %} {{ category.name }} {% endif %} {% endblock %} {% block content %}
 
 <div x-data="{ filterOpen: false }">
+  <div
+    x-show="filterOpen"
+    x-transition.opacity
+    class="fixed inset-0 bg-black/50 z-40"
+    @click="filterOpen = false"
+  ></div>
 
-  <!-- FILTER OVERLAY -->
-  <div x-show="filterOpen"
-       x-transition.opacity
-       class="fixed inset-0 bg-black/50 z-40"
-       @click="filterOpen = false">
-  </div>
-
-  <!-- FILTER DRAWER -->
   <aside
     x-show="filterOpen"
     x-transition:enter="transition transform ease-out duration-300"
@@ -25,181 +19,361 @@
     x-transition:leave-end="-translate-x-full"
     class="fixed top-0 left-0 w-80 h-full bg-white z-50 p-6 overflow-y-auto"
   >
-    <button @click="filterOpen = false" class="text-3xl mb-6 cursor-pointer">&times;</button>
+    <button @click="filterOpen = false" class="text-3xl mb-6 cursor-pointer">
+      &times;
+    </button>
 
     <form method="get" class="space-y-6">
-
-      <!-- PRICE -->
       <div>
         <h3 class="font-semibold mb-2">Price</h3>
         <div class="flex gap-2">
-          <input type="number" name="min_price" placeholder="Min"
-                 value="{{ request.GET.min_price }}"
-                 class="w-full border px-2 py-1">
-          <input type="number" name="max_price" placeholder="Max"
-                 value="{{ request.GET.max_price }}"
-                 class="w-full border px-2 py-1">
+          <input
+            type="number"
+            name="min_price"
+            placeholder="Min"
+            value="{{ request.GET.min_price }}"
+            class="w-full border px-2 py-1"
+          />
+          <input
+            type="number"
+            name="max_price"
+            placeholder="Max"
+            value="{{ request.GET.max_price }}"
+            class="w-full border px-2 py-1"
+          />
         </div>
       </div>
 
-      <!-- SIZE -->
       <div>
         <h3 class="font-semibold mb-2">Size</h3>
         <div class="grid grid-cols-3 gap-2">
           {% for size in sizes %}
           <label class="flex items-center gap-2">
-            <input type="checkbox" name="size" value="{{ size }}"
-              {% if size in selected_sizes %}checked{% endif %}>
+            <input
+              type="checkbox"
+              name="size"
+              value="{{ size }}"
+              {%
+              if
+              size
+              in
+              selected_sizes
+              %}checked{%
+              endif
+              %}
+            />
             {{ size }}
           </label>
           {% endfor %}
         </div>
       </div>
 
-      <!-- LIMITED -->
       <div>
         <h3 class="font-semibold mb-2">Limited</h3>
         <label class="flex items-center gap-2">
-          <input type="checkbox" name="limited" value="true"
-            {% if request.GET.limited == "true" %}checked{% endif %}>
+          <input
+            type="checkbox"
+            name="limited"
+            value="true"
+            {%
+            if
+            request.GET.limited=""
+            ="true"
+            %}checked{%
+            endif
+            %}
+          />
           Limited only
         </label>
       </div>
 
-      <!-- DISCOUNT -->
       <div>
         <h3 class="font-semibold mb-2">Discount</h3>
         <select name="discount" class="w-full border px-2 py-1">
           <option value="">All</option>
-          <option value="10" {% if request.GET.discount == "10" %}selected{% endif %}>10%+</option>
-          <option value="20" {% if request.GET.discount == "20" %}selected{% endif %}>20%+</option>
-          <option value="30" {% if request.GET.discount == "30" %}selected{% endif %}>30%+</option>
-          <option value="50" {% if request.GET.discount == "50" %}selected{% endif %}>50%+</option>
+          <option
+            value="10"
+            {%
+            if
+            request.GET.discount=""
+            ="10"
+            %}selected{%
+            endif
+            %}
+          >
+            10%+
+          </option>
+          <option
+            value="20"
+            {%
+            if
+            request.GET.discount=""
+            ="20"
+            %}selected{%
+            endif
+            %}
+          >
+            20%+
+          </option>
+          <option
+            value="30"
+            {%
+            if
+            request.GET.discount=""
+            ="30"
+            %}selected{%
+            endif
+            %}
+          >
+            30%+
+          </option>
+          <option
+            value="50"
+            {%
+            if
+            request.GET.discount=""
+            ="50"
+            %}selected{%
+            endif
+            %}
+          >
+            50%+
+          </option>
         </select>
       </div>
 
-      <button type="submit" class="w-full bg-black text-white py-2 cursor-pointer">
+      <button
+        type="submit"
+        class="w-full bg-black text-white py-2 cursor-pointer"
+      >
         Apply Filters
       </button>
-
     </form>
   </aside>
 
-  <!-- MAIN CONTENT -->
   <div class="max-w-7xl mx-auto px-6 lg:px-12 mt-26">
-
-    <!-- TOP BAR -->
     <div class="flex flex-col gap-6 mb-6">
-
-      <h1 class="text-2xl md:text-3xl font-semibold tracking-tight mb-4 text-center">
+      <h1
+        class="text-2xl md:text-3xl font-semibold tracking-tight mb-4 text-center"
+      >
         {{ title }}
       </h1>
 
-      <!-- CATEGORY SCROLL -->
       <div class="flex justify-center">
         <div class="w-full max-w-4xl overflow-x-auto px-4">
           <div class="flex whitespace-nowrap gap-2 justify-center min-w-max">
-            
-            <a href="{% url 'new_products' %}"
-               class="px-4 py-2 border shrink-0 {% if active_filter == 'new' %}bg-black text-white{% endif %}">
+            <a
+              href="{% url 'new_products' %}"
+              class="px-4 py-2 border shrink-0 {% if active_filter == 'new' %}bg-black text-white{% endif %}"
+            >
               New
             </a>
-      
-            <a href="{% url 'sale_products' %}"
-               class="px-4 py-2 border shrink-0 {% if active_filter == 'sale' %}bg-black text-white{% endif %}">
+
+            <a
+              href="{% url 'sale_products' %}"
+              class="px-4 py-2 border shrink-0 {% if active_filter == 'sale' %}bg-black text-white{% endif %}"
+            >
               Sale
             </a>
-      
+
             {% for cat in categories %}
-            <a href="{% url 'collection' cat.slug %}"
-               class="px-4 py-2 border shrink-0 {% if category and category.id == cat.id %}bg-black text-white{% endif %}">
+            <a
+              href="{% url 'collection' cat.slug %}"
+              class="px-4 py-2 border shrink-0 {% if category and category.id == cat.id %}bg-black text-white{% endif %}"
+            >
               {{ cat.name }}
             </a>
             {% endfor %}
-      
           </div>
         </div>
       </div>
 
       <div class="flex items-center justify-end gap-4">
-
-        <button @click="filterOpen = true"
-                class="border px-4 py-2 text-sm cursor-pointer">
+        <button
+          @click="filterOpen = true"
+          class="border px-4 py-2 text-sm cursor-pointer"
+        >
           Filter
         </button>
 
         <form method="get">
-          <input type="hidden" name="min_price" value="{{ request.GET.min_price }}">
-          <input type="hidden" name="max_price" value="{{ request.GET.max_price }}">
-          <input type="hidden" name="discount" value="{{ request.GET.discount }}">
+          <input
+            type="hidden"
+            name="min_price"
+            value="{{ request.GET.min_price }}"
+          />
+          <input
+            type="hidden"
+            name="max_price"
+            value="{{ request.GET.max_price }}"
+          />
+          <input
+            type="hidden"
+            name="discount"
+            value="{{ request.GET.discount }}"
+          />
           {% for s in selected_sizes %}
-          <input type="hidden" name="size" value="{{ s }}">
+          <input type="hidden" name="size" value="{{ s }}" />
           {% endfor %}
-          <input type="hidden" name="limited" value="{{ request.GET.limited }}">
+          <input
+            type="hidden"
+            name="limited"
+            value="{{ request.GET.limited }}"
+          />
 
-          <select name="sort"
-                  onchange="this.form.submit()"
-                  class="border px-3 py-2 text-sm">
+          <select
+            name="sort"
+            onchange="this.form.submit()"
+            class="border px-3 py-2 text-sm"
+          >
             <option value="">Sort</option>
-            <option value="price_asc" {% if request.GET.sort == "price_asc" %}selected{% endif %}>Price ↑</option>
-            <option value="price_desc" {% if request.GET.sort == "price_desc" %}selected{% endif %}>Price ↓</option>
-            <option value="az" {% if request.GET.sort == "az" %}selected{% endif %}>A–Z</option>
-            <option value="za" {% if request.GET.sort == "za" %}selected{% endif %}>Z–A</option>
-            <option value="newest" {% if request.GET.sort == "newest" %}selected{% endif %}>Newest</option>
-            <option value="oldest" {% if request.GET.sort == "oldest" %}selected{% endif %}>Oldest</option>
+            <option
+              value="price_asc"
+              {%
+              if
+              request.GET.sort=""
+              ="price_asc"
+              %}selected{%
+              endif
+              %}
+            >
+              Price ↑
+            </option>
+            <option
+              value="price_desc"
+              {%
+              if
+              request.GET.sort=""
+              ="price_desc"
+              %}selected{%
+              endif
+              %}
+            >
+              Price ↓
+            </option>
+            <option
+              value="az"
+              {%
+              if
+              request.GET.sort=""
+              ="az"
+              %}selected{%
+              endif
+              %}
+            >
+              A–Z
+            </option>
+            <option
+              value="za"
+              {%
+              if
+              request.GET.sort=""
+              ="za"
+              %}selected{%
+              endif
+              %}
+            >
+              Z–A
+            </option>
+            <option
+              value="newest"
+              {%
+              if
+              request.GET.sort=""
+              ="newest"
+              %}selected{%
+              endif
+              %}
+            >
+              Newest
+            </option>
+            <option
+              value="oldest"
+              {%
+              if
+              request.GET.sort=""
+              ="oldest"
+              %}selected{%
+              endif
+              %}
+            >
+              Oldest
+            </option>
           </select>
         </form>
-
       </div>
     </div>
 
-    <!-- PRODUCTS -->
     {% if products %}
-    <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    <section
+      class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+    >
       {% for product in products %}
-      <a href="{% url 'product' product.id %}" class="group">
-
-        {% if product.images.first %}
-        <div class="flex items-center justify-center h-[400px] overflow-hidden">
-          <img src="{{ product.images.first.image.url }}"
-               class="max-h-full max-w-full object-contain group-hover:scale-105 transition">
-        </div>
-        {% endif %}
-
-        <div class="pt-4 text-center">
-          <h3 class="text-sm font-medium mb-1">{{ product.name }}</h3>
-
-          {% if product.discount_percent %}
-          <div class="flex justify-center gap-2 text-sm">
-            <span class="line-through text-gray-400">€{{ product.price }}</span>
-            <span class="font-semibold">€{{ product.final_price|floatformat:2 }}</span>
-          </div>
-          {% else %}
-          <p class="text-sm">€{{ product.price }}</p>
-          {% endif %}
-        </div>
-
-      </a>
+      <div x-data="{ active: 0, hover: false, total: {{ product.images.count }} }" class="group block px-2" > 
+        <a href="{% url 'product' product.id %}" class="block"> {% if product.images.first %} 
+          <div class="relative overflow-hidden bg-gray-50" style="aspect-ratio: 3/4;" @mouseenter="hover = true" @mouseleave="hover = false" > 
+            {% for image in product.images.all %} 
+            <img src="{{ image.image.url }}" alt="{{ product.name }}" x-show=" hover && active === 0 && total > 1 ? {{ forloop.counter0 }} === 1 : active === {{ forloop.counter0 }} " x-transition.opacity.duration.200ms class="absolute inset-0 w-full h-full object-cover" > 
+            {% endfor %} 
+          {% if product.discount_percent %} 
+          <span class="absolute top-3 left-3 bg-black text-white text-xs px-2 py-1 tracking-wide z-20"> -{{ product.discount_percent }}% </span> 
+          {% endif %} 
+        {% if product.is_sold_out %} 
+        <span class="absolute top-3 right-3 bg-white text-black text-xs px-2 py-1 border tracking-wide z-20"> Sold out </span> 
+        {% endif %} {% if product.images.count > 1 %} 
+      <button type="button" x-show="hover" x-transition.opacity @click.prevent="active = (active - 1 + total) % total" class="absolute left-3 top-1/2 -translate-y-1/2 z-20 text-black text-3xl cursor-pointer" > ‹ </button> 
+      <button type="button" x-show="hover" x-transition.opacity @click.prevent="active = (active + 1) % total" class="absolute right-3 top-1/2 -translate-y-1/2 z-20 text-black text-3xl cursor-pointer" > › </button> 
+      {% endif %} </div> 
+    {% endif %} </a> 
+  <div class="pt-3 pb-1"> <a href="{% url 'product' product.id %}">
+     <h3 class="text-sm font-medium mb-1 hover:underline underline-offset-2"> {{ product.name }} </h3> 
+    </a>
+     {% if product.discount_percent %} 
+      <div class="flex gap-2 text-sm"> 
+      <span class="line-through text-gray-400"> €{{ product.price }} </span> 
+      <span class="font-semibold"> €{{ product.final_price|floatformat:2 }} </span> 
+      </div> {% else %} <p class="text-sm"> €{{ product.price }} </p> {% endif %} </div> </div>
       {% endfor %}
     </section>
     {% else %}
     <div class="text-center py-20 text-gray-400">No products</div>
-    {% endif %}
-
-    <!-- PAGINATION -->
-    <div class="flex justify-center mt-14 gap-2">
+    {% endif %} {% if page_obj.paginator.num_pages > 1 %}
+    <div class="flex justify-center items-center mt-14 gap-1">
+      {% if page_obj.has_previous %}
+      <a
+        href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode }}"
+        class="px-3 py-2 border text-sm hover:bg-black hover:text-white transition-colors"
+      >
+        &larr;
+      </a>
+      {% endif %} 
       {% for num in page_obj.paginator.page_range %}
-        {% if page_obj.number == num %}
-          <span class="px-3 py-1 bg-black text-white">{{ num }}</span>
-        {% else %}
-          <a href="?page={{ num }}&{{ request.GET.urlencode }}"
-             class="px-3 py-1 border">
-            {{ num }}
-          </a>
-        {% endif %}
-      {% endfor %}
+      {% if page_obj.number == num %}
+      <span
+        class="px-3 py-2 bg-black text-white text-sm min-w-[40px] text-center"
+        >{{ num }}</span
+      >
+      {% elif num == 1 or num == page_obj.paginator.num_pages or num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+      <a
+        href="?page={{ num }}&{{ request.GET.urlencode }}"
+        class="px-3 py-2 border text-sm min-w-[40px] text-center hover:bg-black hover:text-white transition-colors"
+      >
+        {{ num }}
+      </a>
+      {% elif num == page_obj.number|add:"-3" or num == page_obj.number|add:"3" %}
+      <span class="px-2 py-2 text-sm text-gray-400">…</span>
+      {% endif %} 
+      {% endfor %} 
+      {% if page_obj.has_next %}
+      <a
+        href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode }}"
+        class="px-3 py-2 border text-sm hover:bg-black hover:text-white transition-colors"
+      >
+        &rarr;
+      </a>
+      {% endif %}
     </div>
-
+    {% endif %}
   </div>
 </div>
 
