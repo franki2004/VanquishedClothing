@@ -162,7 +162,7 @@ def checkout(request):
             first_name = customer_form.cleaned_data["first_name"]
             last_name = customer_form.cleaned_data["last_name"]
             phone = customer_form.cleaned_data["phone"]
-            email = customer_form.cleaned_data["email"]  # <-- added
+            email = customer_form.cleaned_data["email"]
             addr_info = address_instance
 
         else:
@@ -182,7 +182,7 @@ def checkout(request):
             first_name = customer_form.cleaned_data["first_name"]
             last_name = customer_form.cleaned_data["last_name"]
             phone = customer_form.cleaned_data["phone"]
-            email = customer_form.cleaned_data["email"]  # <-- added
+            email = customer_form.cleaned_data["email"]
             addr_info = type("Addr", (), {
                 "city": request.POST.get("city"),
                 "postal_code": request.POST.get("postal_code"),
@@ -243,7 +243,7 @@ def checkout(request):
                 "first_name": first_name,
                 "last_name": last_name,
                 "phone": phone,
-                "email": email,  # <-- added
+                "email": email,
                 "city": addr_info.city,
                 "postal_code": addr_info.postal_code,
                 "street": addr_info.address_line,
@@ -278,7 +278,7 @@ def checkout(request):
                     user=user,
                     full_name=full_name,
                     phone=phone,
-                    email=email,  # <-- added
+                    email=email,
                     city=addr_info.city,
                     postal_code=addr_info.postal_code,
                     street=addr_info.address_line,
@@ -384,7 +384,7 @@ def stripe_webhook(request):
                 user=user,
                 full_name=f"{metadata.get('first_name','')} {metadata.get('last_name','')}".strip(),
                 phone=metadata.get("phone"),
-                email=metadata.get("email") or "",  # <-- added
+                email=metadata.get("email") or "", 
                 street=metadata.get("street"),
                 city=metadata.get("city"),
                 postal_code=metadata.get("postal_code"),
@@ -416,7 +416,7 @@ def checkout_success_page(request):
     return render(request, "store/checkout_success.html")
 
 # ---------------------------
-# ADMIN ORDERS -- needs deny fix
+# ADMIN ORDERS -- 
 # ---------------------------
 @staff_member_required 
 def admin_orders(request):

@@ -40,6 +40,12 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs) 
+        if not self.sku:
+            self.sku = f"P{self.pk:06d}"
+            super().save(update_fields=["sku"])
+
     @property
     def is_sold_out(self):
         return not self.variants.filter(stock__gt=0).exists()

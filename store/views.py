@@ -235,8 +235,7 @@ def bulk_add_products(request):
                     discount_percent=discount,
                     status="draft",
                 )
-                product.sku = f"P{product.pk:06d}"
-                product.save(update_fields=["sku"])
+ 
                 products.append(product)
 
                 # Tags
