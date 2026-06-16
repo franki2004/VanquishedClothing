@@ -348,7 +348,7 @@
               x-transition:enter="transition-opacity duration-200"
               x-transition:enter-start="opacity-0"
               x-transition:enter-end="opacity-100"
-              class="absolute inset-0 w-full h-full object-cover"
+              class="absolute inset-0 w-full h-full object-contain"
             >
 
             {% endfor %}
@@ -378,7 +378,7 @@
           {% endif %}
 
           {% if product.discount_percent %}
-          <span class="absolute top-3 left-3 bg-black text-white text-xs px-2 py-1 z-20">
+          <span class="absolute top-2 left-0 bg-red-500 text-white text-xs px-2 py-1 z-20">
             -{{ product.discount_percent }}%
           </span>
           {% endif %}
@@ -409,7 +409,7 @@
               €{{ product.price }}
             </span>
 
-            <span class="font-semibold">
+            <span class="font-semibold text-red-500">
               €{{ product.final_price|floatformat:2 }}
             </span>
 
