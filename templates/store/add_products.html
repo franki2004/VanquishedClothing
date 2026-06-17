@@ -47,13 +47,13 @@
         <!-- MIDDLE: Tags -->
         <div>
           <label class="block font-semibold mb-2">Tags</label>
-          <input
+            <input
             type="text"
             placeholder="Search tags..."
-            class="border px-3 py-2 w-full mb-2 "
-            onkeyup="filterTags(this)"
+            class="border px-3 py-2 w-full mb-2"
+            onkeyup="filterTags(this, 0)"
           />
-          <div id="tags-container" class="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
+          <div id="tags-container-0" class="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
             {% for tag in tags %}
             <label class="flex items-center gap-2 cursor-pointer border px-3 py-1 hover:bg-gray-100 tag-item">
               <input
