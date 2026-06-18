@@ -1,24 +1,57 @@
-{% extends "store/base.html" %} {% block title %}Login{% endblock %}
+{% extends "store/base.html" %}
+{% load static %}
+{% block title %}Login{% endblock %}
 {% block content %}
 <div class="min-h-screen flex items-center justify-center px-4 bg-gray-50">
   <form
     method="post"
-    class="w-full max-w-md space-y-5 bg-white p-8  shadow-md"
+    class="w-full max-w-md space-y-5 bg-white p-8 shadow-md"
   >
     {% csrf_token %}
     <h1 class="text-3xl font-bold text-center text-gray-800">Login</h1>
 
-    {% for field in form %} {{ field.label_tag }} {{ field }} 
-    {% if field.errors %}
-    <p class="text-red-600 text-sm">{{ field.errors.0 }}</p>
-    {% endif %} 
+    {% for field in form %}
+      {{ field.label_tag }}
+
+      {% if field.name == 'password' %}
+      <div class="relative" id="password-wrapper">
+        {{ field }}
+        <button
+          type="button"
+          id="toggle-password"
+          aria-label="Show password"
+          aria-pressed="false"
+          class="absolute right-3 top-6 -translate-y-1/2 cursor-pointer"
+        >
+        <img src="{% static 'icons/eye-closed.png' %}" id="eye-closed" alt="" class="w-5 h-5 " />
+        <img src="{% static 'icons/eye-open.png' %}" id="eye-open" alt="" class="w-5 h-5 hidden" />
+        </button>
+      </div>
+
+      {% if form.non_field_errors %}
+      <div class="text-red-600 text-sm space-y-1">
+        {% for error in form.non_field_errors %}
+        <p>{{ error }}</p>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% else %}
+      {{ field }}
+      {% endif %}
+
+      {% if field.errors %}
+      <p class="text-red-600 text-sm">{{ field.errors.0 }}</p>
+      {% endif %}
     {% endfor %}
-      <a href="{% url 'password_reset' %}" class="text-blue-600 hover:underline text-sm "
-        >Forgot your password?</a
-      >
+
+    <a href="{% url 'password_reset' %}" class="text-blue-600 hover:underline text-sm"
+      >Forgot your password?</a
+    >
+
     <button
       type="submit"
-      class="w-full bg-black text-white font-semibold py-3  mt-4 cursor-pointer"
+      class="w-full bg-black text-white font-semibold py-3 mt-4 cursor-pointer"
     >
       Login
     </button>
@@ -31,4 +64,8 @@
     </p>
   </form>
 </div>
+
+{% block js %}
+<script src="{% static 'js/login.js' %}"></script>
+{% endblock %}
 {% endblock %}

@@ -10,7 +10,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
 User = get_user_model()
 
-TAILWIND_INPUT_CLASSES = "w-full border border-gray-300  px-3 py-2 mt-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+TAILWIND_INPUT_CLASSES = "w-full border border-gray-300  px-3 py-2 mt-1 focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
 
 class PasswordInputPreserve(forms.PasswordInput):
     def __init__(self, *args, **kwargs):
@@ -73,8 +73,14 @@ class RegisterForm(forms.ModelForm):
         return user
 
 class LoginForm(forms.Form):
-    email = forms.EmailField(widget=forms.EmailInput(attrs={"class": TAILWIND_INPUT_CLASSES}))
-    password = forms.CharField(widget=forms.PasswordInput(attrs={"class": TAILWIND_INPUT_CLASSES}))
+    email = forms.EmailField(widget=forms.EmailInput(attrs={
+            "class": TAILWIND_INPUT_CLASSES,
+            "placeholder": "you@example.com",
+        }))
+    password = forms.CharField(widget=forms.PasswordInput(attrs={
+            "class": TAILWIND_INPUT_CLASSES,
+            "placeholder": "yourSecretPassword",
+        }))
 
     def clean(self):
         cleaned_data = super().clean()
