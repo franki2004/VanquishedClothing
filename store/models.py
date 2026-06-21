@@ -4,6 +4,7 @@ from django.utils.text import slugify
 from django.utils import timezone
 from django.conf import settings
 from datetime import timedelta
+from django.db.models import Avg
 
 class Category(models.Model):
     name = models.CharField(max_length=100)
@@ -36,6 +37,12 @@ class Product(models.Model):
     class Meta:
         ordering = ["-created_at"]
         indexes = [models.Index(fields=["status"]), models.Index(fields=["slug"])]
+
+    def average_rating(self):
+        return self.reviews.aggregate(avg=Avg('rating'))['avg'] or 0
+
+    def review_count(self):
+        return self.reviews.count()
 
     def __str__(self):
         return self.name

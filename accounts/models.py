@@ -1,8 +1,9 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 from django.utils import timezone
-from django.core.validators import RegexValidator, MinLengthValidator
+from django.core.validators import RegexValidator, MinLengthValidator, MinValueValidator, MaxValueValidator
 from django.conf import settings
+from django.contrib.auth import get_user_model
 
 name_validator = RegexValidator(
     regex=r'^[A-Z][a-z]+$',
@@ -74,7 +75,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             self.last_name = self.last_name.capitalize()
         super().save(*args, **kwargs)
 
-# models.py
 class Address(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -104,3 +104,29 @@ class Address(models.Model):
             self.user.addresses.update(is_default=False)
 
         super().save(*args, **kwargs)
+
+
+
+User = get_user_model()
+
+class Review(models.Model):
+    product = models.ForeignKey('store.Product', on_delete=models.CASCADE, related_name='reviews')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
+    comment = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ('product', 'user')
+
+    @property
+    def display_name(self):
+        full_name = f"{self.user.first_name} {self.user.last_name}".strip()
+        return full_name if full_name else "Anonymous"
+    
+    def __str__(self):
+        return f"{self.user} - {self.product} ({self.rating}★)"

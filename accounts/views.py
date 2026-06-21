@@ -1,14 +1,18 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
-from .forms import UserFieldUpdateForm, AddressForm
-from .forms import LoginForm, RegisterForm
+from .models import Review
+from store.models import Product
+from .forms import UserFieldUpdateForm, AddressForm, LoginForm, RegisterForm, ReviewForm
 from django.core.paginator import Paginator
 from .utils import send_activation_email
 from django.utils.http import urlsafe_base64_decode
 from .tokens import account_activation_token
-
+from django.views.decorators.http import require_POST
+from django.contrib import messages
+from django.http import HttpResponseForbidden
+from django.urls import reverse
 
 User = get_user_model()
 
@@ -127,3 +131,58 @@ def account_dashboard(request):
         "address_action": address_action,
         "active_address": active_address
     })
+
+def _can_modify(user, review):
+    return user.is_staff or user.is_superuser or review.user_id == user.id
+
+
+@login_required
+@require_POST
+def add_review(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
+
+    if product.reviews.filter(user=request.user).exists():
+        messages.error(request, "You've already reviewed this product.")
+        return redirect(f"{reverse('product', args=[product.id])}#reviews")
+
+    form = ReviewForm(request.POST)
+    if form.is_valid():
+        review = form.save(commit=False)
+        review.product = product
+        review.user = request.user
+        review.save()
+        messages.success(request, "Your review has been posted.")
+    else:
+        messages.error(request, "Please choose a rating and write a comment.")
+
+    return redirect(f"{reverse('product', args=[product.id])}#reviews")
+
+
+@login_required
+@require_POST
+def edit_review(request, review_id):
+    review = get_object_or_404(Review, id=review_id)
+
+    if not _can_modify(request.user, review):
+        return HttpResponseForbidden("You can't edit this review.")
+
+    form = ReviewForm(request.POST, instance=review)
+    if form.is_valid():
+        form.save()
+        messages.success(request, "Your review has been updated.")
+
+    return redirect(f"{reverse('product', args=[review.product_id])}#reviews")
+
+
+@login_required
+@require_POST
+def delete_review(request, review_id):
+    review = get_object_or_404(Review, id=review_id)
+
+    if not _can_modify(request.user, review):
+        return HttpResponseForbidden("You can't delete this review.")
+
+    product_id = review.product_id
+    review.delete()
+    messages.success(request, "Review deleted.")
+    return redirect(f"{reverse('product', args=[product_id])}#reviews")

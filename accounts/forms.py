@@ -8,6 +8,8 @@ from django.core.validators import RegexValidator
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
+from .models import Review
+
 User = get_user_model()
 
 TAILWIND_INPUT_CLASSES = "w-full border border-gray-300  px-3 py-2 mt-1 focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
@@ -246,3 +248,12 @@ class StyledSetPasswordForm(SetPasswordForm):
         self.fields["new_password2"].widget.attrs.update({
             "class": TAILWIND_INPUT_CLASSES
         })
+
+class ReviewForm(forms.ModelForm):
+    class Meta:
+        model = Review
+        fields = ['rating', 'comment']
+        widgets = {
+            'rating': forms.Select(choices=[(i, i) for i in range(1, 6)]),
+            'comment': forms.Textarea(attrs={'rows': 3}),
+        }

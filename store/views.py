@@ -169,12 +169,24 @@ def product_detail(request, id):
     else:
         form = AddToCartForm(product=product)
 
+    # --- Reviews ---
+    reviews_qs = product.reviews.select_related("user").order_by("-created_at")
+    paginator = Paginator(reviews_qs, 10)
+    page_number = request.GET.get("page", 1)
+    reviews_page = paginator.get_page(page_number)
+
+    user_review = None
+    if request.user.is_authenticated:
+        user_review = product.reviews.filter(user=request.user).first()
+
     return render(
         request,
         "store/product.html",
         {
             "product": product,
             "form": form,
+            "reviews_page": reviews_page,
+            "user_review": user_review,
         },
     )
 

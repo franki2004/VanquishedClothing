@@ -27,5 +27,7 @@ urlpatterns = [
     path("reset/done/", auth_views.PasswordResetCompleteView.as_view(
         template_name="accounts/password_reset_complete.html"
     ), name="password_reset_complete"),
-    
+    path('product/<int:product_id>/review/add/', views.add_review, name='add_review'),
+    path('review/<int:review_id>/edit/', views.edit_review, name='edit_review'),
+    path('review/<int:review_id>/delete/', views.delete_review, name='delete_review'),
 ]
