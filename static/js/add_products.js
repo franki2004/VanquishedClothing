@@ -1,178 +1,258 @@
-(function () {
-  if (window.__bulkProductsInitialized) return;
-  window.__bulkProductsInitialized = true;
+let page = 1;
+let search = "";
+const selected = new Map();
 
-  let rowIndex = 1;
+let images = [];
 
-  const sizes = window.APP_DATA.sizes;
-  const tags = window.APP_DATA.tags;
-  const categoriesOptions = window.APP_DATA.categoriesOptions;
+function uid() {
+    return crypto.randomUUID();
+}
 
-  const selectedFiles = {};
+document.addEventListener("DOMContentLoaded", () => {
 
-  window.removeRow = function (btn) {
-    const row = btn.closest(".product-row");
-    const idx = Array.from(document.querySelectorAll(".product-row")).indexOf(row);
-    delete selectedFiles[idx];
-    row.remove();
-  };
+    initTagSearch();
+    initRelatedProducts();
+    initImages();
+});
 
-  window.previewImages = function (input, idx) {
-    const preview = document.getElementById(`preview-${idx}`);
-    preview.innerHTML = "";
-    selectedFiles[idx] = selectedFiles[idx] || [];
+/* =========================
+   RELATED PRODUCTS
+========================= */
 
-    Array.from(input.files).forEach(f => selectedFiles[idx].push(f));
-    input.value = "";
+function initRelatedProducts() {
 
-    selectedFiles[idx].forEach((file, i) => {
-      const reader = new FileReader();
+    const modal = document.getElementById("related-modal");
+    const openBtn = document.getElementById("open-related");
+    const closeBtn = document.getElementById("close-related");
+    const searchInput = document.getElementById("product-search");
+    const prevBtn = document.getElementById("prev-page");
+    const nextBtn = document.getElementById("next-page");
 
-      reader.onload = e => {
+    openBtn?.addEventListener("click", () => {
+        page = 1;
+        search = "";
+        modal.classList.remove("hidden");
+        loadProducts();
+    });
+
+    closeBtn?.addEventListener("click", () => {
+        modal.classList.add("hidden");
+    });
+
+    searchInput?.addEventListener("input", (e) => {
+        search = e.target.value;
+        page = 1;
+        loadProducts();
+    });
+
+    prevBtn?.addEventListener("click", () => {
+        if (page > 1) {
+            page--;
+            loadProducts();
+        }
+    });
+
+    nextBtn?.addEventListener("click", () => {
+        page++;
+        loadProducts();
+    });
+}
+
+async function loadProducts() {
+
+    const res = await fetch(`/product/search/?page=${page}&q=${encodeURIComponent(search)}`);
+    const data = await res.json();
+
+    const container = document.getElementById("product-results");
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    data.products.forEach(product => {
+
+        const id = String(product.id);
+        const checked = selected.has(id);
+
+        const row = document.createElement("label");
+        row.className = "flex items-center gap-3 border p-3 text-sm cursor-pointer";
+
+        row.innerHTML = `
+            <input type="checkbox" value="${id}" ${checked ? "checked" : ""}>
+            <img src="${product.image || ''}" class="w-20 h-32 object-contain">
+            <span class="flex-1">${product.name}</span>
+        `;
+
+        const cb = row.querySelector("input");
+
+        cb.addEventListener("change", () => {
+
+            if (cb.checked) {
+                selected.set(id, product.name);
+            } else {
+                selected.delete(id);
+            }
+
+            renderSelected();
+        });
+
+        container.appendChild(row);
+    });
+
+    updatePagination(data);
+}
+
+function updatePagination(data) {
+
+    const pageLabel = document.getElementById("page-number");
+    const prevBtn = document.getElementById("prev-page");
+    const nextBtn = document.getElementById("next-page");
+
+    if (pageLabel) pageLabel.innerText = `${data.page} / ${data.pages}`;
+
+    if (prevBtn) {
+        prevBtn.disabled = !data.has_previous;
+        prevBtn.classList.toggle("opacity-50", !data.has_previous);
+    }
+
+    if (nextBtn) {
+        nextBtn.disabled = !data.has_next;
+        nextBtn.classList.toggle("opacity-50", !data.has_next);
+    }
+}
+
+function renderSelected() {
+
+    const container = document.getElementById("selected-products");
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    selected.forEach((name, id) => {
+
         const div = document.createElement("div");
-        div.className = "flex flex-col items-center w-32 relative";
+        div.className = "border px-3 py-2 flex justify-between text-sm";
 
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.innerText = "×";
-        btn.className =
-          "absolute top-[-4px] right-[-4px] flex items-center justify-center bg-black hover:bg-red-600 text-white w-4 h-4 text-sm cursor-pointer";
+        div.innerHTML = `
+            <span>${name}</span>
+            <button type="button" class="cursor-pointer">×</button>
+            <input type="hidden" name="related_products" value="${id}">
+        `;
 
-        btn.onclick = () => {
-          selectedFiles[idx].splice(i, 1);
-          div.remove();
-          rebuildInputFiles(idx);
-        };
+        div.querySelector("button").addEventListener("click", () => {
+            selected.delete(id);
+            renderSelected();
+        });
 
-        const img = document.createElement("img");
-        img.src = e.target.result;
-        img.className = "w-full h-32 object-cover border";
+        container.appendChild(div);
+    });
+}
 
-        const order = document.createElement("input");
-        order.type = "number";
-        order.name = `image_order_${idx}[]`;
-        order.value = i;
-        order.className = "mt-1 w-full border p-1 text-center text-sm";
+/* =========================
+   TAG SEARCH
+========================= */
 
-        div.appendChild(btn);
-        div.appendChild(img);
-        div.appendChild(order);
+function initTagSearch() {
 
-        preview.appendChild(div);
-      };
+    document.querySelectorAll('input[placeholder="Search tags..."]')
+        .forEach(input => {
 
-      reader.readAsDataURL(file);
+            input.addEventListener("input", () => {
+
+                const filter = input.value.toLowerCase();
+                const section = input.closest("section");
+
+                if (!section) return;
+
+                section.querySelectorAll("label").forEach(tag => {
+                    tag.style.display =
+                        tag.textContent.toLowerCase().includes(filter)
+                            ? "flex"
+                            : "none";
+                });
+            });
+        });
+}
+
+/* =========================
+   IMAGES (FIXED + WORKING)
+========================= */
+
+function initImages() {
+
+    const input = document.querySelector('input[name="images"]');
+    const preview = document.getElementById("preview");
+    const form = input?.closest("form");
+
+    if (!input || !preview || !form) return;
+
+    new Sortable(preview, {
+        animation: 150,
+        handle: ".drag-handle"
     });
 
-    rebuildInputFiles(idx);
-  };
+    input.addEventListener("change", (e) => {
 
-  function rebuildInputFiles(idx) {
-    const input = document.querySelector(`input[name="images_${idx}"]`);
-    if (!input) return;
+        Array.from(e.target.files).forEach(file => {
+            images.push({ id: uid(), file });
+        });
 
-    const dt = new DataTransfer();
-    selectedFiles[idx].forEach(f => dt.items.add(f));
-    input.files = dt.files;
-  }
-
-  window.addRow = function () {
-    const productsDiv = document.getElementById("products");
-
-    const div = document.createElement("div");
-    div.className =
-      "product-row relative grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 border";
-
-    div.innerHTML = `
-      <button type="button" onclick="removeRow(this)"
-        class="absolute top-2 right-4 text-gray-500 hover:text-red-600 text-xl font-bold cursor-pointer">×</button>
-
-      <div class="space-y-4">
-        <label class="block font-semibold">Category</label>
-        <select name="category_${rowIndex}" class="border px-4 py-3 w-full cursor-pointer">
-          <option value="">—</option>${categoriesOptions}
-        </select>
-
-        <label class="block font-semibold">Product Name</label>
-        <input name="name" placeholder="Product Name"
-          class="border p-3 w-full" required />
-
-        <label class="block font-semibold">Price</label>
-        <input name="price" type="number" step="0.01"
-          placeholder="Price"
-          class="border p-3 w-full" required />
-
-        <label class="block font-semibold">Discount %</label>
-        <input name="discount_percent" type="number" min="0" max="100"
-          placeholder="Discount %"
-          class="border p-3 w-full" />
-
-        <div class="grid grid-cols-3 grid-rows-2 gap-4 mt-2">
-          ${sizes
-            .map(
-              s => `
-            <div class="flex flex-col items-center">
-              <label class="text-sm font-semibold">${s}</label>
-              <input name="stock_${s}_${rowIndex}" type="number" min="0"
-                placeholder="Stock"
-                class="border p-2 w-18 text-center" />
-            </div>
-          `
-            )
-            .join("")}
-        </div>
-      </div>
-
-      <div>
-        <label class="block font-semibold mb-2">Tags</label>
-
-        <input
-          type="text"
-          placeholder="Search tags..."
-          class="border px-3 py-2 w-full mb-2"
-          onkeyup="filterTags(this, ${rowIndex})"
-        />
-
-        <div id="tags-container-${rowIndex}"
-          class="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
-
-          ${tags
-            .map(
-              t => `
-            <label class="flex items-center gap-2 cursor-pointer border px-3 py-1 hover:bg-gray-100 tag-item">
-              <input type="checkbox" name="tags_${rowIndex}" value="${t.id}">
-              <span>${t.name}</span>
-            </label>
-          `
-            )
-            .join("")}
-
-        </div>
-      </div>
-
-      <div>
-        <label class="block font-semibold mb-2">Images</label>
-
-        <input type="file" name="images_${rowIndex}" multiple
-          class="border p-2 w-full cursor-pointer"
-          onchange="previewImages(this, ${rowIndex})" />
-
-        <div id="preview-${rowIndex}" class="flex gap-4 flex-wrap mt-4"></div>
-      </div>
-    `;
-
-    productsDiv.appendChild(div);
-    rowIndex++;
-  };
-
-  window.filterTags = function (input, idx) {
-    const filter = input.value.toLowerCase();
-    const container = document.getElementById(`tags-container-${idx}`);
-
-    container.querySelectorAll(".tag-item").forEach(tag => {
-      tag.style.display = tag.innerText.toLowerCase().includes(filter)
-        ? "flex"
-        : "none";
+        input.value = "";
+        renderImages(preview);
     });
-  };
-})();
+
+    function renderImages() {
+
+        preview.innerHTML = "";
+
+        images.forEach(img => {
+
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+
+                const box = document.createElement("div");
+                box.className = "border p-2 relative bg-white";
+                box.setAttribute("data-id", img.id);
+
+                box.innerHTML = `
+                  <div class="drag-handle cursor-move text-gray-600 text-md">
+                      ⠿
+                  </div>
+
+                    <button type="button"
+                        class="absolute top-1 right-1 bg-black text-white w-6 h-6 text-xs">
+                        ×
+                    </button>
+
+                    <img src="${e.target.result}"
+                         class="w-full h-48 object-contain">
+                `;
+
+                box.querySelector("button").addEventListener("click", () => {
+                    images = images.filter(x => x.id !== img.id);
+                    renderImages();
+                });
+
+                preview.appendChild(box);
+            };
+
+            reader.readAsDataURL(img.file);
+        });
+    }
+
+    form.addEventListener("submit", () => {
+
+        const orderedIds = Array.from(preview.children)
+            .map(el => el.getAttribute("data-id"));
+
+        const ordered = orderedIds
+            .map(id => images.find(i => i.id === id))
+            .filter(Boolean);
+
+        const dt = new DataTransfer();
+
+        ordered.forEach(img => dt.items.add(img.file));
+
+        input.files = dt.files;
+    });
+}

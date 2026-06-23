@@ -1,148 +1,202 @@
 {% extends "store/base.html" %}
-{% load dict_extras %}
 {% load static %}
+{% load dict_extras %}
 {% block title %}Edit Product{% endblock %}
+
 {% block content %}
-<div class="max-w-7xl mx-auto py-24 px-4">
-  <h1 class="text-3xl font-bold mb-10">Edit Product</h1>
 
-  <form method="post" enctype="multipart/form-data" class="space-y-12">
+<div class="max-w-5xl mx-auto px-6 lg:px-12 py-16 space-y-12">
+
+  <div>
+    <h1 class="text-3xl font-semibold">Edit Product</h1>
+    <p class="text-sm text-gray-500 mt-1">Update product details</p>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" class="space-y-14">
     {% csrf_token %}
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 border space-y-4">
 
-      <!-- LEFT: Category, Name, Price, Discount, Sizes -->
-      <div class="space-y-4">
-        <!-- Category -->
-        <label class="block font-semibold">Category</label>
-        <select name="category" class="border px-4 py-3 w-full cursor-pointer">
-          <option value="">—</option>
-          {% for category in categories %}
-          <option
-            value="{{ category.id }}"
-            {% if product.category and product.category.id == category.id %}selected{% endif %}>
-            {{ category.name }}
-          </option>
-          {% endfor %}
-        </select>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
 
-        <!-- Name -->
-        <label class="block font-semibold">Product Name</label>
-        <input
-          name="name"
-          class="border p-3 w-full"
-          placeholder="Product Name"
-          value="{{ product.name }}"
-          required
-        />
+      <!-- LEFT -->
+      <div class="space-y-8">
 
-        <!-- Price -->
-        <label class="block font-semibold">Price</label>
-        <input
-          name="price"
-          type="number"
-          step="0.01"
-          class="border p-3 w-full"
-          placeholder="Price"
-          value="{{ product.price }}"
-          required
-        />
+        <section class="space-y-5">
+          <h2 class="text-sm uppercase tracking-wide text-gray-500">Basic Information</h2>
 
-        <!-- Discount -->
-        <label class="block font-semibold">Discount %</label>
-        <input
-          name="discount_percent"
-          type="number"
-          min="0"
-          max="100"
-          class="border p-3 w-full"
-          placeholder="Discount %"
-          value="{{ product.discount_percent }}"
-        />
-
-        <!-- Sizes -->
-        <div class="grid grid-cols-3 grid-rows-2 gap-4 mt-2">
-          {% for size in sizes %}
-          <div class="flex flex-col items-center">
-            <label class="text-sm font-semibold">{{ size }}</label>
-            <input
-              type="number"
-              name="stock_{{ size }}"
-              min="0"
-              placeholder="Stock"
-              class="border p-2 w-18 text-center"
-              value="{{ variant_stocks|get_item:size }}"
-            />
+          <div>
+            <label class="text-sm">Category</label>
+            <select name="category" class="border w-full px-3 py-3 mt-1">
+              <option value="">—</option>
+              {% for category in categories %}
+              <option value="{{ category.id }}"
+                {% if product.category_id == category.id %}selected{% endif %}>
+                {{ category.name }}
+              </option>
+              {% endfor %}
+            </select>
           </div>
-          {% endfor %}
-        </div>
-      </div>
 
-      <!-- MIDDLE: Tags -->
-      <div>
-        <label class="block font-semibold mb-2">Tags</label>
-        <input
-          type="text"
-          placeholder="Search tags..."
-          class="border px-3 py-2 w-full mb-2 "
-          onkeyup="filterTags(this)"
-        />
-        <div id="tags-container" class="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
-          {% for tag in tags %}
-          <label class="flex items-center gap-2 cursor-pointer border px-3 py-1 hover:bg-gray-100 tag-item">
-            <input
-              type="checkbox"
-              name="tags"
-              value="{{ tag.id }}"
-              {% if tag.id in selected_tag_ids %}checked{% endif %}
-            />
-            {{ tag.name }}
-          </label>
-          {% endfor %}
-        </div>
-      </div>
-
-      <!-- RIGHT: Images -->
-      <div>
-        <label class="block font-semibold mb-2">Images</label>
-        <input
-          type="file"
-          name="images"
-          multiple
-          class="border p-2 w-full cursor-pointer"
-          onchange="previewImages(this)"
-        />
-        <div id="preview" class="flex gap-4 flex-wrap mt-4">
-          {% for img in images %}
-          <div class="flex flex-col items-center w-32 relative" data-image-id="{{ img.id }}">
-            <button
-              type="button"
-              onclick="removeExistingImage(this)"
-              class="absolute top-[-4px] right-[-4px] flex items-center bg-black justify-center hover:bg-red-600 text-white  w-4 h-4 transition cursor-pointer"
-            >
-              ×
-            </button>
-            <img src="{{ img.image.url }}" class="w-full h-32 object-cover border "/>
-            <input
-              type="number"
-              name="image_order_{{ img.id }}"
-              value="{{ img.order }}"
-              class="mt-1 w-full border p-1 text-center text-sm"
-            />
+          <div>
+            <label class="text-sm">Product Name</label>
+            <input name="name" class="border w-full px-3 py-3 mt-1"
+                   value="{{ product.name }}" required />
           </div>
-          {% endfor %}
-        </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-sm">Price</label>
+              <input name="price" type="number" step="0.01"
+                     class="border w-full px-3 py-3 mt-1"
+                     value="{{ product.price }}" required />
+            </div>
+
+            <div>
+              <label class="text-sm">Discount %</label>
+              <input name="discount_percent" type="number"
+                     class="border w-full px-3 py-3 mt-1"
+                     value="{{ product.discount_percent }}" />
+            </div>
+          </div>
+        </section>
+
+        <section class="space-y-4">
+          <h2 class="text-sm uppercase tracking-wide text-gray-500">Inventory</h2>
+
+          <div class="grid grid-cols-3 gap-4">
+            {% for size in sizes %}
+            <div class="border p-3 text-center">
+              <p class="text-xs mb-2">{{ size }}</p>
+              <input type="number" name="stock_{{ size }}"
+                     class="w-full border px-2 py-1 text-center"
+                     value="{{ variant_stocks|get_item:size }}" />
+            </div>
+            {% endfor %}
+          </div>
+        </section>
+
       </div>
 
+      <!-- RIGHT -->
+      <div class="space-y-8">
+
+        <section class="space-y-3">
+          <h2 class="text-sm uppercase tracking-wide text-gray-500">Tags</h2>
+
+          <input type="text" placeholder="Search tags..."
+                 class="border w-full px-3 py-2" />
+
+          <div class="border max-h-[260px] overflow-y-auto p-3 space-y-2">
+            {% for tag in tags %}
+            <label class="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="tags" value="{{ tag.id }}"
+                     {% if tag.id in selected_tag_ids %}checked{% endif %}>
+              {{ tag.name }}
+            </label>
+            {% endfor %}
+          </div>
+        </section>
+
+        <section class="space-y-3">
+          <h2 class="text-sm uppercase tracking-wide text-gray-500">Related Products</h2>
+
+          <button type="button" id="open-related"
+                  class="border w-full py-3 text-sm">
+            Select Related Products
+          </button>
+
+          <div id="selected-products" class="space-y-2 text-sm text-gray-600"></div>
+        </section>
+
+        <section class="space-y-3">
+          <h2 class="text-sm uppercase tracking-wide text-gray-500">Images</h2>
+
+          <input type="file" name="images" multiple
+                 class="border w-full px-3 py-2" />
+
+                 <div id="preview" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+
+                  {% for img in images %}
+                  <div class="border p-2 relative bg-white"
+                       data-id="{{ img.id }}"
+                       data-existing="1">
+                
+                    <div class="drag-handle cursor-move text-gray-600 text-md">
+                      ⠿
+                    </div>
+                
+                    <button type="button"
+                            class="absolute top-1 right-1 bg-black text-white w-6 h-6 text-xs">
+                      ×
+                    </button>
+                
+                    <img src="{{ img.image.url }}" class="w-full h-48 object-contain">
+                
+                  </div>
+                  {% endfor %}
+                
+                </div>
+        </section>
+
+      </div>
     </div>
 
-    <button type="submit" class="border bg-black text-white px-5 py-2 cursor-pointer">
-      Save Changes
-    </button>
-    <input type="hidden" name="images_to_delete" id="images_to_delete" value=""/>
+    <div class="flex justify-end pt-6 border-t">
+      <button class="bg-black text-white px-8 py-3 text-sm">
+        Save
+      </button>
+    </div>
+
+    <input type="hidden" name="images_to_delete" id="images_to_delete">
+      <div
+      id="related-modal"
+      class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4"
+    >
+      <div class="bg-white w-full max-w-3xl p-6 space-y-4">
+
+        <div class="flex justify-between items-center">
+          <h2 class="text-lg font-semibold">Related Products</h2>
+
+          <button type="button" id="close-related" class="text-2xl cursor-pointer">
+            ×
+          </button>
+        </div>
+
+        <input
+          type="text"
+          id="product-search"
+          placeholder="Search products..."
+          class="border w-full px-3 py-2"
+        />
+
+        <div id="product-results" class="space-y-2 max-h-[400px] overflow-y-auto"></div>
+
+        <div class="flex justify-between text-sm">
+          <button type="button" id="prev-page" class="border px-4 py-2">
+            Prev
+          </button>
+
+          <span id="page-number"></span>
+
+          <button type="button" id="next-page" class="border px-4 py-2">
+            Next
+          </button>
+        </div>
+
+      </div>
+    </div>
+
   </form>
 </div>
 
+{% endblock %}
+
 {% block js %}
-<script src="{% static 'js/edit_products.js' %}"></script>
-{% endblock %}
-{% endblock %}
+  <script>
+  window.EDIT_DATA = {
+      related_products: JSON.parse('{{ selected_related_products|escapejs }}')
+  };
+  </script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <script src="{% static 'js/edit_products.js' %}" defer></script>
+  {% endblock %}

@@ -11,8 +11,10 @@ urlpatterns = [
     path('product/<int:id>/', views.product_detail, name='product'),
     path("search/suggestions/", views.search_suggestions, name="search_suggestions"),
     path('returns', views.returns, name='returns'),
-    path("add-products/", views.bulk_add_products, name="bulk_add_products"),
+    path("add-products/", views.add_product, name="add_product"),
     path("drafts/", views.draft_products, name="draft_products"),
     path("product/<int:id>/add-draft/", views.add_to_draft, name="add_to_draft"),
     path("product/<int:id>/edit/", views.edit_product, name="edit_product"),
+    path("product/search/", views.related_products_search, name="related_products_search",
+)
 ]

@@ -9,6 +9,8 @@ from orders.forms import AddToCartForm
 from orders.views import get_or_create_cart
 from orders.models import CartItem
 from django.core.paginator import Paginator
+from django.db.models import Prefetch
+import json
 
 SIZES = ["XS", "S", "M", "L", "XL", "2XL"]
 
@@ -178,7 +180,7 @@ def product_detail(request, id):
     user_review = None
     if request.user.is_authenticated:
         user_review = product.reviews.filter(user=request.user).first()
-
+    related_products = product.get_related_products(limit=15)
     return render(
         request,
         "store/product.html",
@@ -187,6 +189,7 @@ def product_detail(request, id):
             "form": form,
             "reviews_page": reviews_page,
             "user_review": user_review,
+            "related_products": related_products,
         },
     )
 
@@ -220,60 +223,109 @@ def search_suggestions(request):
     return JsonResponse(data, safe=False)
 
 @staff_member_required
-def bulk_add_products(request):
+def add_product(request):
     categories = Category.objects.all()
     tags = Tag.objects.all()
 
     if request.method == "POST":
-        names = request.POST.getlist("name")
-        prices = request.POST.getlist("price")
-        discounts = request.POST.getlist("discount_percent")
-        products = []
+        name = request.POST.get("name")
+        price = request.POST.get("price")
+        discount = request.POST.get("discount_percent") or 0
+
+        category_id = request.POST.get("category")
+        category = (
+            Category.objects.get(id=category_id)
+            if category_id
+            else None
+        )
 
         with transaction.atomic():
-            for idx, name in enumerate(names):
-                price = prices[idx]
-                discount_raw = discounts[idx] if idx < len(discounts) else ""
-                discount = int(discount_raw) if discount_raw.strip() else 0
+            product = Product.objects.create(
+                name=name,
+                slug=name.replace(" ", "-").lower(),
+                price=price,
+                category=category,
+                discount_percent=discount,
+                status="draft",
+            )
 
-                category_id = request.POST.get(f"category_{idx}")
-                category = Category.objects.get(id=category_id) if category_id else None
+            product.tags.set(
+                request.POST.getlist("tags")
+            )
 
-                product = Product.objects.create(
-                    name=name,
-                    slug=name.replace(" ", "-").lower(),
-                    price=price,
-                    category=category,
-                    discount_percent=discount,
-                    status="draft",
+            product.related_products.set(
+                request.POST.getlist("related_products")
+            )
+
+            for size in SIZES:
+                stock = request.POST.get(
+                    f"stock_{size}",
+                    "0"
                 )
- 
-                products.append(product)
 
-                # Tags
-                tag_ids = request.POST.getlist(f"tags_{idx}")
-                if tag_ids:
-                    product.tags.set(tag_ids)
+                ProductVariant.objects.create(
+                    product=product,
+                    size=size,
+                    stock=int(stock) if stock else 0
+                )
 
-                # Variants
-                for size in SIZES:
-                    stock_value = request.POST.get(f"stock_{size}_{idx}", "0").strip()
-                    stock = int(stock_value) if stock_value.isdigit() else 0
-                    ProductVariant.objects.create(product=product, size=size, stock=stock)
+            files = request.FILES.getlist("images")
 
-                # Images with order
-                files = request.FILES.getlist(f"images_{idx}")
-                orders = request.POST.getlist(f"image_order_{idx}[]")
-                for i, f in enumerate(files):
-                    order = int(orders[i]) if i < len(orders) else i
-                    ProductImage.objects.create(product=product, image=f, order=order)
+            for i, image in enumerate(files):
+                ProductImage.objects.create(
+                    product=product,
+                    image=image,
+                    order=i
+                )
 
         return redirect("draft_products")
 
-    return render(request, "store/add_products.html", {
-        "categories": categories,
-        "tags": tags,
-        "sizes": SIZES,
+    return render(
+        request,
+        "store/add_product.html",
+        {
+            "categories": categories,
+            "tags": tags,
+            "sizes": SIZES,
+        },
+    )
+
+@staff_member_required
+def related_products_search(request):
+    q = request.GET.get("q", "").strip()
+    page = int(request.GET.get("page", 1))
+
+    qs = Product.objects.order_by("-id")
+
+    if q:
+        qs = qs.filter(name__icontains=q)
+
+    qs = qs.prefetch_related(
+        Prefetch("images", queryset=ProductImage.objects.order_by("order"))
+    )
+
+    paginator = Paginator(qs, 10)
+    page_obj = paginator.get_page(page)
+
+    products = [
+        {
+            "id": p.id,
+            "name": p.name,
+            "image": (
+                p.images.first().image.url
+                if p.images.exists()
+                else ""
+            ),
+        }
+        for p in page_obj.object_list
+    ]
+
+    return JsonResponse({
+        "products": products,
+        "page": page_obj.number,
+        "pages": paginator.num_pages,
+        "has_next": page_obj.has_next(),
+        "has_previous": page_obj.has_previous(),
     })
 
 @staff_member_required
@@ -315,73 +367,110 @@ def draft_products(request):
 
 @staff_member_required
 def edit_product(request, id):
-    product = get_object_or_404(Product, id=id)
+    product = get_object_or_404(
+        Product.objects.prefetch_related("images", "related_products", "tags", "variants"),
+        id=id
+    )
 
-    # Prepare selected tags for template
     selected_tag_ids = list(product.tags.values_list("id", flat=True))
+    selected_related_ids = list(product.related_products.values_list("id", flat=True))
+
+    selected_related_products = list(
+    product.related_products.values("id", "name")
+)
 
     if request.method == "POST":
-        # Update basic fields
         product.name = request.POST.get("name", product.name)
         product.price = request.POST.get("price", product.price)
-        product.discount_percent = request.POST.get("discount_percent", product.discount_percent)
+        product.discount_percent = request.POST.get(
+            "discount_percent", product.discount_percent
+        )
+
         category_id = request.POST.get("category")
-        if category_id:
-            product.category_id = int(category_id)
+        product.category_id = category_id or None
         product.save()
 
+        # tags
+        product.tags.set(request.POST.getlist("tags"))
+
+        # related products
+        product.related_products.set(request.POST.getlist("related_products"))
+
+        # variants
         existing_variants = {v.size: v for v in product.variants.all()}
 
         for size in SIZES:
-            stock_value = request.POST.get(f"stock_{size}")
-            if stock_value is not None:
-                if size in existing_variants:
-                    variant = existing_variants[size]
-                    variant.stock = int(stock_value) if stock_value else 0
-                    variant.save()
-                else:
-                    stock = int(stock_value) if stock_value else 0
-                    if stock > 0:
-                        ProductVariant.objects.create(product=product, size=size, stock=stock)
+            stock_value = request.POST.get(f"stock_{size}", "0")
+            stock_value = int(stock_value) if stock_value else 0
 
-        # Update tags
-        tag_ids = request.POST.getlist("tags")
-        product.tags.set(tag_ids)
+            if size in existing_variants:
+                v = existing_variants[size]
+                v.stock = stock_value
+                v.save(update_fields=["stock"])
+            elif stock_value > 0:
+                ProductVariant.objects.create(
+                    product=product,
+                    size=size,
+                    stock=stock_value
+                )
 
-        # Delete images marked for deletion
-        images_to_delete = request.POST.get("images_to_delete", "")
-        if images_to_delete:
-            ids = [int(i) for i in images_to_delete.split(",") if i]
-            ProductImage.objects.filter(id__in=ids, product=product).delete()
+        # DELETE IMAGES
+        delete_ids = request.POST.get("images_to_delete", "")
+        if delete_ids:
+            ids = [int(x) for x in delete_ids.split(",") if x.strip()]
+            ProductImage.objects.filter(product=product, id__in=ids).delete()
 
-        # Update order of existing images
+        # REORDER EXISTING IMAGES (FROM DRAG & DROP)
+        order = request.POST.get("existing_image_order")
+        if order:
+            try:
+                ids = json.loads(order)
+
+                for index, img_id in enumerate(ids):
+                    ProductImage.objects.filter(
+                        id=img_id,
+                        product=product
+                    ).update(order=index)
+
+            except Exception:
+                pass
+
+        # UPDATE EXISTING IMAGE ORDER INPUTS (fallback legacy, optional safe delete)
         for img in product.images.all():
-            order = request.POST.get(f"image_order_{img.id}")
-            if order is not None:
-                img.order = int(order)
+            order_val = request.POST.get(f"image_order_{img.id}")
+            if order_val is not None:
+                img.order = int(order_val)
                 img.save(update_fields=["order"])
 
-        # Handle new uploaded images
-        image_files = request.FILES.getlist("images")
-        for i, img in enumerate(image_files):
-            order = request.POST.get(f"new_image_order_{i}", i)
-            ProductImage.objects.create(product=product, image=img, order=int(order))
+        # ADD NEW IMAGES (ORDERED FROM JS)
+        new_order_raw = request.POST.get("new_image_order", "[]")
+
+        try:
+            new_order = json.loads(new_order_raw)
+        except Exception:
+            new_order = []
+
+        files = request.FILES.getlist("images")
+
+        for i, file in enumerate(files):
+            order = new_order[i] if i < len(new_order) else i
+
+            ProductImage.objects.create(
+                product=product,
+                image=file,
+                order=order
+            )
 
         return redirect("draft_products")
-    
-    variant_stocks = {v.size: v.stock for v in product.variants.all()}
 
-    return render(
-        request,
-        "store/edit_product.html",
-        {
-            "product": product,
-            "categories": Category.objects.all(),
-            "tags": Tag.objects.all(),
-            "sizes": SIZES,
-            "variant_stocks": variant_stocks,
-            "images": product.images.all(),
-            "selected_tag_ids": selected_tag_ids,
-        },
-    )
-
+    return render(request, "store/edit_product.html", {
+    "product": product,
+    "categories": Category.objects.all(),
+    "tags": Tag.objects.all(),
+    "sizes": SIZES,
+    "selected_tag_ids": selected_tag_ids,
+    "selected_related_ids": selected_related_ids,
+    "selected_related_products": json.dumps(selected_related_products),
+    "variant_stocks": {v.size: v.stock for v in product.variants.all()},
+    "images": product.images.all(),
+})

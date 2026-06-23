@@ -163,7 +163,7 @@
           {% if user.is_staff %}
           <a href="{% url 'admin:index' %}" class="block text-lg font-semibold text-gray-900">Admin</a>
           <a href="{% url 'admin_orders' %}" class="block text-lg font-semibold text-gray-900">Orders</a>
-          <a href="{% url 'bulk_add_products' %}" class="block text-lg font-semibold text-gray-900">Add products</a>
+          <a href="{% url 'add_product' %}" class="block text-lg font-semibold text-gray-900">Add products</a>
           <a href="{% url 'draft_products' %}" class="block text-lg font-semibold text-gray-900">Drafts</a>
           <hr class="my-6" />
           {% endif %}

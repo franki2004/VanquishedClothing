@@ -1,84 +1,250 @@
-let imagesToDelete = [];
-let selectedFiles = []; // Tracks new files only
+let selectedRelated = new Map();
+let newImages = [];
+let page = 1;
+let search = "";
 
-function filterTags(input) {
-  const filter = input.value.toLowerCase();
-  const container = document.getElementById("tags-container");
-  container.querySelectorAll(".tag-item").forEach(tag => {
-    tag.style.display = tag.innerText.toLowerCase().includes(filter) ? "flex" : "none";
-  });
+function uid() {
+    return crypto.randomUUID();
 }
 
-// Remove existing image
-function removeExistingImage(btn) {
-  const container = btn.closest("[data-image-id]");
-  const imageId = container.dataset.imageId;
-  imagesToDelete.push(imageId);
-  document.getElementById("images_to_delete").value = imagesToDelete.join(",");
-  container.remove();
+document.addEventListener("DOMContentLoaded", () => {
+    initRelated();
+    initImages();
+    initTagSearch();
+    preloadRelated();
+});
+
+/* ================= RELATED ================= */
+
+function initRelated() {
+
+    const modal = document.getElementById("related-modal");
+    const openBtn = document.getElementById("open-related");
+    const closeBtn = document.getElementById("close-related");
+
+    openBtn?.addEventListener("click", () => {
+        modal.classList.remove("hidden");
+        load();
+    });
+
+    closeBtn?.addEventListener("click", () => {
+        modal.classList.add("hidden");
+    });
+
+    document.getElementById("product-search")?.addEventListener("input", e => {
+        search = e.target.value;
+        page = 1;
+        load();
+    });
+
+    document.getElementById("prev-page")?.addEventListener("click", () => {
+        if (page > 1) {
+            page--;
+            load();
+        }
+    });
+
+    document.getElementById("next-page")?.addEventListener("click", () => {
+        page++;
+        load();
+    });
 }
 
-// Preview new uploaded images
-function previewImages(input) {
-  const previewContainer = document.getElementById("preview");
-  selectedFiles = selectedFiles.concat(Array.from(input.files));
-  input.value = ""; // clear input so user can select more files later
+async function load() {
 
-  rebuildPreview();
-}
+  const res = await fetch(`/product/search/?page=${page}&q=${encodeURIComponent(search)}`);
+  const data = await res.json();
 
-// Rebuild preview for new images
-function rebuildPreview() {
-  const previewContainer = document.getElementById("preview");
-  
-  // Keep existing images in DOM (they already have data-image-id)
-  const existingImages = Array.from(previewContainer.querySelectorAll("[data-image-id]"));
+  const box = document.getElementById("product-results");
+  box.innerHTML = "";
 
-  // Remove old new previews
-  previewContainer.querySelectorAll(".new-image-preview").forEach(el => el.remove());
+  data.products.forEach(p => {
 
-  selectedFiles.forEach((file, i) => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const div = document.createElement("div");
-      div.className = "flex flex-col items-center w-32 relative new-image-preview";
+      const id = String(p.id);
 
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.innerText = "×";
-      btn.className = "absolute top-[-4px] right-[-4px] flex items-center justify-center bg-black hover:bg-red-600 text-white  w-4 h-4 text-sm cursor-pointer";
-      btn.onclick = () => {
-        selectedFiles.splice(i, 1);
-        rebuildPreview();
+      const el = document.createElement("label");
+      el.className = "flex items-center gap-3 border p-3 text-sm";
+
+      el.innerHTML = `
+          <input type="checkbox" value="${id}" ${selectedRelated.has(id) ? "checked" : ""}>
+          <img src="${p.image || ''}" class="w-20 h-28 object-contain border">
+          <span class="flex-1">${p.name}</span>
+      `;
+
+      const cb = el.querySelector("input");
+
+      cb.onchange = () => {
+          if (cb.checked) selectedRelated.set(id, p.name);
+          else selectedRelated.delete(id);
+          renderRelated();
       };
 
-      const img = document.createElement("img");
-      img.src = e.target.result;
-      img.className = "w-full h-32 object-cover border ";
-
-      const orderInput = document.createElement("input");
-      orderInput.type = "number";
-      orderInput.name = `new_image_order_${i}`;
-      orderInput.value = i;
-      orderInput.className = "mt-1 w-full border p-1 text-center text-sm";
-
-      div.appendChild(btn);
-      div.appendChild(img);
-      div.appendChild(orderInput);
-
-      previewContainer.appendChild(div);
-    };
-    reader.readAsDataURL(file);
+      box.appendChild(el);
   });
 
-  rebuildInputFiles();
+  document.getElementById("page-number").innerText =
+      `${data.page} / ${data.pages}`;
+
+  document.getElementById("prev-page").disabled = !data.has_previous;
+  document.getElementById("next-page").disabled = !data.has_next;
 }
 
-// Update hidden input.files for submission
-function rebuildInputFiles() {
+function renderRelated() {
+
+    const box = document.getElementById("selected-products");
+    box.innerHTML = "";
+
+    selectedRelated.forEach((name, id) => {
+
+        const el = document.createElement("div");
+        el.className = "border px-3 py-2 flex justify-between text-sm";
+
+        el.innerHTML = `
+            <span>${name}</span>
+            <button type="button">×</button>
+            <input type="hidden" name="related_products" value="${id}">
+        `;
+
+        el.querySelector("button").onclick = () => {
+            selectedRelated.delete(id);
+            renderRelated();
+        };
+
+        box.appendChild(el);
+    });
+}
+
+function preloadRelated() {
+  const items = window.EDIT_DATA?.related_products || [];
+
+  selectedRelated.clear();
+
+  items.forEach(p => {
+      selectedRelated.set(String(p.id), p.name);
+  });
+
+  renderRelated();
+}
+
+/* ================= TAGS ================= */
+
+function initTagSearch() {
+    document.querySelectorAll('input[placeholder="Search tags..."]')
+        .forEach(input => {
+
+            input.addEventListener("input", () => {
+
+                const f = input.value.toLowerCase();
+
+                input.closest("section")
+                    .querySelectorAll("label")
+                    .forEach(l => {
+                        l.style.display =
+                            l.textContent.toLowerCase().includes(f)
+                                ? "flex"
+                                : "none";
+                    });
+            });
+        });
+}
+
+/* ================= IMAGES (SOURCE OF TRUTH = DOM) ================= */
+
+function initImages() {
+
   const input = document.querySelector('input[name="images"]');
-  if (!input) return;
-  const dt = new DataTransfer();
-  selectedFiles.forEach(f => dt.items.add(f));
-  input.files = dt.files;
+  const preview = document.getElementById("preview");
+  const form = input?.closest("form");
+
+  if (!input || !preview || !form) return;
+
+  let images = [];
+
+  // load existing images into state
+  preview.querySelectorAll("[data-id]").forEach(el => {
+      images.push({
+          id: el.getAttribute("data-id"),
+          file: null,
+          existing: true
+      });
+  });
+
+  new Sortable(preview, {
+      animation: 150,
+      handle: ".drag-handle"
+  });
+
+  input.addEventListener("change", (e) => {
+
+      Array.from(e.target.files).forEach(file => {
+          images.push({ id: crypto.randomUUID(), file, existing: false });
+      });
+
+      input.value = "";
+      renderImages();
+  });
+
+  function renderImages() {
+
+      preview.innerHTML = "";
+
+      images.forEach(img => {
+
+          const box = document.createElement("div");
+          box.className = "border p-2 relative bg-white";
+          box.setAttribute("data-id", img.id);
+          box.setAttribute("data-existing", img.existing ? "1" : "0");
+
+          box.innerHTML = `
+              <div class="drag-handle cursor-move text-gray-600 text-md">
+                  ⠿
+              </div>
+
+              <button type="button"
+                      class="absolute top-1 right-1 bg-black text-white w-6 h-6 text-xs">
+                  ×
+              </button>
+
+              ${img.file
+                  ? `<img src="${URL.createObjectURL(img.file)}" class="w-full h-48 object-contain">`
+                  : `<img src="${preview.querySelector('[data-id="'+img.id+'"] img')?.src || ''}" class="w-full h-48 object-contain">`
+              }
+          `;
+
+          box.querySelector("button").addEventListener("click", () => {
+              images = images.filter(x => x.id !== img.id);
+              renderImages();
+          });
+
+          preview.appendChild(box);
+      });
+  }
+
+  form.addEventListener("submit", () => {
+
+      const orderedNodes = Array.from(preview.children);
+
+      const ordered = orderedNodes
+          .map(node => images.find(i => i.id === node.getAttribute("data-id")))
+          .filter(Boolean);
+
+      const dt = new DataTransfer();
+
+      ordered.forEach(img => {
+          if (img.file) dt.items.add(img.file);
+      });
+
+      input.files = dt.files;
+
+      const existingOrder = ordered
+          .filter(i => i.existing)
+          .map(i => i.id);
+
+      const hidden = document.createElement("input");
+      hidden.type = "hidden";
+      hidden.name = "existing_image_order";
+      hidden.value = JSON.stringify(existingOrder);
+
+      form.appendChild(hidden);
+  });
 }

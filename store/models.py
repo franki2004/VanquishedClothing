@@ -3,8 +3,7 @@ import os
 from django.utils.text import slugify
 from django.utils import timezone
 from django.conf import settings
-from datetime import timedelta
-from django.db.models import Avg
+from django.db.models import Avg, Count, Case, When, Value, F, Q
 
 class Category(models.Model):
     name = models.CharField(max_length=100)
@@ -33,7 +32,64 @@ class Product(models.Model):
     published_at = models.DateTimeField(null=True, blank=True)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name="products")
     tags = models.ManyToManyField(Tag, blank=True)
+    related_products = models.ManyToManyField(
+        'self', blank=True, symmetrical=False, related_name='related_to'
+    )
 
+    def get_related_products(self, limit=15):
+            manual = list(self.related_products.filter(status="active")[:limit])
+
+            if len(manual) >= limit:
+                return manual
+
+            remaining = limit - len(manual)
+            exclude_ids = [p.id for p in manual] + [self.id]
+            tag_ids = list(self.tags.values_list('id', flat=True))
+
+            # If no tags and no category, can't auto-fill
+            if not tag_ids and not self.category:
+                return manual
+
+            # Filter: products that share tags OR category with this product
+            filter_q = Q()
+            if tag_ids:
+                filter_q |= Q(tags__in=tag_ids)
+            if self.category:
+                filter_q |= Q(category=self.category)
+
+            queryset = Product.objects.filter(filter_q).exclude(id__in=exclude_ids).filter(status="active")
+
+            # Annotate shared tags count (only if we have tags to match)
+            if tag_ids:
+                queryset = queryset.annotate(
+                    shared_tags=Count('tags', filter=Q(tags__in=tag_ids), distinct=True)
+                )
+            else:
+                queryset = queryset.annotate(shared_tags=Value(0))
+
+            # Annotate category match (boolean: 1 if matches, 0 if not)
+            queryset = queryset.annotate(
+                category_match=Case(
+                    When(category=self.category, then=Value(1)),
+                    default=Value(0),
+                    output_field=models.IntegerField()
+                )
+            )
+
+            # Calculate score: category = 5 points, each tag = 1 point
+            queryset = queryset.annotate(
+                score=F('category_match') * 5 + F('shared_tags')
+            )
+
+            # Fetch and order by score descending
+            auto = (
+                queryset
+                .filter(score__gt=0)
+                .order_by('-score', '-id')
+                .distinct()[:remaining]
+            )
+
+            return manual + list(auto)    
     class Meta:
         ordering = ["-created_at"]
         indexes = [models.Index(fields=["status"]), models.Index(fields=["slug"])]
