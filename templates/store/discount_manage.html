@@ -1,0 +1,139 @@
+{% extends "store/base.html" %}
+{% load static %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6">
+  <h1 class="text-2xl font-bold mb-4 mt-12">Manage Discounts</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+          {% if message.tags == 'success' %}
+            <div id="discount-success-flag" style="display:none"></div>
+          {% endif %}
+          <div class="mb-3 px-4 py-2 rounded {% if message.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+  
+  <!-- Search / filter -->
+  <form method="get" class="flex flex-wrap gap-3 mb-4">
+    <input type="text" name="q" value="{{ query }}" placeholder="Search by name, tag, or SKU"
+           class="border rounded px-3 py-2 flex-1 min-w-[200px]">
+    <select name="category" class="border rounded px-3 py-2">
+      <option value="">All categories</option>
+      {% for c in categories %}
+        <option value="{{ c.id }}" {% if selected_category == c.id|stringformat:"s" %}selected{% endif %}>
+          {{ c.name }}
+        </option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="bg-gray-800 text-white px-4 py-2 rounded">Filter</button>
+  </form>
+
+  <form method="post" id="discount-form">
+    {% csrf_token %}
+    <input type="hidden" name="q" value="{{ query }}">
+    <input type="hidden" name="category" value="{{ selected_category }}">
+
+    <div class="overflow-x-auto border rounded">
+      <table class="min-w-full text-sm">
+        <thead class="bg-gray-100 text-left">
+          <tr>
+            <th class="p-3"><input type="checkbox" id="select-all"></th>
+            <th class="p-3">Name</th>
+            <th class="p-3">SKU</th>
+            <th class="p-3">Category</th>
+            <th class="p-3">Tags</th>
+            <th class="p-3">Price</th>
+            <th class="p-3">Discount</th>
+            <th class="p-3">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for product in page_obj %}
+          <tr class="border-t">
+            <td class="p-3">
+              <input type="checkbox" name="product_ids" value="{{ product.id }}" class="row-check">
+            </td>
+            <td class="p-3">{{ product.name }}</td>
+            <td class="p-3 text-gray-500">{{ product.sku }}</td>
+            <td class="p-3">{{ product.category.name|default:"—" }}</td>
+            <td class="p-3">{% for t in product.tags.all %}{{ t.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+            <td class="p-3">
+              ${{ product.price }}
+              {% if product.discount_percent %}
+                <span class="text-red-600 text-xs block">→ ${{ product.final_price }}</span>
+              {% endif %}
+            </td>
+            <td class="p-3">{% if product.discount_percent %}{{ product.discount_percent }}%{% else %}—{% endif %}</td>
+            <td class="p-3">
+              {% if product.discount_status == "active" %}
+                <span class="text-green-600 font-medium">Active</span>
+              {% elif product.discount_status == "scheduled" %}
+                <span class="text-blue-600 font-medium">Scheduled</span>
+              {% elif product.discount_status == "expired" %}
+                <span class="text-gray-400">Expired</span>
+              {% else %}
+                <span class="text-gray-400">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" class="p-6 text-center text-gray-500">No products found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="flex gap-2 my-4">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}&q={{ query }}&category={{ selected_category }}" class="px-3 py-1 border rounded">Prev</a>
+      {% endif %}
+      <span class="px-3 py-1">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}&q={{ query }}&category={{ selected_category }}" class="px-3 py-1 border rounded">Next</a>
+      {% endif %}
+    </div>
+
+    <!-- Bulk discount panel -->
+    <div class="border-t pt-4">
+      <div id="selection-bar" class="flex items-center gap-3 mb-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded" style="display:none">
+        <span id="selection-count" class="text-sm font-medium text-blue-800">0 selected</span>
+        <button type="button" id="clear-selection" class="text-sm text-blue-600 underline hover:text-blue-800">
+          Clear selection
+        </button>
+      </div>
+
+      <div class="flex flex-wrap items-end gap-3">
+        <div>
+          <label class="block text-sm text-gray-600">Discount %</label>
+          {{ form.discount_percent }}
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600">Starts</label>
+          {{ form.discount_start }}
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600">Ends</label>
+          {{ form.discount_end }}
+        </div>
+        <button type="submit" name="action" value="apply" class="bg-black text-white px-4 py-2 rounded">
+          Apply to selected
+        </button>
+        <button type="submit" name="action" value="clear" formnovalidate class="border border-red-500 text-red-600 px-4 py-2 rounded">
+          Remove discount
+        </button>
+        {% if form.errors %}
+          <div class="text-red-600 text-sm w-full">{{ form.non_field_errors }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </form>
+
+</div>
+
+
+
+{%block js %} <script src="{% static 'js/discount_manage.js' %}"></script> {% endblock %}
+{% endblock %}

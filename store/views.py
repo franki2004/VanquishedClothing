@@ -11,6 +11,8 @@ from orders.models import CartItem
 from django.core.paginator import Paginator
 from django.db.models import Prefetch
 import json
+from django.contrib import messages
+from .forms import DiscountForm
 
 SIZES = ["XS", "S", "M", "L", "XL", "2XL"]
 
@@ -474,3 +476,68 @@ def edit_product(request, id):
     "variant_stocks": {v.size: v.stock for v in product.variants.all()},
     "images": product.images.all(),
 })
+
+
+
+@staff_member_required
+def product_discount_manage(request):
+    paginate_by = 10
+    query = request.GET.get("q", "").strip()
+    category_id = request.GET.get("category", "")
+    querystring = f"?{request.GET.urlencode()}" if request.GET else ""
+
+    # Build the base queryset (search + filter)
+    qs = Product.objects.select_related("category").prefetch_related("tags")
+
+    if query:
+        qs = qs.filter(
+            Q(name__icontains=query)
+            | Q(tags__name__icontains=query)
+            | Q(sku__icontains=query)
+        ).distinct()
+
+    if category_id:
+        qs = qs.filter(category_id=category_id)
+
+    qs = qs.order_by("name")
+
+    if request.method == "POST":
+        product_ids = request.POST.getlist("product_ids")
+        action = request.POST.get("action")
+
+        if not product_ids:
+            messages.error(request, "Select at least one product first.")
+            return redirect(request.path + querystring)
+
+        if action == "clear":
+            updated = Product.objects.filter(id__in=product_ids).update(
+                discount_percent=0, discount_start=None, discount_end=None
+            )
+            messages.success(request, f"Removed discount from {updated} product(s).")
+            return redirect(request.path + querystring)
+
+        form = DiscountForm(request.POST)
+        if form.is_valid():
+            updated = Product.objects.filter(id__in=product_ids).update(
+                discount_percent=form.cleaned_data["discount_percent"],
+                discount_start=form.cleaned_data["discount_start"],
+                discount_end=form.cleaned_data["discount_end"],
+            )
+            messages.success(request, f"Discount applied to {updated} product(s).")
+            return redirect(request.path + querystring)
+
+        messages.error(request, "Please fix the errors below.")
+    else:
+        form = DiscountForm()
+
+    paginator = Paginator(qs, paginate_by)
+    page_obj = paginator.get_page(request.GET.get("page", 1))
+
+    context = {
+        "page_obj": page_obj,
+        "categories": Category.objects.all(),
+        "query": query,
+        "selected_category": category_id,
+        "form": form,
+    }
+    return render(request, "store/discount_manage.html", context)

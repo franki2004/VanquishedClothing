@@ -1,9 +1,11 @@
+from decimal import Decimal
 from django.db import models
 import os
 from django.utils.text import slugify
 from django.utils import timezone
 from django.conf import settings
 from django.db.models import Avg, Count, Case, When, Value, F, Q
+from django.core.validators import MaxValueValidator
 
 class Category(models.Model):
     name = models.CharField(max_length=100)
@@ -25,7 +27,11 @@ class Product(models.Model):
     slug = models.SlugField(unique=True)
     sku = models.CharField(max_length=50, unique=True, editable=False)
     price = models.DecimalField(max_digits=8, decimal_places=2)
-    discount_percent = models.PositiveSmallIntegerField(default=0)
+    discount_percent = models.PositiveSmallIntegerField(
+        default=0, validators=[MaxValueValidator(90)]
+    )
+    discount_start = models.DateTimeField(null=True, blank=True)
+    discount_end = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="draft", db_index=True)
     is_limited = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -59,7 +65,6 @@ class Product(models.Model):
 
             queryset = Product.objects.filter(filter_q).exclude(id__in=exclude_ids).filter(status="active")
 
-            # Annotate shared tags count (only if we have tags to match)
             if tag_ids:
                 queryset = queryset.annotate(
                     shared_tags=Count('tags', filter=Q(tags__in=tag_ids), distinct=True)
@@ -75,13 +80,9 @@ class Product(models.Model):
                     output_field=models.IntegerField()
                 )
             )
-
-            # Calculate score: category = 5 points, each tag = 1 point
             queryset = queryset.annotate(
                 score=F('category_match') * 5 + F('shared_tags')
             )
-
-            # Fetch and order by score descending
             auto = (
                 queryset
                 .filter(score__gt=0)
@@ -114,9 +115,33 @@ class Product(models.Model):
         return not self.variants.filter(stock__gt=0).exists()
 
     @property
+    def is_discount_active(self):
+        if not self.discount_percent:
+            return False
+        now = timezone.now()
+        if self.discount_start and now < self.discount_start:
+            return False
+        if self.discount_end and now > self.discount_end:
+            return False
+        return True
+
+    @property
+    def discount_status(self):
+        if not self.discount_percent:
+            return "none"
+        now = timezone.now()
+        if self.discount_start and now < self.discount_start:
+            return "scheduled"
+        if self.discount_end and now < self.discount_end or (self.discount_end is None and self.discount_start):
+            return "active" if self.is_discount_active else "expired"
+        if self.discount_end and now > self.discount_end:
+            return "expired"
+        return "active"
+
+    @property
     def final_price(self):
-        if self.discount_percent:
-            return self.price * (100 - self.discount_percent) / 100
+        if self.is_discount_active:
+            return (self.price * (100 - self.discount_percent) / 100).quantize(Decimal("0.01"))
         return self.price
 
 class ProductVariant(models.Model):
