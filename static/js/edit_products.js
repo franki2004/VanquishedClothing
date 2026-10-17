@@ -1,15 +1,9 @@
 let selectedRelated = new Map();
-let newImages = [];
 let page = 1;
 let search = "";
 
-function uid() {
-    return crypto.randomUUID();
-}
-
 document.addEventListener("DOMContentLoaded", () => {
     initRelated();
-    initImages();
     initTagSearch();
     initAddTag();
     preloadRelated();
@@ -53,41 +47,41 @@ function initRelated() {
 
 async function load() {
 
-  const res = await fetch(`/product/search/?page=${page}&q=${encodeURIComponent(search)}`);
-  const data = await res.json();
+    const res = await fetch(`/product/search/?page=${page}&q=${encodeURIComponent(search)}`);
+    const data = await res.json();
 
-  const box = document.getElementById("product-results");
-  box.innerHTML = "";
+    const box = document.getElementById("product-results");
+    box.innerHTML = "";
 
-  data.products.forEach(p => {
+    data.products.forEach(p => {
 
-      const id = String(p.id);
+        const id = String(p.id);
 
-      const el = document.createElement("label");
-      el.className = "flex items-center gap-3 border p-3 text-sm";
+        const el = document.createElement("label");
+        el.className = "flex items-center gap-3 border p-3 text-sm";
 
-      el.innerHTML = `
-          <input type="checkbox" value="${id}" ${selectedRelated.has(id) ? "checked" : ""}>
-          <img src="${p.image || ''}" class="w-20 h-28 object-contain border">
-          <span class="flex-1">${p.name}</span>
-      `;
+        el.innerHTML = `
+            <input type="checkbox" value="${id}" ${selectedRelated.has(id) ? "checked" : ""}>
+            <img src="${p.image || ''}" class="w-20 h-28 object-contain border">
+            <span class="flex-1">${p.name}</span>
+        `;
 
-      const cb = el.querySelector("input");
+        const cb = el.querySelector("input");
 
-      cb.onchange = () => {
-          if (cb.checked) selectedRelated.set(id, p.name);
-          else selectedRelated.delete(id);
-          renderRelated();
-      };
+        cb.onchange = () => {
+            if (cb.checked) selectedRelated.set(id, p.name);
+            else selectedRelated.delete(id);
+            renderRelated();
+        };
 
-      box.appendChild(el);
-  });
+        box.appendChild(el);
+    });
 
-  document.getElementById("page-number").innerText =
-      `${data.page} / ${data.pages}`;
+    document.getElementById("page-number").innerText =
+        `${data.page} / ${data.pages}`;
 
-  document.getElementById("prev-page").disabled = !data.has_previous;
-  document.getElementById("next-page").disabled = !data.has_next;
+    document.getElementById("prev-page").disabled = !data.has_previous;
+    document.getElementById("next-page").disabled = !data.has_next;
 }
 
 function renderRelated() {
@@ -116,15 +110,15 @@ function renderRelated() {
 }
 
 function preloadRelated() {
-  const items = window.EDIT_DATA?.related_products || [];
+    const items = window.EDIT_DATA?.related_products || [];
 
-  selectedRelated.clear();
+    selectedRelated.clear();
 
-  items.forEach(p => {
-      selectedRelated.set(String(p.id), p.name);
-  });
+    items.forEach(p => {
+        selectedRelated.set(String(p.id), p.name);
+    });
 
-  renderRelated();
+    renderRelated();
 }
 
 /* ================= TAGS ================= */
@@ -148,6 +142,7 @@ function initTagSearch() {
             });
         });
 }
+
 /* ================= ADD NEW TAG ================= */
 
 function initAddTag() {
@@ -190,7 +185,6 @@ function initAddTag() {
                 return;
             }
 
-            // already in the list (existing tag typed again) -> just check it
             let cb = list.querySelector(`input[name="tags"][value="${data.id}"]`);
 
             if (!cb) {
@@ -221,111 +215,10 @@ function initAddTag() {
 
     btn.addEventListener("click", addTag);
 
-    // Enter adds the tag instead of submitting the whole product form
     input.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
             e.preventDefault();
             addTag();
         }
     });
-}
-/* ================= IMAGES (SOURCE OF TRUTH = DOM) ================= */
-
-function initImages() {
-
-  const input = document.querySelector('input[name="images"]');
-  const preview = document.getElementById("preview");
-  const form = input?.closest("form");
-
-  if (!input || !preview || !form) return;
-
-  let images = [];
-
-  // load existing images into state
-  preview.querySelectorAll("[data-id]").forEach(el => {
-      images.push({
-          id: el.getAttribute("data-id"),
-          file: null,
-          existing: true
-      });
-  });
-
-  new Sortable(preview, {
-      animation: 150,
-      handle: ".drag-handle"
-  });
-
-  input.addEventListener("change", (e) => {
-
-      Array.from(e.target.files).forEach(file => {
-          images.push({ id: crypto.randomUUID(), file, existing: false });
-      });
-
-      input.value = "";
-      renderImages();
-  });
-
-  function renderImages() {
-
-      preview.innerHTML = "";
-
-      images.forEach(img => {
-
-          const box = document.createElement("div");
-          box.className = "border p-2 relative bg-white";
-          box.setAttribute("data-id", img.id);
-          box.setAttribute("data-existing", img.existing ? "1" : "0");
-
-          box.innerHTML = `
-              <div class="drag-handle cursor-move text-gray-600 text-md">
-                  ⠿
-              </div>
-
-              <button type="button"
-                      class="absolute top-1 right-1 bg-black text-white w-6 h-6 text-xs">
-                  ×
-              </button>
-
-              ${img.file
-                  ? `<img src="${URL.createObjectURL(img.file)}" class="w-full h-48 object-contain">`
-                  : `<img src="${preview.querySelector('[data-id="'+img.id+'"] img')?.src || ''}" class="w-full h-48 object-contain">`
-              }
-          `;
-
-          box.querySelector("button").addEventListener("click", () => {
-              images = images.filter(x => x.id !== img.id);
-              renderImages();
-          });
-
-          preview.appendChild(box);
-      });
-  }
-
-  form.addEventListener("submit", () => {
-
-      const orderedNodes = Array.from(preview.children);
-
-      const ordered = orderedNodes
-          .map(node => images.find(i => i.id === node.getAttribute("data-id")))
-          .filter(Boolean);
-
-      const dt = new DataTransfer();
-
-      ordered.forEach(img => {
-          if (img.file) dt.items.add(img.file);
-      });
-
-      input.files = dt.files;
-
-      const existingOrder = ordered
-          .filter(i => i.existing)
-          .map(i => i.id);
-
-      const hidden = document.createElement("input");
-      hidden.type = "hidden";
-      hidden.name = "existing_image_order";
-      hidden.value = JSON.stringify(existingOrder);
-
-      form.appendChild(hidden);
-  });
 }

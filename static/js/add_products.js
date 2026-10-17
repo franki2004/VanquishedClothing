@@ -2,18 +2,12 @@ let page = 1;
 let search = "";
 const selected = new Map();
 
-let images = [];
-
-function uid() {
-    return crypto.randomUUID();
-}
 
 document.addEventListener("DOMContentLoaded", () => {
 
     initTagSearch();
     initAddTag();
     initRelatedProducts();
-    initImages();
 });
 
 /* =========================
@@ -174,89 +168,7 @@ function initTagSearch() {
         });
 }
 
-/* =========================
-   IMAGES (FIXED + WORKING)
-========================= */
 
-function initImages() {
-
-    const input = document.querySelector('input[name="images"]');
-    const preview = document.getElementById("preview");
-    const form = input?.closest("form");
-
-    if (!input || !preview || !form) return;
-
-    new Sortable(preview, {
-        animation: 150,
-        handle: ".drag-handle"
-    });
-
-    input.addEventListener("change", (e) => {
-
-        Array.from(e.target.files).forEach(file => {
-            images.push({ id: uid(), file });
-        });
-
-        input.value = "";
-        renderImages(preview);
-    });
-
-    function renderImages() {
-
-        preview.innerHTML = "";
-
-        images.forEach(img => {
-
-            const reader = new FileReader();
-
-            reader.onload = (e) => {
-
-                const box = document.createElement("div");
-                box.className = "border p-2 relative bg-white";
-                box.setAttribute("data-id", img.id);
-
-                box.innerHTML = `
-                  <div class="drag-handle cursor-move text-gray-600 text-md">
-                      ⠿
-                  </div>
-
-                    <button type="button"
-                        class="absolute top-1 right-1 bg-black text-white w-6 h-6 text-xs">
-                        ×
-                    </button>
-
-                    <img src="${e.target.result}"
-                         class="w-full h-48 object-contain">
-                `;
-
-                box.querySelector("button").addEventListener("click", () => {
-                    images = images.filter(x => x.id !== img.id);
-                    renderImages();
-                });
-
-                preview.appendChild(box);
-            };
-
-            reader.readAsDataURL(img.file);
-        });
-    }
-
-    form.addEventListener("submit", () => {
-
-        const orderedIds = Array.from(preview.children)
-            .map(el => el.getAttribute("data-id"));
-
-        const ordered = orderedIds
-            .map(id => images.find(i => i.id === id))
-            .filter(Boolean);
-
-        const dt = new DataTransfer();
-
-        ordered.forEach(img => dt.items.add(img.file));
-
-        input.files = dt.files;
-    });
-}
 /* =========================
    ADD NEW TAG
 ========================= */

@@ -374,108 +374,90 @@ def edit_product(request, id):
         id=id
     )
 
-    selected_tag_ids = list(product.tags.values_list("id", flat=True))
-    selected_related_ids = list(product.related_products.values_list("id", flat=True))
-
-    selected_related_products = list(
-    product.related_products.values("id", "name")
-)
-
     if request.method == "POST":
-        product.name = request.POST.get("name", product.name)
-        product.price = request.POST.get("price", product.price)
-        product.discount_percent = request.POST.get(
-            "discount_percent", product.discount_percent
-        )
+        with transaction.atomic():
 
-        category_id = request.POST.get("category")
-        product.category_id = category_id or None
-        product.save()
+            # BASIC INFO
+            product.name = request.POST.get("name", product.name)
+            product.price = request.POST.get("price", product.price)
+            product.discount_percent = request.POST.get("discount_percent") or 0
 
-        # tags
-        product.tags.set(request.POST.getlist("tags"))
+            category_id = request.POST.get("category")
+            product.category_id = category_id or None
+            product.save()
 
-        # related products
-        product.related_products.set(request.POST.getlist("related_products"))
+            # TAGS
+            product.tags.set(request.POST.getlist("tags"))
 
-        # variants
-        existing_variants = {v.size: v for v in product.variants.all()}
+            # RELATED PRODUCTS
+            product.related_products.set(request.POST.getlist("related_products"))
 
-        for size in SIZES:
-            stock_value = request.POST.get(f"stock_{size}", "0")
-            stock_value = int(stock_value) if stock_value else 0
+            # VARIANTS
+            existing_variants = {v.size: v for v in product.variants.all()}
 
-            if size in existing_variants:
-                v = existing_variants[size]
-                v.stock = stock_value
-                v.save(update_fields=["stock"])
-            elif stock_value > 0:
-                ProductVariant.objects.create(
-                    product=product,
-                    size=size,
-                    stock=stock_value
-                )
+            for size in SIZES:
+                stock_value = request.POST.get(f"stock_{size}", "0")
+                stock_value = int(stock_value) if stock_value else 0
 
-        # DELETE IMAGES
-        delete_ids = request.POST.get("images_to_delete", "")
-        if delete_ids:
-            ids = [int(x) for x in delete_ids.split(",") if x.strip()]
-            ProductImage.objects.filter(product=product, id__in=ids).delete()
+                if size in existing_variants:
+                    v = existing_variants[size]
+                    v.stock = stock_value
+                    v.save(update_fields=["stock"])
+                elif stock_value > 0:
+                    ProductVariant.objects.create(
+                        product=product,
+                        size=size,
+                        stock=stock_value
+                    )
 
-        # REORDER EXISTING IMAGES (FROM DRAG & DROP)
-        order = request.POST.get("existing_image_order")
-        if order:
+            # DELETE IMAGES
+            delete_ids = request.POST.get("images_to_delete", "")
+            if delete_ids:
+                ids = [int(x) for x in delete_ids.split(",") if x.strip().isdigit()]
+                # also removes the file from Cloudinary
+                for img in ProductImage.objects.filter(product=product, id__in=ids):
+                    img.delete()
             try:
-                ids = json.loads(order)
+                layout = json.loads(request.POST.get("image_layout", "[]"))
+            except ValueError:
+                layout = []
 
-                for index, img_id in enumerate(ids):
+            files = request.FILES.getlist("images")
+
+            for position, entry in enumerate(layout):
+                if entry.get("type") == "existing":
                     ProductImage.objects.filter(
-                        id=img_id,
+                        id=entry.get("id"),
                         product=product
-                    ).update(order=index)
+                    ).update(order=position)
 
-            except Exception:
-                pass
-
-        # UPDATE EXISTING IMAGE ORDER INPUTS (fallback legacy, optional safe delete)
-        for img in product.images.all():
-            order_val = request.POST.get(f"image_order_{img.id}")
-            if order_val is not None:
-                img.order = int(order_val)
-                img.save(update_fields=["order"])
-
-        # ADD NEW IMAGES (ORDERED FROM JS)
-        new_order_raw = request.POST.get("new_image_order", "[]")
-
-        try:
-            new_order = json.loads(new_order_raw)
-        except Exception:
-            new_order = []
-
-        files = request.FILES.getlist("images")
-
-        for i, file in enumerate(files):
-            order = new_order[i] if i < len(new_order) else i
-
-            ProductImage.objects.create(
-                product=product,
-                image=file,
-                order=order
-            )
+                elif entry.get("type") == "new":
+                    idx = entry.get("index")
+                    if isinstance(idx, int) and 0 <= idx < len(files):
+                        ProductImage.objects.create(
+                            product=product,
+                            image=files[idx],
+                            order=position
+                        )
 
         return redirect("draft_products")
 
+    # GET
+    selected_tag_ids = list(product.tags.values_list("id", flat=True))
+    selected_related_ids = list(product.related_products.values_list("id", flat=True))
+    selected_related_products = list(product.related_products.values("id", "name"))
+
     return render(request, "store/edit_product.html", {
-    "product": product,
-    "categories": Category.objects.all(),
-    "tags": Tag.objects.all(),
-    "sizes": SIZES,
-    "selected_tag_ids": selected_tag_ids,
-    "selected_related_ids": selected_related_ids,
-    "selected_related_products": json.dumps(selected_related_products),
-    "variant_stocks": {v.size: v.stock for v in product.variants.all()},
-    "images": product.images.all(),
-})
+        "product": product,
+        "categories": Category.objects.all(),
+        "tags": Tag.objects.all(),
+        "sizes": SIZES,
+        "selected_tag_ids": selected_tag_ids,
+        "selected_related_ids": selected_related_ids,
+        "selected_related_products": json.dumps(selected_related_products),
+        "variant_stocks": {v.size: v.stock for v in product.variants.all()},
+        "images": product.images.all(),
+    })
 
 
 

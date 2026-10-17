@@ -126,39 +126,42 @@
           <div id="selected-products" class="space-y-2 text-sm text-gray-600"></div>
         </section>
 
-        <section class="space-y-3">
-          <h2 class="text-sm uppercase tracking-wide text-gray-500">Images</h2>
-
-          <input type="file" name="images" multiple
-                 class="border w-full px-3 py-2" />
-
-                 <div id="preview" class="grid grid-cols-1 md:grid-cols-3 gap-3">
-
-                  {% for img in images %}
-                  <div class="border p-2 relative bg-white"
-                       data-id="{{ img.id }}"
-                       data-existing="1">
-                
-                    <div class="drag-handle cursor-move text-gray-600 text-md">
-                      ⠿
-                    </div>
-                
-                    <button type="button"
-                            class="absolute top-1 right-1 bg-black text-white w-6 h-6 text-xs">
-                      ×
-                    </button>
-                
-                    <img src="{{ img.image.url }}" class="w-full h-48 object-contain">
-                
-                  </div>
-                  {% endfor %}
-                
-                </div>
-        </section>
+       
 
       </div>
     </div>
+    <!-- IMAGES (full width) -->
+    <section class="space-y-4">
+      <div class="flex items-end justify-between">
+        <div>
+          <h2 class="text-sm uppercase tracking-wide text-gray-500">Images</h2>
+          <p class="text-xs text-gray-400 mt-1">
+            Drag to reorder. The first image is the main one.
+          </p>
+        </div>
+        <span id="image-count" class="text-xs text-gray-500"></span>
+      </div>
 
+      <label
+        id="dropzone"
+        for="image-input"
+        class="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-gray-300 hover:border-black py-8 px-4 text-center cursor-pointer transition-colors"
+      >
+        <span class="text-sm font-medium">Click to upload or drop images here</span>
+        <span class="text-xs text-gray-400">PNG, JPG or WEBP</span>
+      </label>
+
+      <input type="file" name="images" id="image-input" accept="image/*" multiple class="hidden" />
+
+      <div
+        id="preview"
+        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"
+      >
+        {% for img in images %}
+        <div data-existing="1" data-id="{{ img.id }}" data-src="{{ img.image.url }}"></div>
+        {% endfor %}
+      </div>
+    </section>
     <div class="flex justify-end pt-6 border-t">
       <button class="bg-black text-white px-8 py-3 text-sm">
         Save
@@ -216,6 +219,7 @@
   };
   </script>
   
-  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-  <script src="{% static 'js/edit_products.js' %}" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="{% static 'js/image_manager.js' %}" defer></script>
+<script src="{% static 'js/edit_products.js' %}" defer></script>
   {% endblock %}
