@@ -100,7 +100,7 @@
             class="border w-full px-3 py-2"
           />
 
-          <div class="border h-62 overflow-y-auto p-3 space-y-2">
+          <div id="tag-list" class="border h-62 overflow-y-auto p-3 space-y-2">
             {% for tag in tags %}
             <label class="flex items-center gap-2 text-sm">
               <input type="checkbox" name="tags" value="{{ tag.id }}">
@@ -108,6 +108,25 @@
             </label>
             {% endfor %}
           </div>
+
+          <div class="flex gap-2">
+            <input
+              type="text"
+              id="new-tag-name"
+              placeholder="New tag name"
+              maxlength="50"
+              class="border flex-1 px-3 py-2"
+            />
+            <button
+              type="button"
+              id="add-tag-btn"
+              data-url="{% url 'create_tag' %}"
+              class="border px-4 py-2 text-sm hover:bg-black hover:text-white transition cursor-pointer"
+            >
+              Add tag
+            </button>
+          </div>
+          <p id="tag-error" class="text-red-600 text-xs hidden"></p>
         </section>
 
         <!-- RELATED PRODUCTS -->

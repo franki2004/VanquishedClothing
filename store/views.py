@@ -541,3 +541,21 @@ def product_discount_manage(request):
         "form": form,
     }
     return render(request, "store/discount_manage.html", context)
+
+@staff_member_required
+@require_POST
+def create_tag(request):
+    name = request.POST.get("name", "").strip()
+
+    if not name:
+        return JsonResponse({"error": "Tag name is required."}, status=400)
+    if len(name) > 50:
+        return JsonResponse({"error": "Tag name is too long (max 50)."}, status=400)
+
+    tag = Tag.objects.filter(name__iexact=name).first()
+    created = False
+    if not tag:
+        tag = Tag.objects.create(name=name)
+        created = True
+
+    return JsonResponse({"id": tag.id, "name": tag.name, "created": created})

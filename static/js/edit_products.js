@@ -11,6 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initRelated();
     initImages();
     initTagSearch();
+    initAddTag();
     preloadRelated();
 });
 
@@ -147,7 +148,87 @@ function initTagSearch() {
             });
         });
 }
+/* ================= ADD NEW TAG ================= */
 
+function initAddTag() {
+
+    const input = document.getElementById("new-tag-name");
+    const btn = document.getElementById("add-tag-btn");
+    const list = document.getElementById("tag-list");
+    const errorEl = document.getElementById("tag-error");
+
+    if (!input || !btn || !list) return;
+
+    const csrf = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+
+    function showError(msg) {
+        errorEl.textContent = msg;
+        errorEl.classList.toggle("hidden", !msg);
+    }
+
+    async function addTag() {
+        const name = input.value.trim();
+        if (!name) return;
+
+        showError("");
+        btn.disabled = true;
+
+        try {
+            const res = await fetch(btn.dataset.url, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": csrf,
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body: new URLSearchParams({ name }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                showError(data.error || "Could not add tag.");
+                return;
+            }
+
+            // already in the list (existing tag typed again) -> just check it
+            let cb = list.querySelector(`input[name="tags"][value="${data.id}"]`);
+
+            if (!cb) {
+                const label = document.createElement("label");
+                label.className = "flex items-center gap-2 text-sm";
+
+                cb = document.createElement("input");
+                cb.type = "checkbox";
+                cb.name = "tags";
+                cb.value = data.id;
+
+                label.appendChild(cb);
+                label.appendChild(document.createTextNode(" " + data.name));
+                list.prepend(label);
+            }
+
+            cb.checked = true;
+            cb.closest("label").style.display = "flex";
+            cb.scrollIntoView({ block: "nearest" });
+
+            input.value = "";
+        } catch (e) {
+            showError("Something went wrong. Try again.");
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    btn.addEventListener("click", addTag);
+
+    // Enter adds the tag instead of submitting the whole product form
+    input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            addTag();
+        }
+    });
+}
 /* ================= IMAGES (SOURCE OF TRUTH = DOM) ================= */
 
 function initImages() {

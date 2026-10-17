@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.db.models import Avg, Count, Case, When, Value, F, Q
 from django.core.validators import MaxValueValidator
+import uuid
 
 class Category(models.Model):
     name = models.CharField(max_length=100)
@@ -17,7 +18,7 @@ class Tag(models.Model):
     name = models.CharField(max_length=50, unique=True)
     def __str__(self):
         return self.name
-    def __save__(self, *args, **kwargs):
+    def save(self, *args, **kwargs):
         self.name = self.name.upper()
         super().save(*args, **kwargs)
 
@@ -191,9 +192,8 @@ class ProductVariantReservation(models.Model):
 def product_image_path(instance, filename):
     ext = os.path.splitext(filename)[1].lower()
     product_name = slugify(instance.product.name)
-    order = instance.order or 0
+    return f"products/{product_name}/vanquished-{uuid.uuid4().hex[:10]}{ext}"
 
-    return f"products/{product_name}/{order}/vanquished{ext}"
 
 class ProductImage(models.Model):
     product = models.ForeignKey(
