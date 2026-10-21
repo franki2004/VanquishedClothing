@@ -119,6 +119,10 @@ class UserFieldUpdateForm(forms.ModelForm):
             if field != self.field_name:
                 self.fields.pop(field)
 
+        for field in ["first_name", "last_name", "phone_number"]:
+            if field in self.fields:
+                self.fields[field].required = False
+
     def clean_email(self):
         value = self.cleaned_data["email"]
         if not value or "@" not in value:
@@ -126,20 +130,21 @@ class UserFieldUpdateForm(forms.ModelForm):
         return value
 
     def clean_first_name(self):
-        value = self.cleaned_data["first_name"]
-        if len(value) < 2:
+        value = self.cleaned_data.get("first_name", "")
+        if value and len(value) < 2:
             raise ValidationError("Too short")
         return value
 
     def clean_last_name(self):
-        value = self.cleaned_data["last_name"]
-        if len(value) < 2:
+        value = self.cleaned_data.get("last_name", "")
+        if value and len(value) < 2:
             raise ValidationError("Too short")
         return value
 
     def clean_phone_number(self):
-        value = self.cleaned_data["phone_number"]
-        self.phone_validator(value)
+        value = self.cleaned_data.get("phone_number", "")
+        if value:
+            self.phone_validator(value)
         return value
     
 

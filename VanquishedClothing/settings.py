@@ -22,7 +22,8 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
 
-DEBUG = os.getenv("DEBUG")
+DEBUG = os.getenv("DEBUG", "False").strip().lower() in ("true", "1", "yes")
+
 
 ALLOWED_HOSTS = os.getenv(
     "DJANGO_ALLOWED_HOSTS",

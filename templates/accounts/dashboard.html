@@ -1,413 +1,501 @@
-{% extends "store/base.html" %} {% load static %} 
-{% block title %}Vanquished - Profile{% endblock %} 
+{% extends "store/base.html" %}
+{% load static %}
+{% block title %}Vanquished - Account{% endblock %}
+
 {% block content %}
 
 <style>
-  .address-box.selected {
-    border: 2px solid black;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-  }
-  .address-box {
-    transition: all 0.2s ease;
-  }
-  .address-box:hover {
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-  }
-  .toggle-details {
-    transition: all 0.2s ease;
-  }
-  .toggle-details:hover {
-    background: #f3f3f3;
-  }
+  [x-cloak] { display: none !important; }
 </style>
 
-<div class="max-w-6xl mx-auto mt-24 px-6">
-  <div class="flex justify-between items-center mb-10">
-    <h1 class="text-3xl font-bold">My Account</h1>
-  </div>
+<div
+  class="max-w-5xl mx-auto px-4 sm:px-6 pt-28 pb-24"
+  x-data="{
+    tab: window.location.hash ? window.location.hash.slice(1) : '{% if active_field %}profile{% else %}orders{% endif %}',
+    logoutOpen: false,
+    deleteOpen: false,
+    deleteId: '',
+    addrOpen: false,
+    addr: { id: '', line: '', country: '', city: '', postal: '', isDefault: false },
+    setTab(t) { this.tab = t; history.replaceState(null, '', '#' + t); },
+    openAdd() {
+      this.addr = { id: '', line: '', country: '', city: '', postal: '', isDefault: false };
+      this.addrOpen = true;
+    },
+    openEdit(d) {
+      this.addr = {
+        id: d.id, line: d.address, country: d.country,
+        city: d.city, postal: d.postal, isDefault: d.default === 'true'
+      };
+      this.addrOpen = true;
+    },
+    openDelete(id) { this.deleteId = id; this.deleteOpen = true; }
+  }"
+  @keydown.escape.window="logoutOpen = false; deleteOpen = false; addrOpen = false"
+>
 
-  <div class="grid md:grid-cols-3 gap-10">
-    <!-- LEFT -->
-    <div class="md:col-span-1">
-      <!-- ACCOUNT -->
-      <div class="bg-white border p-6 shadow-sm">
-        <h2 class="text-lg font-semibold mb-6">Account Details</h2>
-
-        <!-- EMAIL -->
-        <div class="mb-5">
-          <label class="block text-xs text-gray-500 mb-1">Email</label>
-
-          <form method="POST" class="flex gap-2 items-center field-form">
-            {% csrf_token %}
-            <input type="hidden" name="field" value="email" />
-
-            <input
-              type="email"
-              name="email"
-              value="{{ user.email }}"
-              disabled
-              class="editable w-full border  px-3 py-2 bg-gray-100"
-            />
-
-            <button
-              type="button"
-              class="toggle-btn px-3 border  h-10 cursor-pointer"
-            >
-              ✎
-            </button>
-          </form>
-
-          {% if active_field == "email" and active_error %}
-          <p class="text-red-600 text-xs mt-1">{{ active_error }}</p>
-          {% endif %}
-        </div>
-
-        <!-- FIRST NAME -->
-        <div class="mb-5">
-          <label class="block text-xs text-gray-500 mb-1">First Name</label>
-
-          <form method="POST" class="flex gap-2 items-center field-form">
-            {% csrf_token %}
-            <input type="hidden" name="field" value="first_name" />
-
-            <input
-              type="text"
-              name="first_name"
-              value="{{ user.first_name }}"
-              disabled
-              class="editable w-full border  px-3 py-2 bg-gray-100"
-            />
-
-            <button
-              type="button"
-              class="toggle-btn px-3 border  h-10 cursor-pointer"
-            >
-              ✎
-            </button>
-          </form>
-
-          {% if active_field == "first_name" and active_error %}
-          <p class="text-red-600 text-xs mt-1">{{ active_error }}</p>
-          {% endif %}
-        </div>
-
-        <!-- LAST NAME -->
-        <div class="mb-5">
-          <label class="block text-xs text-gray-500 mb-1">Last Name</label>
-
-          <form method="POST" class="flex gap-2 items-center field-form">
-            {% csrf_token %}
-            <input type="hidden" name="field" value="last_name" />
-
-            <input
-              type="text"
-              name="last_name"
-              value="{{ user.last_name }}"
-              disabled
-              class="editable w-full border  px-3 py-2 bg-gray-100"
-            />
-
-            <button
-              type="button"
-              class="toggle-btn px-3 border  h-10 cursor-pointer"
-            >
-              ✎
-            </button>
-          </form>
-
-          {% if active_field == "last_name" and active_error %}
-          <p class="text-red-600 text-xs mt-1">{{ active_error }}</p>
-          {% endif %}
-        </div>
-
-        <!-- PHONE -->
-        <div class="mb-5">
-          <label class="block text-xs text-gray-500 mb-1">Phone</label>
-
-          <form method="POST" class="flex gap-2 items-center field-form">
-            {% csrf_token %}
-            <input type="hidden" name="field" value="phone_number" />
-
-            <input
-              type="text"
-              name="phone_number"
-              value="{{ user.phone_number }}"
-              disabled
-              class="editable w-full border  px-3 py-2 bg-gray-100"
-            />
-
-            <button
-              type="button"
-              class="toggle-btn px-3 border  h-10 cursor-pointer"
-            >
-              ✎
-            </button>
-          </form>
-
-          {% if active_field == "phone_number" and active_error %}
-          <p class="text-red-600 text-xs mt-1">{{ active_error }}</p>
-          {% endif %}
-        </div>
-
-        <button
-          id="logoutBtn"
-          class="w-full bg-red-500 text-white py-2  cursor-pointer"
-        >
-          Logout
-        </button>
+  <!-- IDENTITY -->
+  <header class="bg-black text-white p-6 sm:p-8 flex items-center justify-between gap-6">
+    <div class="flex items-center gap-5 min-w-0">
+      <div class="w-14 h-14 shrink-0 border border-white/40 flex items-center justify-center text-xl font-semibold">
+        {{ user.first_name|default:user.email|first|upper }}
       </div>
+      <div class="min-w-0">
+        <h1 class="text-xl sm:text-2xl font-semibold truncate">
+          {% if user.first_name %}{{ user.first_name }} {{ user.last_name }}{% else %}Your account{% endif %}
+        </h1>
+        <p class="text-sm text-white/60 truncate">{{ user.email }}</p>
+      </div>
+    </div>
 
-      <!-- ADDRESSES -->
-      <div class="mt-8 bg-white border p-6 shadow-sm">
-        <h2 class="text-lg font-semibold mb-4">My Addresses</h2>
+    <button
+      type="button"
+      @click="logoutOpen = true"
+      class="text-sm border border-white/40 px-4 py-2 hover:bg-white hover:text-black transition cursor-pointer shrink-0"
+    >
+      Log out
+    </button>
+  </header>
 
-        <div class="space-y-4">
-          {% if addresses|length < 5 %}
-          <div
-            id="addAddressTrigger"
-            class="border-2 border-dashed p-6 flex items-center justify-center gap-3 cursor-pointer hover:bg-gray-50"
-          >
-            <div
-              class="w-10 h-10 rounded-full border flex items-center justify-center text-xl"
-            >
-              +
+  <!-- TABS -->
+  <nav class="flex border-b border-gray-200 mt-8 overflow-x-auto" role="tablist">
+    <button
+      type="button" role="tab"
+      @click="setTab('orders')"
+      :aria-selected="tab === 'orders'"
+      :class="tab === 'orders' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-black'"
+      class="px-5 py-3 text-sm font-medium border-b-2 -mb-px whitespace-nowrap cursor-pointer transition"
+    >
+      Orders
+      <span class="ml-1 text-xs text-gray-400">{{ orders.paginator.count }}</span>
+    </button>
+
+    <button
+      type="button" role="tab"
+      @click="setTab('addresses')"
+      :aria-selected="tab === 'addresses'"
+      :class="tab === 'addresses' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-black'"
+      class="px-5 py-3 text-sm font-medium border-b-2 -mb-px whitespace-nowrap cursor-pointer transition"
+    >
+      Addresses
+      <span class="ml-1 text-xs text-gray-400">{{ addresses|length }}/5</span>
+    </button>
+
+    <button
+      type="button" role="tab"
+      @click="setTab('profile')"
+      :aria-selected="tab === 'profile'"
+      :class="tab === 'profile' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-black'"
+      class="px-5 py-3 text-sm font-medium border-b-2 -mb-px whitespace-nowrap cursor-pointer transition"
+    >
+      Profile
+    </button>
+  </nav>
+
+  <!-- ===================== ORDERS ===================== -->
+  <section x-show="tab === 'orders'" x-cloak class="mt-8 space-y-4">
+
+    {% for order in orders %}
+    <article class="border border-gray-200" x-data="{ open: false }">
+
+      <button
+        type="button"
+        @click="open = !open"
+        :aria-expanded="open"
+        class="w-full text-left p-5 flex flex-col sm:flex-row sm:items-center gap-4 cursor-pointer hover:bg-gray-50 transition"
+      >
+        <!-- thumbnails -->
+        <div class="flex -space-x-3 shrink-0">
+          {% for item in order.items.all|slice:":3" %}
+            {% with img=item.variant.product.images.first %}
+            <div class="w-14 h-[74px] bg-gray-100 border-2 border-white overflow-hidden">
+              {% if img %}
+              <img src="{{ img.image.url }}" alt="" class="w-full h-full object-cover">
+              {% endif %}
             </div>
-            <span>Add Address</span>
+            {% endwith %}
+          {% endfor %}
+          {% if order.items.all|length > 3 %}
+          <div class="w-14 h-[74px] bg-gray-100 border-2 border-white flex items-center justify-center text-xs text-gray-500">
+            +{{ order.items.all|length|add:"-3" }}
           </div>
-          {% endif %} {% for address in addresses %}
-          <div
-            class="address-box border p-5 relative"
-            data-id="{{ address.id }}"
-          >
-            <p class="font-medium">{{ address.address_line }}</p>
-            <p class="text-sm text-gray-500">
-              {{ address.city }}, {{ address.postal_code }}, {{ address.country }}
-            </p>
+          {% endif %}
+        </div>
 
-            {% if address.is_default %}
-            <span class="text-xs text-green-600">Default</span>
-            {% endif %}
+        <!-- summary -->
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold">Order #{{ order.id }}</p>
+          <p class="text-sm text-gray-500">
+            {{ order.created_at|date:"j M Y" }} · {{ order.items.all|length }} item{{ order.items.all|length|pluralize }}
+          </p>
+        </div>
 
-            <div class="absolute top-4 right-4 flex gap-3">
-              <button
-                type="button"
-                class="editAddressBtn cursor-pointer"
-                data-id="{{ address.id }}"
-                data-address="{{ address.address_line }}"
-                data-country="{{ address.country }}"
-                data-city="{{ address.city }}"
-                data-postal="{{ address.postal_code }}"
-                
-              >
-                <img src="{% static 'icons/pen.svg' %}" class="w-5 h-5" />
-              </button>
+        <!-- status + total -->
+        <div class="flex items-center gap-4 sm:justify-end">
+          <span class="px-3 py-1 text-xs font-medium
+            {% if order.status == 'pending' %}bg-yellow-100 text-yellow-800
+            {% elif order.status == 'accepted' %}bg-blue-100 text-blue-800
+            {% elif order.status == 'completed' %}bg-green-100 text-green-800
+            {% elif order.status == 'denied' %}bg-red-100 text-red-800
+            {% else %}bg-gray-100 text-gray-700{% endif %}">
+            {{ order.get_status_display }}
+          </span>
 
-              <button
-                type="button"
-                class="deleteAddressBtn cursor-pointer"
-                data-id="{{ address.id }}"
-              >
-                <img src="{% static 'icons/trash.svg' %}" class="w-5 h-5" />
-              </button>
+          <span class="font-semibold w-20 text-right">€{{ order.total }}</span>
+
+          <svg class="w-4 h-4 text-gray-400 transition-transform" :class="open ? 'rotate-180' : ''"
+               viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 8l5 5 5-5" />
+          </svg>
+        </div>
+      </button>
+
+      <!-- details -->
+      <div x-show="open" x-transition.opacity x-cloak class="border-t border-gray-200 p-5 grid gap-8 md:grid-cols-5">
+
+        <!-- items -->
+        <div class="md:col-span-3 space-y-4">
+          {% for item in order.items.all %}
+          {% with img=item.variant.product.images.first %}
+          <div class="flex gap-4">
+            <div class="w-16 h-[85px] bg-gray-100 shrink-0 overflow-hidden">
+              {% if img %}
+              <img src="{{ img.image.url }}" alt="" class="w-full h-full object-cover">
+              {% endif %}
             </div>
+            <div class="flex-1 min-w-0">
+              <a href="{% url 'product' item.variant.product.id %}" class="font-medium hover:underline">
+                {{ item.variant.product.name }}
+              </a>
+              <p class="text-sm text-gray-500">Size {{ item.variant.size }} · Qty {{ item.quantity }}</p>
+            </div>
+            <p class="font-medium">€{{ item.total_price|floatformat:2 }}</p>
           </div>
+          {% endwith %}
           {% endfor %}
         </div>
-      </div>
-    </div>
 
-    <!-- RIGHT -->
-    <div class="md:col-span-2">
-      <h2 class="text-xl font-semibold mb-6">My Orders</h2>
-
-      <div class="space-y-4">
-        {% for order in orders %}
-        <div class="bg-white border shadow-sm">
-          <!-- HEADER -->
-          <div class="flex justify-between items-center px-6 py-4">
-            <div>
-              <p class="font-semibold">Order #{{ order.id }}</p>
-              <p class="text-xs text-gray-500">
-                {{ order.created_at|date:"d M Y - H:i" }}
-              </p>
-            </div>
-
-            <div class="flex gap-3 items-center">
-              <span
-                class="px-3 py-1 text-xs  {% if order.status == 'pending' %} bg-yellow-100 text-yellow-800 {% elif order.status == 'accepted' %} bg-blue-100 text-blue-800 {% elif order.status == 'completed' %} bg-green-100 text-green-800 {% elif order.status == 'denied' %} bg-red-100 text-red-800 {% endif %}"
-              >
-                {{ order.get_status_display }}
-              </span>
-
-              <button
-                type="button"
-                class="toggle-details border px-3 py-1  cursor-pointer"
-                data-target="details-{{ order.id }}"
-              >
-                Details
-              </button>
-            </div>
+        <!-- info + totals -->
+        <div class="md:col-span-2 space-y-6 text-sm">
+          <div>
+            <p class="font-medium mb-1">Delivery to</p>
+            <p class="text-gray-600">{{ order.full_name }}</p>
+            <p class="text-gray-600">{{ order.street }}, {{ order.city }}{% if order.postal_code %} {{ order.postal_code }}{% endif %}</p>
+            <p class="text-gray-600">{{ order.country }}</p>
           </div>
 
-          <!-- DETAILS -->
-          <div id="details-{{ order.id }}" class="hidden border-t px-6 py-4">
-            <p class="text-sm mb-2">
-              Email: {{ order.email }}
-            </p>
-            <p class="text-sm mb-2">
-              Address: {{ order.street }}, {{ order.city }}, {{ order.country }}
-            </p>
+          <div>
+            <p class="font-medium mb-1">Contact</p>
+            <p class="text-gray-600">{{ order.email|default:"—" }}</p>
+            <p class="text-gray-600">{{ order.phone }}</p>
+          </div>
 
-            <p class="text-sm mb-4">
-              Payment: {{ order.get_payment_method_display }}
-            </p>
+          <div>
+            <p class="font-medium mb-1">Payment</p>
+            <p class="text-gray-600">{{ order.get_payment_method_display }}</p>
+          </div>
 
-            <div class="space-y-2 mb-4">
-              {% for item in order.items.all %}
-              <div class="flex justify-between text-sm border-b pb-2">
-                <div>
-                  <p class="font-medium">{{ item.variant.product.name }}</p>
-                  <p class="text-xs text-gray-500">
-                    {{ item.variant.size }} × {{ item.quantity }}
-                  </p>
-                </div>
-                <div>€{{ item.total_price|floatformat:2 }}</div>
-              </div>
-              {% endfor %}
-            </div>
-
-            <div class="text-sm space-y-1">
-              <div class="flex justify-between">
-                <span>Subtotal</span><span>€{{ order.subtotal }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span>Delivery</span><span>€{{ order.delivery_fee }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span>COD</span><span>€{{ order.cod_fee }}</span>
-              </div>
-
-              <div class="flex justify-between font-semibold mt-2 text-base">
-                <span>Total</span>
-                <span>€{{ order.total }}</span>
-              </div>
-            </div>
-
-            {% if order.comment %}
-            <p class="text-gray-500 text-sm mt-3">
-              Comment: {{ order.comment }}
-            </p>
+          <div class="border-t border-gray-200 pt-4 space-y-1">
+            <div class="flex justify-between text-gray-600"><span>Subtotal</span><span>€{{ order.subtotal }}</span></div>
+            <div class="flex justify-between text-gray-600"><span>Delivery</span><span>€{{ order.delivery_fee }}</span></div>
+            {% if order.cod_fee and order.cod_fee != 0 %}
+            <div class="flex justify-between text-gray-600"><span>Cash on delivery fee</span><span>€{{ order.cod_fee }}</span></div>
             {% endif %}
+            <div class="flex justify-between font-semibold text-base pt-2"><span>Total</span><span>€{{ order.total }}</span></div>
+          </div>
+
+          {% if order.comment %}
+          <div class="bg-red-50 text-red-800 p-3">
+            <p class="font-medium">Note from the store</p>
+            <p>{{ order.comment }}</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </article>
+
+    {% empty %}
+    <div class="border border-dashed border-gray-300 py-16 text-center">
+      <p class="font-medium">No orders yet</p>
+      <p class="text-sm text-gray-500 mt-1">Your orders will show up here once you place one.</p>
+      <a href="{% url 'new_products' %}"
+         class="inline-block mt-6 bg-black text-white px-6 py-3 text-sm hover:opacity-90 transition">
+        Start shopping
+      </a>
+    </div>
+    {% endfor %}
+
+    {% if orders.paginator.num_pages > 1 %}
+    <div class="flex items-center justify-center gap-4 pt-6 text-sm">
+      {% if orders.has_previous %}
+      <a href="?page={{ orders.previous_page_number }}#orders" class="border px-4 py-2 hover:bg-black hover:text-white transition">Previous</a>
+      {% endif %}
+      <span class="text-gray-500">Page {{ orders.number }} of {{ orders.paginator.num_pages }}</span>
+      {% if orders.has_next %}
+      <a href="?page={{ orders.next_page_number }}#orders" class="border px-4 py-2 hover:bg-black hover:text-white transition">Next</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </section>
+
+  <!-- ===================== ADDRESSES ===================== -->
+  <section x-show="tab === 'addresses'" x-cloak class="mt-8">
+
+    <div class="grid gap-4 sm:grid-cols-2">
+      {% for address in addresses %}
+      <div class="border p-5 flex flex-col justify-between min-h-[140px] {% if address.is_default %}border-black{% else %}border-gray-200{% endif %}">
+        <div>
+          {% if address.is_default %}
+          <span class="inline-block bg-black text-white text-xs px-2 py-0.5 mb-3">Default</span>
+          {% endif %}
+          <p class="font-medium">{{ address.address_line }}</p>
+          <p class="text-sm text-gray-500">{{ address.city }}, {{ address.postal_code }}</p>
+          <p class="text-sm text-gray-500">{{ address.country }}</p>
+        </div>
+
+        <div class="flex gap-5 mt-4 text-sm">
+          <button
+            type="button"
+            class="underline underline-offset-2 hover:no-underline cursor-pointer"
+            data-id="{{ address.id }}"
+            data-address="{{ address.address_line }}"
+            data-country="{{ address.country }}"
+            data-city="{{ address.city }}"
+            data-postal="{{ address.postal_code }}"
+            data-default="{% if address.is_default %}true{% else %}false{% endif %}"
+            @click="openEdit($el.dataset)"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            class="text-red-600 underline underline-offset-2 hover:no-underline cursor-pointer"
+            @click="openDelete('{{ address.id }}')"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+
+      {% if addresses|length < 5 %}
+      <button
+        type="button"
+        @click="openAdd()"
+        class="border-2 border-dashed border-gray-300 min-h-[140px] flex flex-col items-center justify-center gap-2 hover:border-black hover:bg-gray-50 transition cursor-pointer"
+      >
+        <span class="w-9 h-9 rounded-full border flex items-center justify-center text-xl leading-none">+</span>
+        <span class="text-sm">Add address</span>
+      </button>
+      {% endif %}
+    </div>
+
+    {% if not addresses %}
+    <p class="text-sm text-gray-500 mt-4">Save an address to check out faster next time.</p>
+    {% elif addresses|length >= 5 %}
+    <p class="text-sm text-gray-500 mt-4">You've reached the limit of 5 addresses. Delete one to add another.</p>
+    {% endif %}
+  </section>
+
+  <!-- ===================== PROFILE ===================== -->
+  <section x-show="tab === 'profile'" x-cloak class="mt-8 max-w-xl">
+    <div class="divide-y divide-gray-200 border-y border-gray-200">
+
+      <!-- EMAIL -->
+      <form method="POST" x-data="{ editing: {% if active_field == 'email' %}true{% else %}false{% endif %} }" class="py-5">
+        {% csrf_token %}
+        <input type="hidden" name="field" value="email">
+        <label for="f-email" class="block text-sm text-gray-500 mb-1">Email</label>
+        <div class="flex items-center gap-3">
+          <input id="f-email" type="email" name="email" value="{{ user.email }}" x-ref="input"
+                 :disabled="!editing" required
+                 class="flex-1 min-w-0 px-3 py-2 border transition"
+                 :class="editing ? 'border-black bg-white' : 'border-transparent bg-transparent px-0 font-medium'">
+          <button type="button" x-show="!editing" @click="editing = true; $nextTick(() => $refs.input.focus())"
+                  class="text-sm underline underline-offset-2 cursor-pointer">Edit</button>
+          <template x-if="editing">
+            <div class="flex gap-3 text-sm">
+              <button type="submit" class="bg-black text-white px-4 py-2 cursor-pointer">Save changes</button>
+              <button type="button" @click="editing = false; $refs.input.value = $refs.input.defaultValue"
+                      class="border px-4 py-2 cursor-pointer">Cancel</button>
+            </div>
+          </template>
+        </div>
+        {% if active_field == "email" and active_error %}
+        <p class="text-red-600 text-sm mt-2">{{ active_error }}</p>
+        {% endif %}
+      </form>
+
+      <!-- FIRST NAME -->
+      <form method="POST" x-data="{ editing: {% if active_field == 'first_name' %}true{% else %}false{% endif %} }" class="py-5">
+        {% csrf_token %}
+        <input type="hidden" name="field" value="first_name">
+        <label for="f-first" class="block text-sm text-gray-500 mb-1">First name</label>
+        <div class="flex items-center gap-3">
+          <input id="f-first" type="text" name="first_name" value="{{ user.first_name }}" x-ref="input"
+                 :disabled="!editing" 
+                 class="flex-1 min-w-0 px-3 py-2 border transition"
+                 :class="editing ? 'border-black bg-white' : 'border-transparent bg-transparent px-0 font-medium'"
+                 placeholder="Your first name">
+          <button type="button" x-show="!editing" @click="editing = true; $nextTick(() => $refs.input.focus())"
+                  class="text-sm underline underline-offset-2 cursor-pointer">Edit</button>
+          <template x-if="editing">
+            <div class="flex gap-3 text-sm">
+              <button type="submit" class="bg-black text-white px-4 py-2 cursor-pointer">Save changes</button>
+              <button type="button" @click="editing = false; $refs.input.value = $refs.input.defaultValue"
+                      class="border px-4 py-2 cursor-pointer">Cancel</button>
+            </div>
+          </template>
+        </div>
+        {% if active_field == "first_name" and active_error %}
+        <p class="text-red-600 text-sm mt-2">{{ active_error }}</p>
+        {% endif %}
+      </form>
+
+      <!-- LAST NAME -->
+      <form method="POST" x-data="{ editing: {% if active_field == 'last_name' %}true{% else %}false{% endif %} }" class="py-5">
+        {% csrf_token %}
+        <input type="hidden" name="field" value="last_name">
+        <label for="f-last" class="block text-sm text-gray-500 mb-1">Last name</label>
+        <div class="flex items-center gap-3">
+          <input id="f-last" type="text" name="last_name" value="{{ user.last_name }}" x-ref="input"
+                 :disabled="!editing" 
+                 class="flex-1 min-w-0 px-3 py-2 border transition"
+                 :class="editing ? 'border-black bg-white' : 'border-transparent bg-transparent px-0 font-medium'"
+                 placeholder="Your last name">
+          <button type="button" x-show="!editing" @click="editing = true; $nextTick(() => $refs.input.focus())"
+                  class="text-sm underline underline-offset-2 cursor-pointer">Edit</button>
+          <template x-if="editing">
+            <div class="flex gap-3 text-sm">
+              <button type="submit" class="bg-black text-white px-4 py-2 cursor-pointer">Save changes</button>
+              <button type="button" @click="editing = false; $refs.input.value = $refs.input.defaultValue"
+                      class="border px-4 py-2 cursor-pointer">Cancel</button>
+            </div>
+          </template>
+        </div>
+        {% if active_field == "last_name" and active_error %}
+        <p class="text-red-600 text-sm mt-2">{{ active_error }}</p>
+        {% endif %}
+      </form>
+
+      <!-- PHONE -->
+      <form method="POST" x-data="{ editing: {% if active_field == 'phone_number' %}true{% else %}false{% endif %} }" class="py-5">
+        {% csrf_token %}
+        <input type="hidden" name="field" value="phone_number">
+        <label for="f-phone" class="block text-sm text-gray-500 mb-1">Phone</label>
+        <div class="flex items-center gap-3">
+          <input id="f-phone" type="text" name="phone_number" value="{{ user.phone_number }}" x-ref="input"
+                 placeholder="Your phone number"
+                 :disabled="!editing"
+                 class="flex-1 min-w-0 px-3 py-2 border transition"
+                 :class="editing ? 'border-black bg-white' : 'border-transparent bg-transparent px-0 font-medium'">
+          <button type="button" x-show="!editing" @click="editing = true; $nextTick(() => $refs.input.focus())"
+                  class="text-sm underline underline-offset-2 cursor-pointer">Edit</button>
+          <template x-if="editing">
+            <div class="flex gap-3 text-sm">
+              <button type="submit" class="bg-black text-white px-4 py-2 cursor-pointer">Save changes</button>
+              <button type="button" @click="editing = false; $refs.input.value = $refs.input.defaultValue"
+                      class="border px-4 py-2 cursor-pointer">Cancel</button>
+            </div>
+          </template>
+        </div>
+        {% if active_field == "phone_number" and active_error %}
+        <p class="text-red-600 text-sm mt-2">{{ active_error }}</p>
+        {% endif %}
+      </form>
+    </div>
+  </section>
+
+  <!-- ===================== MODALS ===================== -->
+
+  <!-- ADDRESS -->
+  <div x-show="addrOpen" x-cloak x-transition.opacity
+       class="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center px-4"
+       @click.self="addrOpen = false">
+    <div class="bg-white w-full max-w-md p-6" role="dialog" aria-modal="true" aria-labelledby="addr-title">
+      <h2 id="addr-title" class="text-lg font-semibold mb-5" x-text="addr.id ? 'Edit address' : 'Add address'"></h2>
+
+      <form method="POST" class="space-y-4">
+        {% csrf_token %}
+        <input type="hidden" name="address_action" value="save">
+        <input type="hidden" name="address_id" :value="addr.id">
+
+        <div>
+          <label for="a-line" class="block text-sm text-gray-600 mb-1">Street address</label>
+          <input id="a-line" name="address_line" x-model="addr.line" required minlength="5"
+                 placeholder="Street, number, entrance, floor..."
+                 class="border w-full px-3 py-2 focus:border-black outline-none">
+        </div>
+
+        <div>
+          <label for="a-country" class="block text-sm text-gray-600 mb-1">Country</label>
+          <input id="a-country" name="country" x-model="addr.country" required
+                 class="border w-full px-3 py-2 focus:border-black outline-none"
+                 placeholder="Country">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label for="a-city" class="block text-sm text-gray-600 mb-1">City</label>
+            <input id="a-city" name="city" x-model="addr.city" required minlength="2"
+                   class="border w-full px-3 py-2 focus:border-black outline-none"
+                   placeholder="City">
+          </div>
+          <div>
+            <label for="a-postal" class="block text-sm text-gray-600 mb-1">Postal code</label>
+            <input id="a-postal" name="postal_code" x-model="addr.postal" required
+                   class="border w-full px-3 py-2 focus:border-black outline-none"
+                   placeholder="Postal Code">
           </div>
         </div>
-        {% endfor %}
-      </div>
+
+        <label class="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" name="is_default" x-model="addr.isDefault" class="accent-black">
+          Use as my default address
+        </label>
+
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" @click="addrOpen = false" class="border px-4 py-2 text-sm cursor-pointer">Cancel</button>
+          <button type="submit" class="bg-black text-white px-5 py-2 text-sm cursor-pointer">Save address</button>
+        </div>
+      </form>
     </div>
   </div>
-</div>
 
-<!-- MODALS -->
+  <!-- DELETE ADDRESS -->
+  <div x-show="deleteOpen" x-cloak x-transition.opacity
+       class="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center px-4"
+       @click.self="deleteOpen = false">
+    <div class="bg-white w-full max-w-sm p-6" role="dialog" aria-modal="true" aria-labelledby="del-title">
+      <h2 id="del-title" class="text-lg font-semibold mb-2">Delete this address?</h2>
+      <p class="text-sm text-gray-600 mb-6">This can't be undone. Past orders keep their delivery details.</p>
 
-<div
-  id="addressModal"
-  class="fixed inset-0 bg-black/50 hidden items-center justify-center"
->
-  <div class="bg-white p-6 w-full max-w-md">
-    <h3 id="modalTitle" class="font-semibold mb-4">Add Address</h3>
-
-    <form method="POST">
-      {% csrf_token %}
-      <input type="hidden" name="address_action" value="save" />
-      <input type="hidden" name="address_id" id="editAddressId" />
-
-      <div class="mb-3">
-        {{ address_form.address_line }} {{ address_form.address_line.errors }}
-      </div>
-      <div class="mb-3">
-        {{ address_form.country }} {{ address_form.country.errors }}
-      </div>
-
-      <div class="mb-3">
-        {{ address_form.city }} {{ address_form.city.errors }}
-      </div>
-
-      <div class="mb-3">
-        {{ address_form.postal_code }} {{ address_form.postal_code.errors }}
-      </div>
-      
-
-      <div class="flex items-center mb-4">
-        {{ address_form.is_default }}
-        <label class="text-sm">Set as default</label>
-      </div>
-
-      <div class="flex justify-end gap-3">
-        <button
-          type="button"
-          id="closeModal"
-          class="border px-4 py-2  cursor-pointer"
-        >
-          Cancel
-        </button>
-        <button class="bg-black text-white px-4 py-2  cursor-pointer">
-          Save
-        </button>
-      </div>
-    </form>
+      <form method="POST" class="flex justify-end gap-3">
+        {% csrf_token %}
+        <input type="hidden" name="address_action" value="delete">
+        <input type="hidden" name="address_id" :value="deleteId">
+        <button type="button" @click="deleteOpen = false" class="border px-4 py-2 text-sm cursor-pointer">Keep address</button>
+        <button type="submit" class="bg-red-600 text-white px-5 py-2 text-sm cursor-pointer">Delete address</button>
+      </form>
+    </div>
   </div>
-</div>
 
-<div
-  id="deleteModal"
-  class="fixed inset-0 bg-black/50 hidden items-center justify-center"
->
-  <div class="bg-white p-6 w-full max-w-sm">
-    <p class="mb-4">Delete this address?</p>
+  <!-- LOGOUT -->
+  <div x-show="logoutOpen" x-cloak x-transition.opacity
+       class="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center px-4"
+       @click.self="logoutOpen = false">
+    <div class="bg-white w-full max-w-sm p-6" role="dialog" aria-modal="true" aria-labelledby="out-title">
+      <h2 id="out-title" class="text-lg font-semibold mb-2">Log out?</h2>
+      <p class="text-sm text-gray-600 mb-6">You'll need to log in again to see your orders.</p>
 
-    <form method="POST">
-      {% csrf_token %}
-      <input type="hidden" name="address_action" value="delete" />
-      <input type="hidden" name="address_id" id="deleteAddressId" />
-
-      <div class="flex justify-end gap-3">
-        <button
-          type="button"
-          id="cancelDelete"
-          class="border px-4 py-2  cursor-pointer"
-        >
-          Cancel
-        </button>
-        <button class="bg-red-600 text-white px-4 py-2  cursor-pointer">
-          Delete
-        </button>
-      </div>
-    </form>
+      <form method="POST" action="{% url 'logout' %}" class="flex justify-end gap-3">
+        {% csrf_token %}
+        <button type="button" @click="logoutOpen = false" class="border px-4 py-2 text-sm cursor-pointer">Stay logged in</button>
+        <button type="submit" class="bg-black text-white px-5 py-2 text-sm cursor-pointer">Log out</button>
+      </form>
+    </div>
   </div>
+
 </div>
 
-<div
-  id="logoutModal"
-  class="fixed inset-0 bg-black/50 hidden items-center justify-center"
->
-  <div class="bg-white p-6 w-full max-w-sm">
-    <p class="mb-4">Are you sure you want to logout?</p>
-
-    <form method="POST" action="{% url 'logout' %}">
-      {% csrf_token %}
-      <div class="flex justify-end gap-3">
-        <button
-          type="button"
-          id="cancelLogout"
-          class="border px-4 py-2  cursor-pointer"
-        >
-          Cancel
-        </button>
-        <button class="bg-red-600 text-white px-4 py-2  cursor-pointer">
-          Logout
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
 {% endblock %}
-{% block js %} <script src="{% static 'js/dashboard.js' %}"></script> {% endblock %}

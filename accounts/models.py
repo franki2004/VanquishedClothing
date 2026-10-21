@@ -4,10 +4,14 @@ from django.utils import timezone
 from django.core.validators import RegexValidator, MinLengthValidator, MinValueValidator, MaxValueValidator
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.validators import RegexValidator
 
 name_validator = RegexValidator(
-    regex=r'^[A-Z][a-z]+$',
-    message='Must start with uppercase letter, then lowercase letters only.'
+    regex=r'^[A-ZА-Я][a-zа-я]+$',
+    message=(
+        'Must start with an uppercase letter, '
+        'followed by lowercase letters only.'
+    )
 )
 phone_validator = RegexValidator(
     regex=r'^\+?\d{8,15}$',
