@@ -105,6 +105,19 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
+    def user_has_purchased(self, user):
+        """True if this user has an accepted/completed order containing this product."""
+        if not user.is_authenticated:
+            return False
+
+        from orders.models import OrderItem 
+
+        return OrderItem.objects.filter(
+            order__user=user,
+            order__status__in=["accepted", "completed"],
+            variant__product=self,
+        ).exists()
+
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs) 
         if not self.sku:

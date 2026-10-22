@@ -2,12 +2,12 @@ from django.shortcuts import render, get_object_or_404, redirect
 from .models import Category, Product, ProductImage, ProductVariant, Tag
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db import transaction 
 from orders.forms import AddToCartForm
 from orders.views import get_or_create_cart
-from orders.models import CartItem
+from orders.models import CartItem, OrderItem
 from django.core.paginator import Paginator
 from django.db.models import Prefetch
 import json
@@ -182,6 +182,33 @@ def product_detail(request, id):
     user_review = None
     if request.user.is_authenticated:
         user_review = product.reviews.filter(user=request.user).first()
+
+    has_purchased = product.user_has_purchased(request.user)
+
+    # Star breakdown (5 -> 1) for the summary bars
+    total_reviews = product.reviews.count()
+    counts = {
+        row["rating"]: row["c"]
+        for row in product.reviews.order_by().values("rating").annotate(c=Count("id"))
+    }
+    rating_breakdown = [
+        {
+            "star": star,
+            "count": counts.get(star, 0),
+            "percent": round(counts.get(star, 0) * 100 / total_reviews) if total_reviews else 0,
+        }
+        for star in range(5, 0, -1)
+    ]
+
+    # Which reviewers on this page are verified buyers
+    verified_user_ids = set(
+        OrderItem.objects.filter(
+            variant__product=product,
+            order__status__in=["accepted", "completed"],
+            order__user_id__in=[r.user_id for r in reviews_page],
+        ).values_list("order__user_id", flat=True)
+    )
+
     related_products = product.get_related_products(limit=15)
     return render(
         request,
@@ -191,6 +218,9 @@ def product_detail(request, id):
             "form": form,
             "reviews_page": reviews_page,
             "user_review": user_review,
+            "has_purchased": has_purchased,
+            "rating_breakdown": rating_breakdown,
+            "verified_user_ids": verified_user_ids,
             "related_products": related_products,
         },
     )

@@ -24,7 +24,12 @@ def register_view(request):
             user.is_active = False
             user.save()
 
-            send_activation_email(request, user)
+            try:
+                send_activation_email(request, user)
+            except Exception:
+                user.delete()
+                form.add_error(None, "We couldn't send the activation email. Please try again later.")
+                return render(request, 'accounts/register.html', {'form': form})
 
             return redirect("activation_sent")
     else:
@@ -140,10 +145,15 @@ def _can_modify(user, review):
 @require_POST
 def add_review(request, product_id):
     product = get_object_or_404(Product, id=product_id)
+    redirect_url = f"{reverse('product', args=[product.id])}#reviews"
+
+    if not product.user_has_purchased(request.user):
+        messages.error(request, "Only customers who have purchased this product can leave a review.")
+        return redirect(redirect_url)
 
     if product.reviews.filter(user=request.user).exists():
         messages.error(request, "You've already reviewed this product.")
-        return redirect(f"{reverse('product', args=[product.id])}#reviews")
+        return redirect(redirect_url)
 
     form = ReviewForm(request.POST)
     if form.is_valid():
@@ -151,11 +161,11 @@ def add_review(request, product_id):
         review.product = product
         review.user = request.user
         review.save()
-        messages.success(request, "Your review has been posted.")
+        messages.success(request, "Thanks! Your review has been posted.")
     else:
         messages.error(request, "Please choose a rating and write a comment.")
 
-    return redirect(f"{reverse('product', args=[product.id])}#reviews")
+    return redirect(redirect_url)
 
 
 @login_required

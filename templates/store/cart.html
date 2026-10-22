@@ -2,144 +2,225 @@
 {% block title %}Your Bag{% endblock %}
 {% block content %}
 
-<div class="max-w-6xl mx-auto px-6 py-16 mt-24">
+<div class="max-w-6xl mx-auto px-4 sm:px-6 py-16 mt-16">
 
-  <h1 class="text-3xl font-semibold mb-8">Your Bag</h1>
+  <div class="flex items-baseline justify-between mb-8">
+    <h1 class="text-3xl font-semibold">Your Bag</h1>
+    {% if items %}
+      <span class="text-sm text-gray-500">
+        {{ cart_count }} item{{ cart_count|pluralize }}
+      </span>
+    {% endif %}
+  </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
+  {% if not items %}
+
+    <!-- EMPTY STATE -->
+    <div class="text-center py-24 space-y-5">
+      <p class="text-xl font-medium">Your bag is empty</p>
+      <p class="text-sm text-gray-500">Looks like you haven't added anything yet.</p>
+      <a href="{% url 'new_products' %}"
+         class="inline-block bg-black text-white px-8 py-3 text-sm tracking-wide hover:opacity-90 transition">
+        Shop new arrivals
+      </a>
+    </div>
+
+  {% else %}
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-12">
 
     <!-- LEFT: ITEMS -->
     <div class="lg:col-span-2">
+      <ul class="divide-y divide-gray-200 border-y border-gray-200">
 
-      {% if cart.items.exists %}
-        <div class="space-y-6">
+        {% for item in items %}
+          {% with product=item.variant.product available=item.variant.available_quantity %}
+          <li class="flex gap-4 sm:gap-6 py-6">
 
-          {% for item in cart.items.all %}
-            <div class="flex gap-6 border p-4 items-center shadow-sm">
+            <!-- IMAGE -->
+            <a href="{% url 'product' product.id %}" class="shrink-0">
+              {% with image=product.images.first %}
+                {% if image %}
+                  <img src="{{ image.image.url }}"
+                       alt="{{ product.name }}"
+                       class="w-24 sm:w-32 aspect-[3/4] object-contain bg-gray-100">
+                {% else %}
+                  <div class="w-24 sm:w-32 aspect-[3/4] bg-gray-100"></div>
+                {% endif %}
+              {% endwith %}
+            </a>
 
-              <a href="{% url 'product' item.variant.product.id %}">
-                <img src="{{ item.variant.product.images.first.image.url }}"
-                     class="w-48 object-fit">
-              </a>
+            <!-- DETAILS -->
+            <div class="flex-1 min-w-0 flex flex-col justify-between gap-4">
 
-              <div class="flex-1">
-                <a href="{% url 'product' item.variant.product.id %}"
-                   class="font-medium text-lg hover:underline">
-                  {{ item.variant.product.name }}
-                </a>
+              <div class="flex justify-between gap-4">
+                <div class="min-w-0 space-y-1">
+                  <a href="{% url 'product' product.id %}"
+                     class="font-medium hover:underline underline-offset-2 block truncate">
+                    {{ product.name }}
+                  </a>
 
-                <p class="text-sm text-gray-500 mt-1">
-                  Size: {{ item.variant.size }}
-                </p>
+                  <p class="text-xs uppercase tracking-wide text-gray-500">
+                    Size: {{ item.variant.size }}
+                  </p>
 
-                <p class="text-sm text-gray-600 mt-1">
-                  €{{ item.variant.product.final_price|floatformat:2 }}
+                  <div class="flex items-center gap-2 text-sm pt-1">
+                    {% if product.is_discount_active %}
+                      <span class="line-through text-gray-400">€{{ product.price }}</span>
+                      <span class="text-red-500 font-medium">€{{ product.final_price|floatformat:2 }}</span>
+                    {% else %}
+                      <span class="text-gray-600">€{{ product.price }}</span>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <p class="font-semibold whitespace-nowrap">
+                  €{{ item.total_price|floatformat:2 }}
                 </p>
               </div>
 
-              <div class="flex items-center border overflow-hidden">
+              <div class="flex items-center justify-between">
+
+                <!-- QUANTITY -->
+                <div class="flex items-center border border-gray-300">
+                  <form method="post" action="{% url 'update_cart_item' item.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="decrease">
+                    <button type="submit"
+                            aria-label="Decrease quantity"
+                            class="w-9 h-9 flex items-center justify-center hover:bg-gray-100 transition cursor-pointer">
+                      −
+                    </button>
+                  </form>
+
+                  <span class="w-10 text-center text-sm">{{ item.quantity }}</span>
+
+                  <form method="post" action="{% url 'update_cart_item' item.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="increase">
+                    <button type="submit"
+                            aria-label="Increase quantity"
+                            {% if item.quantity >= available %}disabled{% endif %}
+                            class="w-9 h-9 flex items-center justify-center transition
+                                   {% if item.quantity >= available %}opacity-30 cursor-not-allowed{% else %}hover:bg-gray-100 cursor-pointer{% endif %}">
+                      +
+                    </button>
+                  </form>
+                </div>
+
+                <!-- REMOVE -->
                 <form method="post" action="{% url 'update_cart_item' item.id %}">
                   {% csrf_token %}
-                  <input type="hidden" name="action" value="decrease">
-                  <button class="px-3 py-2 cursor-pointer">−</button>
-                </form>
-
-                <span class="px-4">{{ item.quantity }}</span>
-
-                <form method="post" action="{% url 'update_cart_item' item.id %}">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="increase">
-                  <button class="px-3 py-2 cursor-pointer">+</button>
+                  <input type="hidden" name="action" value="remove">
+                  <button type="submit"
+                          class="text-xs text-gray-500 hover:text-red-600 hover:underline underline-offset-2 cursor-pointer">
+                    Remove
+                  </button>
                 </form>
               </div>
 
-              <div class="w-24 text-right font-semibold">
-                €{{ item.total_price|floatformat:2 }}
-              </div>
+              <!-- STOCK NOTICES -->
+              {% if available <= 0 %}
+                <p class="text-xs text-red-600">
+                  This size is no longer available. Please remove it to continue.
+                </p>
+              {% elif item.quantity > available %}
+                <p class="text-xs text-red-600">
+                  Only {{ available }} left in stock. Please lower the quantity.
+                </p>
+              {% elif item.quantity == available %}
+                <p class="text-xs text-gray-400">
+                  You've reached the maximum available quantity.
+                </p>
+              {% endif %}
 
             </div>
-          {% endfor %}
+          </li>
+          {% endwith %}
+        {% endfor %}
 
-        </div>
-      {% else %}
-        <p>Your bag is empty.</p>
-      {% endif %}
+      </ul>
+
+      <a href="{% url 'collection' %}"
+         class="inline-block mt-6 text-sm text-gray-600 hover:text-black hover:underline underline-offset-2">
+        ← Continue shopping
+      </a>
     </div>
 
     <!-- RIGHT: SUMMARY -->
-    {% if cart.items.exists %}
-    <div class="border p-6 shadow-sm h-fit">
+    <div class="lg:col-span-1">
+      <div class="border border-gray-200 p-6 lg:sticky lg:top-28 space-y-5">
 
-  <h2 class="text-xl font-semibold mb-6">Summary</h2>
+        <h2 class="text-xl font-semibold">Summary</h2>
 
-  <!-- CART ITEMS MINI LIST -->
-  <div class="space-y-2 mb-4 max-h-48 overflow-y-auto pr-2">
-    {% for item in items %}
-      <div class="flex justify-between text-sm">
-        <span class="truncate">
-          {{ item.variant.product.name }} × {{ item.quantity }}
-        </span>
-        <span>
-          €{{ item.total_price|floatformat:2 }}
-        </span>
+        <!-- FREE DELIVERY PROGRESS -->
+        {% if remaining_for_free_delivery > 0 %}
+          <div class="space-y-2">
+            <p class="text-xs text-gray-600">
+              Spend <strong>€{{ remaining_for_free_delivery|floatformat:2 }}</strong> more for free delivery
+            </p>
+            <div class="h-1.5 bg-gray-100">
+              <div class="h-full bg-black transition-all" style="width: {{ free_delivery_progress }}%"></div>
+            </div>
+          </div>
+        {% else %}
+          <p class="text-xs text-green-700 bg-green-50 border border-green-200 px-3 py-2">
+            ✓ You've unlocked free delivery
+          </p>
+        {% endif %}
+
+        <hr class="border-gray-200">
+
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between">
+            <span class="text-gray-600">Subtotal</span>
+            <span>€{{ subtotal|floatformat:2 }}</span>
+          </div>
+
+          <div class="flex justify-between">
+            <span class="text-gray-600">Delivery</span>
+            <span>
+              {% if delivery_fee == 0 %}Free{% else %}€{{ delivery_fee|floatformat:2 }}{% endif %}
+            </span>
+          </div>
+        </div>
+
+        <hr class="border-gray-200">
+
+        <div class="flex justify-between font-semibold text-lg">
+          <span>Total</span>
+          <span>€{{ total|floatformat:2 }}</span>
+        </div>
+
+        <!-- CHECKOUT ACTIONS -->
+        <div class="space-y-3 pt-1">
+          {% if user.is_authenticated %}
+            <a href="{% url 'checkout' %}"
+               class="block w-full text-center bg-black text-white py-3 text-sm tracking-wide hover:opacity-90 transition">
+              CHECKOUT
+            </a>
+          {% else %}
+            <a href="{% url 'checkout' %}"
+               class="block w-full text-center bg-black text-white py-3 text-sm tracking-wide hover:opacity-90 transition">
+              CHECKOUT AS GUEST
+            </a>
+
+            <a href="{% url 'login' %}"
+               class="block w-full text-center border border-black py-3 text-sm tracking-wide hover:bg-black hover:text-white transition">
+              LOGIN & CHECKOUT
+            </a>
+          {% endif %}
+        </div>
+
+        <p class="text-xs text-gray-400 text-center">
+          Pay by card or cash on delivery (+3%). Taxes included.
+        </p>
+
       </div>
-    {% endfor %}
+    </div>
+
   </div>
-
-  <hr class="my-4">
-
-  <div class="flex justify-between mb-2">
-    <span>Subtotal</span>
-    <span>€{{ subtotal|floatformat:2 }}</span>
-  </div>
-
-  <div class="flex justify-between mb-2">
-    <span>Delivery</span>
-    <span>
-      {% if delivery_fee == 0 %}
-        Free
-      {% else %}
-        €{{ delivery_fee|floatformat:2 }}
-      {% endif %}
-    </span>
-  </div>
-
-  {% if remaining_for_free_delivery > 0 %}
-    <p class="text-xs text-gray-500 mt-1">
-      Spend €{{ remaining_for_free_delivery|floatformat:2 }} more for free delivery
-    </p>
   {% endif %}
 
-  <hr class="my-4">
-
-  <div class="flex justify-between font-semibold text-lg">
-    <span>Total</span>
-    <span>€{{ total|floatformat:2 }}</span>
-  </div>
-
-  <!-- CHECKOUT ACTIONS -->
-  <div class="mt-6 space-y-3">
-    {% if user.is_authenticated %}
-      <a href="{% url 'checkout' %}"
-         class="block w-full text-center bg-black text-white py-3">
-        Checkout
-      </a>
-    {% else %}
-      <a href="{% url 'checkout' %}"
-         class="block w-full text-center bg-black text-white py-3">
-        Checkout as Guest
-      </a>
-
-      <a href="{% url 'login' %}"
-         class="block w-full text-center border py-3">
-        Login & Checkout
-      </a>
-    {% endif %}
-  </div>
-
-</div>
-    {% endif %}
-
-  </div>
 </div>
 {% endblock %}

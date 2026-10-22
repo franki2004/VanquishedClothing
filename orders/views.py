@@ -66,6 +66,7 @@ def cart_view(request):
         "total": total,
         "free_delivery_threshold": 100,
         "remaining_for_free_delivery": max(0, 100 - subtotal),
+        "free_delivery_progress": min(100, int(subtotal)),
     })
 
 
@@ -84,6 +85,8 @@ def update_cart_item(request, item_id):
         item.quantity = min(item.quantity + 1, item.variant.available_quantity())
     elif action == "decrease":
         item.quantity -= 1
+    elif action == "remove":
+        item.quantity = 0
 
     if item.quantity <= 0:
         item.delete()

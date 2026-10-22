@@ -135,156 +135,239 @@
   </section>
 
   <!-- REVIEWS -->
-  <section id="reviews" class="space-y-12">
+  <!-- REVIEWS -->
+  <section id="reviews" class="space-y-10" x-data="{ writing: false, deleteUrl: null }">
 
-    <div class="flex items-end justify-between">
-      <h2 class="text-xl font-medium uppercase tracking-wide">Reviews</h2>
+    <h2 class="text-xl font-medium uppercase tracking-wide">Customer Reviews</h2>
 
-      <div class="flex items-center gap-2">
-        <div class="flex text-sm">
+    {% if messages %}
+      {% for message in messages %}
+        <div class="px-4 py-3 text-sm border {% if message.tags == 'error' %}border-red-200 bg-red-50 text-red-700{% else %}border-green-200 bg-green-50 text-green-700{% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <!-- SUMMARY -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 border border-gray-200 p-6 md:p-8">
+      <div class="flex flex-col items-center justify-center text-center gap-2 md:border-r md:border-gray-200 md:pr-8">
+        <div class="text-5xl font-semibold">{{ product.average_rating|floatformat:1 }}</div>
+        <div class="flex text-lg">
           {% for i in "12345" %}
-            <span class="{% if forloop.counter <= product.average_rating|floatformat:0|add:0 %}text-black{% else %}text-gray-300{% endif %}">
-              ★
-            </span>
+            <span class="{% if forloop.counter <= product.average_rating|floatformat:0|add:0 %}text-black{% else %}text-gray-300{% endif %}">★</span>
           {% endfor %}
         </div>
+        <p class="text-xs text-gray-500">
+          Based on {{ product.review_count }} review{{ product.review_count|pluralize }}
+        </p>
+      </div>
 
-        <span class="text-xs text-gray-500">
-          {{ product.average_rating|floatformat:1 }} / 5
-        </span>
+      <div class="md:col-span-2 flex flex-col justify-center space-y-2">
+        {% for row in rating_breakdown %}
+          <div class="flex items-center gap-3 text-xs text-gray-600">
+            <span class="w-8 shrink-0">{{ row.star }} ★</span>
+            <div class="flex-1 h-1.5 bg-gray-100">
+              <div class="h-full bg-black" style="width: {{ row.percent }}%"></div>
+            </div>
+            <span class="w-6 text-right shrink-0">{{ row.count }}</span>
+          </div>
+        {% endfor %}
       </div>
     </div>
 
-    {% if user.is_authenticated and not user_review %}
-      <form method="post" action="{% url 'add_review' product.id %}" class="max-w-2xl border border-gray-200 p-6 space-y-4">
-        {% csrf_token %}
+    <!-- WRITE A REVIEW -->
+    <div class="space-y-4">
+      {% if not user.is_authenticated %}
+        <p class="text-sm text-gray-600">
+          <a href="{% url 'login' %}" class="underline hover:no-underline">Log in</a>
+          to write a review. Only customers who purchased this product can review it.
+        </p>
 
-        <div class="text-sm uppercase">Your rating</div>
+      {% elif user_review %}
+        <p class="text-sm text-gray-500">You've already reviewed this product. Thank you!</p>
 
-        <div class="star-rating">
-          {% for i in "54321" %}
-            <input type="radio" name="rating" value="{{ i }}" id="new-star{{ i }}" class="star-input" {% if i == "5" %}required{% endif %}/>
-            <label for="new-star{{ i }}" class="star-label">★</label>
-          {% endfor %}
-        </div>
-
-        <textarea
-          name="comment"
-          rows="3"
-          required
-          class="w-full border p-3 text-sm"
-          placeholder="Write your review..."
-        ></textarea>
-
-        <button class="border border-black px-6 py-3 text-sm hover:bg-black hover:text-white transition cursor-pointer">
-          SUBMIT REVIEW
+      {% elif has_purchased %}
+        <button
+          type="button"
+          @click="writing = !writing"
+          class="border border-black px-6 py-3 text-sm tracking-wide hover:bg-black hover:text-white transition cursor-pointer"
+        >
+          <span x-text="writing ? 'Cancel' : 'Write a review'"></span>
         </button>
-      </form>
-    {% endif %}
 
+        <form
+          method="post"
+          action="{% url 'add_review' product.id %}"
+          x-show="writing"
+          x-cloak
+          x-transition
+          class="max-w-2xl border border-gray-200 p-6 space-y-5"
+        >
+          {% csrf_token %}
+
+          <div class="space-y-2">
+            <p class="text-xs uppercase tracking-wide text-gray-500">Your rating</p>
+            <div class="star-rating">
+              {% for i in "54321" %}
+                <input type="radio" name="rating" value="{{ i }}" id="new-star{{ i }}" class="star-input" required />
+                <label for="new-star{{ i }}" class="star-label" title="{{ i }} star{{ i|pluralize }}">★</label>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <label for="new-comment" class="text-xs uppercase tracking-wide text-gray-500">Your review</label>
+            <textarea
+              id="new-comment"
+              name="comment"
+              rows="4"
+              required
+              class="w-full border border-gray-300 p-3 text-sm outline-none focus:border-black"
+              placeholder="How was the fit, fabric and quality?"
+            ></textarea>
+          </div>
+
+          <button class="bg-black text-white px-8 py-3 text-sm tracking-wide hover:opacity-90 transition cursor-pointer">
+            SUBMIT REVIEW
+          </button>
+        </form>
+
+      {% else %}
+        <div class="border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+          Only customers who have purchased this product can write a review.
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- REVIEW LIST -->
     <ul class="divide-y divide-gray-200">
       {% for review in reviews_page %}
-        <li class="py-8">
+        <li class="py-8" x-data="{ editing: false }">
 
-          {% if user.is_authenticated and user == review.user or user.is_staff or user.is_superuser %}
+          <!-- DISPLAY -->
+          <div x-show="!editing" class="flex gap-4">
+            <div class="shrink-0 w-10 h-10 rounded-full bg-black text-white flex items-center justify-center text-sm font-medium">
+              {{ review.display_name|slice:":1"|upper }}
+            </div>
 
-            <!-- DISPLAY -->
-            <div id="review-display-{{ review.id }}">
-              <div class="flex justify-between mb-2">
-                <div class="flex gap-3 items-center">
-                  <span class="font-medium">{{ review.display_name }}</span>
-                  <div class="flex text-sm">
-                    {% for i in "12345" %}
-                      <span class="{% if forloop.counter <= review.rating %}text-black{% else %}text-gray-300{% endif %}">★</span>
-                    {% endfor %}
-                  </div>
-                </div>
+            <div class="flex-1 min-w-0 space-y-2">
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span class="text-sm font-medium">{{ review.display_name }}</span>
 
-                <time class="text-xs text-gray-400">
+                {% if review.user_id in verified_user_ids %}
+                  <span class="text-[11px] uppercase tracking-wide text-green-700 bg-green-50 border border-green-200 px-2 py-0.5">
+                    ✓ Verified purchase
+                  </span>
+                {% endif %}
+
+                <time class="text-xs text-gray-400 sm:ml-auto">
                   {{ review.created_at|date:"M j, Y" }}
                 </time>
               </div>
 
-              <p class="text-gray-600 mb-3">{{ review.comment }}</p>
-
-              <div class="flex gap-3">
-                <button
-                  type="button"
-                  onclick="document.getElementById('review-display-{{ review.id }}').classList.add('hidden'); document.getElementById('review-edit-{{ review.id }}').classList.remove('hidden');"
-                >
-                  ✎
-                </button>
-
-                <button
-                  type="button"
-                  onclick="openDeleteReviewModal('{% url 'delete_review' review.id %}')"
-                >
-                  🗑
-                </button>
+              <div class="flex text-sm">
+                {% for i in "12345" %}
+                  <span class="{% if forloop.counter <= review.rating %}text-black{% else %}text-gray-300{% endif %}">★</span>
+                {% endfor %}
               </div>
-            </div>
 
-            <!-- EDIT -->
-            <div id="review-edit-{{ review.id }}" class="hidden border p-6 max-w-2xl">
-              <form method="post" action="{% url 'edit_review' review.id %}">
-                {% csrf_token %}
+              <p class="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{{ review.comment }}</p>
 
-                <div class="star-rating mb-4">
-                  {% for i in "54321" %}
-                    <input type="radio" name="rating" value="{{ i }}" id="edit-{{ review.id }}-{{ i }}" class="star-input"
-                      {% if review.rating == i|add:0 %}checked{% endif %}/>
-                    <label for="edit-{{ review.id }}-{{ i }}" class="star-label">★</label>
-                  {% endfor %}
-                </div>
-
-                <textarea name="comment" class="w-full border p-3">{{ review.comment }}</textarea>
-
-                <div class="flex gap-3 mt-4">
-                  <button class="border px-4 py-2">Save</button>
-                  <button type="button"
-                    onclick="document.getElementById('review-edit-{{ review.id }}').classList.add('hidden'); document.getElementById('review-display-{{ review.id }}').classList.remove('hidden');">
-                    Cancel
+              {% if user.id == review.user_id or user.is_staff %}
+                <div class="flex gap-4 pt-1 text-xs text-gray-500">
+                  <button type="button" @click="editing = true" class="hover:text-black hover:underline cursor-pointer">
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    @click="deleteUrl = '{% url 'delete_review' review.id %}'"
+                    class="hover:text-red-600 hover:underline cursor-pointer"
+                  >
+                    Delete
                   </button>
                 </div>
-              </form>
+              {% endif %}
             </div>
+          </div>
 
-          {% else %}
+          <!-- EDIT -->
+          {% if user.id == review.user_id or user.is_staff %}
+            <form
+              method="post"
+              action="{% url 'edit_review' review.id %}"
+              x-show="editing"
+              x-cloak
+              class="max-w-2xl border border-gray-200 p-6 space-y-4"
+            >
+              {% csrf_token %}
 
-            <div class="flex justify-between mb-2">
-              <span class="font-medium">{{ review.display_name }}</span>
+              <div class="star-rating">
+                {% for i in "54321" %}
+                  <input type="radio" name="rating" value="{{ i }}" id="edit-{{ review.id }}-{{ i }}" class="star-input"
+                         {% if review.rating == i|add:0 %}checked{% endif %} required />
+                  <label for="edit-{{ review.id }}-{{ i }}" class="star-label">★</label>
+                {% endfor %}
+              </div>
 
-              <time class="text-xs text-gray-400">
-                {{ review.created_at|date:"M j, Y" }}
-              </time>
-            </div>
+              <textarea
+                name="comment"
+                rows="4"
+                required
+                class="w-full border border-gray-300 p-3 text-sm outline-none focus:border-black"
+              >{{ review.comment }}</textarea>
 
-            <p class="text-gray-600">{{ review.comment }}</p>
-
+              <div class="flex gap-3">
+                <button class="bg-black text-white px-6 py-2 text-sm cursor-pointer">Save</button>
+                <button type="button" @click="editing = false" class="border px-6 py-2 text-sm cursor-pointer">
+                  Cancel
+                </button>
+              </div>
+            </form>
           {% endif %}
 
         </li>
       {% empty %}
-        <li class="py-10 text-gray-400">No reviews yet.</li>
+        <li class="py-12 text-center text-sm text-gray-400">
+          No reviews yet. Be the first to share your thoughts.
+        </li>
       {% endfor %}
     </ul>
 
     {% if reviews_page.paginator.num_pages > 1 %}
-      <div class="flex justify-center gap-6 text-sm mt-10">
+      <div class="flex justify-center items-center gap-6 text-sm">
         {% if reviews_page.has_previous %}
-          <a href="?page={{ reviews_page.previous_page_number }}#reviews">Prev</a>
+          <a href="?page={{ reviews_page.previous_page_number }}#reviews" class="border px-4 py-2 hover:bg-black hover:text-white transition">Prev</a>
         {% endif %}
 
-        <span>Page {{ reviews_page.number }} / {{ reviews_page.paginator.num_pages }}</span>
+        <span class="text-gray-500">Page {{ reviews_page.number }} / {{ reviews_page.paginator.num_pages }}</span>
 
         {% if reviews_page.has_next %}
-          <a href="?page={{ reviews_page.next_page_number }}#reviews">Next</a>
+          <a href="?page={{ reviews_page.next_page_number }}#reviews" class="border px-4 py-2 hover:bg-black hover:text-white transition">Next</a>
         {% endif %}
       </div>
     {% endif %}
 
-  </section>
+    <!-- DELETE CONFIRM MODAL -->
+    <div
+      x-show="deleteUrl"
+      x-cloak
+      x-transition.opacity
+      @keydown.escape.window="deleteUrl = null"
+      class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4"
+    >
+      <div class="bg-white w-full max-w-sm p-6 space-y-4" @click.outside="deleteUrl = null">
+        <h3 class="font-semibold">Delete this review?</h3>
+        <p class="text-sm text-gray-600">This can't be undone.</p>
 
+        <form method="post" :action="deleteUrl" class="flex justify-end gap-3">
+          {% csrf_token %}
+          <button type="button" @click="deleteUrl = null" class="border px-4 py-2 text-sm cursor-pointer">Cancel</button>
+          <button class="bg-red-600 text-white px-4 py-2 text-sm cursor-pointer">Delete</button>
+        </form>
+      </div>
+    </div>
+
+  </section>
   <!-- RELATED PRODUCTS -->
   {% if related_products %}
   <section class="space-y-10">
@@ -317,25 +400,30 @@
 </div>
 
 <style>
-.star-input { display:none; }
-
-.star-rating {
-  display:flex;
-  flex-direction:row-reverse;
-}
-
-.star-label {
-  font-size:1.5rem;
-  color:#d1d5db;
-  cursor:pointer;
-}
-
-.star-input:checked ~ .star-label,
-.star-label:hover,
-.star-label:hover ~ .star-label {
-  color:black;
-}
-</style>
+  [x-cloak] { display: none !important; }
+  
+  .star-input { display: none; }
+  
+  .star-rating {
+    display: inline-flex;
+    flex-direction: row-reverse;
+    gap: 2px;
+  }
+  
+  .star-label {
+    font-size: 1.75rem;
+    line-height: 1;
+    color: #d1d5db;
+    cursor: pointer;
+    transition: color 0.1s;
+  }
+  
+  .star-input:checked ~ .star-label,
+  .star-label:hover,
+  .star-label:hover ~ .star-label {
+    color: #000;
+  }
+  </style>
 
 {% block js %}
 <script>
