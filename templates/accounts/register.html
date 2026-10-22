@@ -1,34 +1,214 @@
-{% extends "store/base.html" %} {% block title %}Register{% endblock %} 
+{% extends "store/base.html" %}
+{% block title %}Register | Vanquished Clothing{% endblock %}
+
 {% block content %}
-<div class="min-h-screen flex items-center justify-center px-4 bg-gray-50">
-  <form
-    method="post"
-    class="w-full max-w-md space-y-6 bg-white p-8  shadow-md"
-  >
-    {% csrf_token %}
-    <h1 class="text-3xl font-bold text-center text-gray-800">Register</h1>
-      {% if form.non_field_errors %}
-      <p class="text-red-600 text-sm">{{ form.non_field_errors.0 }}</p>
-    {% endif %}
-    {% for field in form %} {{ field.label_tag }} {{ field }} 
-    {% if field.errors %}
-    <p class="text-red-600 text-sm">{{ field.errors.0 }}</p>
-    {% endif %} 
-    {% endfor %}
+<div class="min-h-screen flex items-center justify-center px-4 py-12 bg-gray-50">
 
-    <button
-      type="submit"
-      class="w-full bg-black text-white font-semibold py-3  mt-4 cursor-pointer"
+    <form
+        method="post"
+        class="w-full max-w-md space-y-6 bg-white p-8 shadow-md"
+        x-data="{
+            password: '',
+            confirmPassword: '',
+            passwordFocused: false,
+            get requirements() {
+                return [
+                    { label: 'At least 8 characters', valid: this.password.length >= 8 },
+                    { label: 'At least one uppercase letter (A-Z)', valid: /[A-Z]/.test(this.password) },
+                    { label: 'At least one lowercase letter (a-z)', valid: /[a-z]/.test(this.password) },
+                    { label: 'At least one number (0-9)', valid: /[0-9]/.test(this.password) }
+                ];
+            },
+            get passwordValid() {
+                return this.requirements.every(item => item.valid);
+            }
+        }"
     >
-      Register
-    </button>
+        {% csrf_token %}
 
-    <p class="text-center text-sm text-gray-600 mt-4">
-      Already have an account?
-      <a href="{% url 'login' %}" class="text-blue-600 hover:underline"
-        >Login</a
-      >
-    </p>
-  </form>
+        <!-- HEADER -->
+        <div class="text-center">
+            <p class="text-xs uppercase tracking-[0.3em] text-gray-500 mb-3">
+                Vanquished Clothing
+            </p>
+            <h1 class="text-3xl font-semibold uppercase tracking-tight text-gray-900">
+                Create account
+            </h1>
+            <p class="mt-2 text-sm text-gray-500">
+                Join us and make it yours.
+            </p>
+        </div>
+
+        <!-- FORM ERRORS -->
+        {% if form.non_field_errors %}
+        <div class="border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            {{ form.non_field_errors.0 }}
+        </div>
+        {% endif %}
+
+        <!-- EMAIL -->
+        <div>
+            <label for="{{ form.email.id_for_label }}"
+                   class="mb-2 block text-sm font-medium text-gray-800">
+                Email address
+            </label>
+
+            {{ form.email }}
+
+            {% if form.email.errors %}
+            <p class="mt-2 text-sm text-red-600">
+                {{ form.email.errors.0 }}
+            </p>
+            {% endif %}
+        </div>
+
+        <!-- PASSWORD -->
+        <div>
+            <label for="{{ form.password.id_for_label }}"
+                   class="mb-2 block text-sm font-medium text-gray-800">
+                Password
+            </label>
+
+            <div class="relative">
+                <input
+                    type="password"
+                    name="{{ form.password.html_name }}"
+                    id="{{ form.password.id_for_label }}"
+                    class="{{ form.password.field.widget.attrs.class }} w-full"
+                    placeholder="Enter a safe password"
+                    autocomplete="new-password"
+                    minlength="8"
+                    required
+                    x-model="password"
+                    @focus="passwordFocused = true"
+                    @blur="passwordFocused = false"
+                    aria-describedby="password-requirements"
+                    :aria-invalid="password.length > 0 && !passwordValid"
+                >
+            </div>
+
+            {% if form.password.errors %}
+            <p class="mt-2 text-sm text-red-600">
+                {{ form.password.errors.0 }}
+            </p>
+            {% endif %}
+
+            <!-- REQUIREMENTS PANEL -->
+            <div
+                id="password-requirements"
+                x-cloak
+                x-show="passwordFocused"
+                x-transition.opacity.duration.150ms
+                class="mt-3 border border-gray-200 bg-white p-4"
+            >
+                <div class="mb-3 flex items-center justify-between gap-3">
+                    <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-900">
+                        Password requirements
+                    </h2>
+
+                    <span
+                        class="text-[10px] uppercase tracking-wider"
+                        :class="passwordValid ? 'text-green-700' : 'text-gray-500'"
+                        x-text="passwordValid ? 'All requirements met' : 'Required'"
+                    ></span>
+                </div>
+
+                <ul class="space-y-3">
+                    <template x-for="(requirement, index) in requirements" :key="index">
+                        <li class="flex items-start gap-3 text-sm">
+                            <span
+                                class="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center border"
+                                :class="requirement.valid
+                                    ? 'border-green-700 bg-green-700 text-white'
+                                    : 'border-gray-300 text-transparent'"
+                            >
+                                <svg
+                                    x-show="requirement.valid"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 16 16"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    class="h-3 w-3"
+                                    aria-hidden="true"
+                                >
+                                    <path d="m3 8 3 3 7-7"/>
+                                </svg>
+                            </span>
+
+                            <span
+                                :class="requirement.valid ? 'text-green-700' : 'text-gray-600'"
+                                x-text="requirement.label"
+                            ></span>
+                        </li>
+                    </template>
+                </ul>
+
+                <div class="mt-4 h-1 w-full bg-gray-100">
+                    <div
+                        class="h-1 bg-green-700 transition-all duration-200"
+                        :style="'width: ' + (requirements.filter(item => item.valid).length / requirements.length * 100) + '%'"
+                    ></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONFIRM PASSWORD -->
+        <div>
+            <label for="{{ form.confirm_password.id_for_label }}"
+                   class="mb-2 block text-sm font-medium text-gray-800">
+                Confirm password
+            </label>
+
+            <input
+                type="password"
+                name="{{ form.confirm_password.html_name }}"
+                id="{{ form.confirm_password.id_for_label }}"
+                class="{{ form.confirm_password.field.widget.attrs.class }} w-full"
+                placeholder="Repeat the safe password"
+                autocomplete="new-password"
+                minlength="8"
+                required
+                x-model="confirmPassword"
+            >
+
+            {% if form.confirm_password.errors %}
+            <p class="mt-2 text-sm text-red-600">
+                {{ form.confirm_password.errors.0 }}
+            </p>
+            {% endif %}
+
+            <p
+                x-cloak
+                x-show="confirmPassword.length > 0"
+                class="mt-2 text-xs"
+                :class="password === confirmPassword ? 'text-green-700' : 'text-red-600'"
+                x-text="password === confirmPassword ? 'Passwords match' : 'Passwords do not match'"
+            ></p>
+        </div>
+
+        <!-- SUBMIT -->
+        <button
+            type="submit"
+            class="mt-2 w-full cursor-pointer bg-black px-4 py-3 text-sm font-semibold uppercase tracking-widest text-white transition-colors hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+        >
+            Create account
+        </button>
+
+        <!-- LOGIN LINK -->
+        <p class="text-center text-sm text-gray-600">
+            Already have an account?
+            <a href="{% url 'login' %}"
+               class="font-medium text-black underline underline-offset-4 hover:text-gray-500">
+                Sign in
+            </a>
+        </p>
+
+    </form>
 </div>
+<style>
+  [x-cloak] {
+      display: none !important;
+  }
+</style>
 {% endblock %}

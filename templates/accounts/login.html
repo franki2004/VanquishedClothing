@@ -1,71 +1,134 @@
 {% extends "store/base.html" %}
 {% load static %}
-{% block title %}Login{% endblock %}
+
+{% block title %}Sign In | Vanquished Clothing{% endblock %}
+
 {% block content %}
-<div class="min-h-screen flex items-center justify-center px-4 bg-gray-50">
-  <form
-    method="post"
-    class="w-full max-w-md space-y-5 bg-white p-8 shadow-md"
-  >
-    {% csrf_token %}
-    <h1 class="text-3xl font-bold text-center text-gray-800">Login</h1>
+<div class="min-h-screen flex items-center justify-center px-4 py-12 bg-gray-50">
 
-    {% for field in form %}
-      {{ field.label_tag }}
+    <form
+        method="post"
+        class="w-full max-w-md space-y-6 bg-white p-8 shadow-md"
+    >
+        {% csrf_token %}
 
-      {% if field.name == 'password' %}
-      <div class="relative" id="password-wrapper">
-        {{ field }}
-        <button
-          type="button"
-          id="toggle-password"
-          aria-label="Show password"
-          aria-pressed="false"
-          class="absolute right-3 top-6 -translate-y-1/2 cursor-pointer"
-        >
-        <img src="{% static 'icons/eye-closed.png' %}" id="eye-closed" alt="" class="w-5 h-5 " />
-        <img src="{% static 'icons/eye-open.png' %}" id="eye-open" alt="" class="w-5 h-5 hidden" />
-        </button>
-      </div>
+        <!-- HEADER -->
+        <div class="text-center">
+            <p class="text-xs uppercase tracking-[0.3em] text-gray-500 mb-3">
+                Vanquished Clothing
+            </p>
 
-      {% if form.non_field_errors %}
-      <div class="text-red-600 text-sm space-y-1">
-        {% for error in form.non_field_errors %}
-        <p>{{ error }}</p>
+            <h1 class="text-3xl font-semibold uppercase tracking-tight text-gray-900">
+                Welcome back
+            </h1>
+
+            <p class="mt-2 text-sm text-gray-500">
+                Sign in to access your account.
+            </p>
+        </div>
+
+        <!-- NON-FIELD ERRORS -->
+        {% if form.non_field_errors %}
+        <div class="border border-red-200 bg-red-50 p-3 text-sm text-red-700 space-y-1">
+            {% for error in form.non_field_errors %}
+                <p>{{ error }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if show_resend_activation %}
+          <div class="mt-4">
+              <a href="{% url 'resend_activation' %}"
+                 class="inline-block border border-black px-4 py-2
+                        text-xs uppercase tracking-widest
+                        hover:bg-black hover:text-white ">
+                  Resend activation email
+              </a>
+          </div>
+      {% endif %}
+
+        <!-- FORM FIELDS -->
+        {% for field in form %}
+        <div>
+            <label
+                for="{{ field.id_for_label }}"
+                class="mb-2 block text-sm font-medium text-gray-800"
+            >
+                {{ field.label }}
+            </label>
+
+            {% if field.name == 'password' %}
+            <div class="relative" id="password-wrapper">
+                {{ field }}
+
+                <button
+                    type="button"
+                    id="toggle-password"
+                    aria-label="Show password"
+                    aria-pressed="false"
+                    class="absolute right-3 top-1/2 -translate-y-[40%] cursor-pointer"
+                >
+                    <img
+                        src="{% static 'icons/eye-closed.png' %}"
+                        id="eye-closed"
+                        alt="show password"
+                        class="h-5 w-5"
+                    />
+
+                    <img
+                        src="{% static 'icons/eye-open.png' %}"
+                        id="eye-open"
+                        alt="hide password"
+                        class="hidden h-5 w-5"
+                    />
+                </button>
+            </div>
+            {% else %}
+                {{ field }}
+            {% endif %}
+
+            {% if field.errors %}
+            <div class="mt-2 space-y-1 text-sm text-red-600">
+                {% for error in field.errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
         {% endfor %}
-      </div>
-      {% endif %}
 
-      {% else %}
-      {{ field }}
-      {% endif %}
+        <!-- PASSWORD RESET -->
+        <div class="flex justify-end">
+            <a
+                href="{% url 'password_reset' %}"
+                class="text-sm text-gray-600 underline underline-offset-4 transition-colors hover:text-black"
+            >
+                Forgot your password?
+            </a>
+        </div>
 
-      {% if field.errors %}
-      <p class="text-red-600 text-sm">{{ field.errors.0 }}</p>
-      {% endif %}
-    {% endfor %}
+        <!-- SUBMIT -->
+        <button
+            type="submit"
+            class="mt-2 w-full cursor-pointer bg-black px-4 py-3 text-sm font-semibold uppercase tracking-widest text-white transition-colors hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+        >
+            Sign in
+        </button>
 
-    <a href="{% url 'password_reset' %}" class="text-blue-600 hover:underline text-sm"
-      >Forgot your password?</a
-    >
+        <!-- REGISTER LINK -->
+        <p class="text-center text-sm text-gray-600">
+            Don't have an account?
+            <a
+                href="{% url 'register' %}"
+                class="font-medium text-black underline underline-offset-4 transition-colors hover:text-gray-500"
+            >
+                Create account
+            </a>
+        </p>
 
-    <button
-      type="submit"
-      class="w-full bg-black text-white font-semibold py-3 mt-4 cursor-pointer"
-    >
-      Login
-    </button>
-
-    <p class="text-center text-sm text-gray-600 mt-4">
-      Don't have an account?
-      <a href="{% url 'register' %}" class="text-blue-600 hover:underline"
-        >Register</a
-      >
-    </p>
-  </form>
+    </form>
 </div>
-
 {% block js %}
 <script src="{% static 'js/login.js' %}"></script>
 {% endblock %}
 {% endblock %}
+

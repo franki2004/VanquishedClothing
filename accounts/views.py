@@ -13,12 +13,42 @@ from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.http import HttpResponseForbidden
 from django.urls import reverse
+import logging
+from django.views.decorators.http import require_http_methods
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 def register_view(request):
-    if request.method == 'POST':
+    if request.method == "POST":
+        email = request.POST.get("email", "").strip().lower()
+
+        pending_user = User.objects.filter(
+            email__iexact=email,
+            is_active=False,
+        ).first() if email else None
+
+        if pending_user:
+            try:
+                send_activation_email(request, pending_user)
+                messages.success(
+                    request,
+                    "We've sent another activation email. Please check your inbox."
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to resend activation email for pending registration."
+                )
+                messages.warning(
+                    request,
+                    "Your account is still awaiting activation. "
+                    "We couldn't send the email right now. Please try again later."
+                )
+
+            return redirect("activation_sent")
+
         form = RegisterForm(request.POST)
+
         if form.is_valid():
             user = form.save(commit=False)
             user.is_active = False
@@ -27,29 +57,75 @@ def register_view(request):
             try:
                 send_activation_email(request, user)
             except Exception:
-                user.delete()
-                form.add_error(None, "We couldn't send the activation email. Please try again later.")
-                return render(request, 'accounts/register.html', {'form': form})
+                logger.exception("Failed to send activation email.")
+                messages.warning(
+                    request,
+                    "Your account was created, but we couldn't send the "
+                    "activation email. You can request another email."
+                )
 
             return redirect("activation_sent")
     else:
         form = RegisterForm()
 
-    return render(request, 'accounts/register.html', {'form': form})
+    return render(request, "accounts/register.html", {"form": form})
+
+
+def resend_activation_view(request):
+    if request.method == "POST":
+        email = request.POST.get("email", "").strip().lower()
+
+        pending_user = User.objects.filter(
+            email__iexact=email,
+            is_active=False,
+        ).first() if email else None
+
+        if pending_user:
+            try:
+                send_activation_email(request, pending_user)
+            except Exception:
+                logger.exception("Failed to send a resent activation email.")
+
+        # Use the same response whether or not a pending account exists.
+        messages.success(
+            request,
+            "If an account with that email is awaiting activation, "
+            "an activation email will be sent. Please check your inbox "
+            "and spam folder."
+        )
+        return redirect("activation_sent")
+
+    return render(request, "accounts/resend_activation.html")
 
 def activation_sent_view(request):
     return render(request, "accounts/activation_sent.html")
 
 def login_view(request):
-    if request.method == 'POST':
+    if request.method == "POST":
         form = LoginForm(request.POST)
+
         if form.is_valid():
-            
-            login(request, form.cleaned_data['user'])
-            return redirect('home') 
+            login(request, form.cleaned_data["user"])
+            return redirect("home")
     else:
         form = LoginForm()
-    return render(request, 'accounts/login.html', {'form': form})
+
+    show_resend_activation = (
+        form.errors.get("__all__")
+        and any(
+            error.code == "account_inactive"
+            for error in form.errors.as_data().get("__all__", [])
+        )
+    )
+
+    return render(
+        request,
+        "accounts/login.html",
+        {
+            "form": form,
+            "show_resend_activation": bool(show_resend_activation),
+        },
+    )
 
 
 def logout_view(request):

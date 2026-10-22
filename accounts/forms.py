@@ -21,12 +21,12 @@ class PasswordInputPreserve(forms.PasswordInput):
 
 class RegisterForm(forms.ModelForm):
     password = forms.CharField(
-        widget=PasswordInputPreserve(attrs={"class": TAILWIND_INPUT_CLASSES, "autocomplete": "new-password"}),
+        widget=PasswordInputPreserve(attrs={"class": TAILWIND_INPUT_CLASSES, "autocomplete": "new-password", "placeholder" : "Enter a safe password"}),
         min_length=8,
         label="Password"
     )
     confirm_password = forms.CharField(
-        widget=PasswordInputPreserve(attrs={"class": TAILWIND_INPUT_CLASSES, "autocomplete": "new-password"}),
+        widget=PasswordInputPreserve(attrs={"class": TAILWIND_INPUT_CLASSES, "autocomplete": "new-password", "placeholder" : "Repeat the safe password"}),
         min_length=8,
         label="Confirm Password"
     )
@@ -35,17 +35,31 @@ class RegisterForm(forms.ModelForm):
         model = User
         fields = ['email', 'password', 'confirm_password']
         widgets = {
-            'email': forms.EmailInput(attrs={"class": TAILWIND_INPUT_CLASSES}),
+            'email': forms.EmailInput(attrs={"class": TAILWIND_INPUT_CLASSES, "placeholder" : "Enter a valid email"}),
         }
 
+    
     def clean_email(self):
         email = self.cleaned_data.get("email")
+
         if not email:
             raise forms.ValidationError("Email is required.")
-        email = email.lower()
-        if User.objects.filter(email=email).exists():
-            raise forms.ValidationError("This email is already registered.")
+
+        email = email.strip().lower()
+
+        if User.objects.filter(email__iexact=email, is_active=True).exists():
+            raise forms.ValidationError(
+                "This email is already registered. Please log in instead."
+            )
+
+        if User.objects.filter(email__iexact=email, is_active=False).exists():
+            raise forms.ValidationError(
+                "This account is awaiting activation. "
+                "Please request another activation email."
+            )
+
         return email
+
     
     def clean(self):
         cleaned_data = super().clean()
@@ -74,29 +88,48 @@ class RegisterForm(forms.ModelForm):
             user.save()
         return user
 
+
 class LoginForm(forms.Form):
     email = forms.EmailField(widget=forms.EmailInput(attrs={
-            "class": TAILWIND_INPUT_CLASSES,
-            "placeholder": "you@example.com",
-        }))
+        "class": TAILWIND_INPUT_CLASSES,
+        "placeholder": "Enter registered email",
+    }))
     password = forms.CharField(widget=forms.PasswordInput(attrs={
-            "class": TAILWIND_INPUT_CLASSES,
-            "placeholder": "yourSecretPassword",
-        }))
+        "class": TAILWIND_INPUT_CLASSES,
+        "placeholder": "Enter your password",
+    }))
 
     def clean(self):
         cleaned_data = super().clean()
-        email = cleaned_data.get('email')
-        password = cleaned_data.get('password')
+        email = cleaned_data.get("email")
+        password = cleaned_data.get("password")
 
-        if email and password:
-            user = authenticate(email=email, password=password)
-            if user is None:
-                raise ValidationError("Invalid email or password")
+        if not email or not password:
+            return cleaned_data
+
+        email = email.strip().lower()
+
+        user = User.objects.filter(email__iexact=email).first()
+
+        if user and user.check_password(password):
             if not user.is_active:
-                raise ValidationError("This account is inactive")
-            cleaned_data['user'] = user
-        return cleaned_data
+                raise ValidationError(
+                    "Your account is awaiting email activation. "
+                    "Use the resend activation link below to receive another email.",
+                    code="account_inactive",
+                )
+
+            authenticated_user = authenticate(
+                email=email,
+                password=password,
+            )
+
+            if authenticated_user is not None:
+                cleaned_data["user"] = authenticated_user
+                return cleaned_data
+
+        raise ValidationError("Invalid email or password.")
+
     
 
 class UserFieldUpdateForm(forms.ModelForm):

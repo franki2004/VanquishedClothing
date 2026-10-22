@@ -1,52 +1,114 @@
 {% extends "store/base.html" %}
-{% block title %}Activate Account{% endblock %}
+{% block title %}Check Your Inbox | Vanquished Clothing{% endblock %}
 
 {% block content %}
-<div class="min-h-screen flex items-center justify-center bg-white text-black px-6">
+<section class="min-h-[75vh] flex items-center justify-center bg-white text-black px-5 py-16 sm:px-8">
 
-    <div class="w-full max-w-2xl border border-black p-12 text-center">
+    <div class="w-full max-w-xl">
 
-        <!-- HEADER -->
-        <div class="mb-10">
-            <h1 class="text-4xl font-semibold tracking-wide uppercase">
+        <!-- BRAND -->
+        <div class="mb-12 text-center">
+            <a href="{% url 'home' %}"
+               class="inline-block text-sm font-semibold uppercase tracking-[0.35em]">
+                VANQUISHED
+            </a>
+
+            <div class="mx-auto mt-5 h-px w-12 bg-black"></div>
+        </div>
+
+        <!-- EMAIL ICON -->
+        <div class="mx-auto mb-8 flex h-20 w-20 items-center justify-center border border-gray-200">
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.2"
+                class="h-9 w-9"
+                aria-hidden="true"
+            >
+                <rect x="3" y="5" width="18" height="14" rx="0" />
+                <path d="m3 7 9 6 9-6" />
+            </svg>
+        </div>
+
+        <!-- HEADING -->
+        <div class="text-center">
+            <p class="mb-3 text-xs font-medium uppercase tracking-[0.25em] text-gray-500">
+                One last step
+            </p>
+
+            <h1 class="text-3xl font-semibold uppercase tracking-tight sm:text-4xl">
                 Check your inbox
             </h1>
-            <div class="mt-4  h-px bg-black mx-auto"></div>
-        </div>
 
-        <!-- MAIN MESSAGE -->
-        <div class="space-y-6 text-sm leading-relaxed text-gray-800">
-
-            <p class="text-base">
-                Your Vanquished account has been created.
-            </p>
-
-            <p>
-                We’ve sent an activation email with a secure link to your inbox.
-                Click the button inside the email to unlock your account.
-            </p>
-
-            <p>
-                Until activation is completed, access to orders and profile features is restricted.
-            </p>
-
-        </div>
-
-        <!-- VISUAL EMPHASIS BLOCK -->
-        <div class="mt-10 border border-black p-6">
-            <p class="uppercase tracking-widest text-xs mb-2">
-                Status
-            </p>
-            <p class="text-lg font-medium">
-                Pending activation
+            <p class="mx-auto mt-5 max-w-md text-sm leading-7 text-gray-600">
+                Your account has been created. Confirm your email address
+                to activate your Vanquished account and unlock your profile.
             </p>
         </div>
 
-        <!-- FOOTER -->
-        <div class="mt-12 text-xs tracking-widest uppercase text-gray-600">
-            Vanquished Clothing
+        <!-- INSTRUCTIONS -->
+        <div class="mt-10 border-y border-gray-200 py-7">
+            <div class="flex items-start gap-5">
+                <span class="text-sm font-medium text-gray-400">01</span>
+                <div>
+                    <h2 class="text-sm font-semibold uppercase tracking-wide">
+                        Open your email
+                    </h2>
+                    <p class="mt-2 text-sm leading-6 text-gray-600">
+                        Find the activation message sent to the email address
+                        you used to register.
+                    </p>
+                </div>
+            </div>
+
+            <div class="my-6 h-px bg-gray-100"></div>
+
+            <div class="flex items-start gap-5">
+                <span class="text-sm font-medium text-gray-400">02</span>
+                <div>
+                    <h2 class="text-sm font-semibold uppercase tracking-wide">
+                        Activate your account
+                    </h2>
+                    <p class="mt-2 text-sm leading-6 text-gray-600">
+                        Open the message and click the activation button
+                        to confirm your email address.
+                    </p>
+                </div>
+            </div>
         </div>
+
+        <!-- STATUS -->
+        <div class="mt-7 flex items-center justify-center gap-3 text-xs uppercase tracking-widest text-gray-500">
+            <span class="h-2 w-2 bg-gray-400"></span>
+            Awaiting email confirmation
+        </div>
+
+        <!-- SPAM NOTE -->
+        <p class="mx-auto mt-6 max-w-md text-center text-xs leading-6 text-gray-500">
+            Can't find the email? Check your spam or junk folder.
+            Make sure you allow a few minutes for delivery.
+        </p>
+
+        <!-- ACTIONS -->
+        <div class="mt-9 flex flex-col gap-3 sm:flex-row">
+            <a href="{% url 'home' %}"
+               class="flex min-h-12 flex-1 items-center justify-center border border-black bg-black px-6 py-3 text-xs font-semibold uppercase tracking-[0.15em] text-white transition-colors hover:bg-white hover:text-black">
+                Continue shopping
+            </a>
+
+            <a href="{% url 'login' %}"
+               class="flex min-h-12 flex-1 items-center justify-center border border-gray-300 bg-white px-6 py-3 text-xs font-semibold uppercase tracking-[0.15em] text-black transition-colors hover:border-black">
+                Sign in
+            </a>
+        </div>
+
+        <!-- FOOTER NOTE -->
+        <p class="mt-10 text-center text-[10px] uppercase tracking-[0.2em] text-gray-400">
+            Vanquished Clothing · Account verification
+        </p>
 
     </div>
-</div>
+</section>
 {% endblock %}
