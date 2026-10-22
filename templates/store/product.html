@@ -134,8 +134,7 @@
     </div>
   </section>
 
-  <!-- REVIEWS -->
-  <!-- REVIEWS -->
+ <!-- REVIEWS -->
   <section id="reviews" class="space-y-10" x-data="{ writing: false, deleteUrl: null }">
 
     <h2 class="text-xl font-medium uppercase tracking-wide">Customer Reviews</h2>
@@ -240,7 +239,21 @@
     </div>
 
     <!-- REVIEW LIST -->
-    <ul class="divide-y divide-gray-200">
+      <ul
+      x-data
+      x-init="
+        const fit = () => {
+          const items = Array.from($el.children);
+          if (items.length <= 3) { $el.style.maxHeight = 'none'; return; }
+          const borders = $el.offsetHeight - $el.clientHeight;
+          const h = items.slice(0, 3).reduce((sum, li) => sum + li.offsetHeight, 0);
+          $el.style.maxHeight = (h + borders) + 'px';
+        };
+        $nextTick(fit);
+        window.addEventListener('resize', fit);
+      "
+      class="reviews-scroll divide-y divide-gray-200  overflow-y-auto max-h-[560px] pr-2"
+    >
       {% for review in reviews_page %}
         <li class="py-8" x-data="{ editing: false }">
 
@@ -423,7 +436,14 @@
   .star-label:hover ~ .star-label {
     color: #000;
   }
-  </style>
+  .reviews-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #000 #f3f4f6;
+  }
+  .reviews-scroll::-webkit-scrollbar { width: 6px; }
+  .reviews-scroll::-webkit-scrollbar-track { background: #f3f4f6; }
+  .reviews-scroll::-webkit-scrollbar-thumb { background: #000; }
+    </style>
 
 {% block js %}
 <script>
