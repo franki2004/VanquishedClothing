@@ -6,7 +6,7 @@ from .models import Review
 from store.models import Product
 from .forms import UserFieldUpdateForm, AddressForm, LoginForm, RegisterForm, ReviewForm
 from django.core.paginator import Paginator
-from .utils import send_activation_email
+from .utils import send_activation_email, can_send_activation
 from django.utils.http import urlsafe_base64_decode
 from .tokens import account_activation_token
 from django.views.decorators.http import require_POST
@@ -29,22 +29,15 @@ def register_view(request):
         ).first() if email else None
 
         if pending_user:
-            try:
-                send_activation_email(request, pending_user)
-                messages.success(
-                    request,
-                    "We've sent another activation email. Please check your inbox."
-                )
-            except Exception:
-                logger.exception(
-                    "Failed to resend activation email for pending registration."
-                )
-                messages.warning(
-                    request,
-                    "Your account is still awaiting activation. "
-                    "We couldn't send the email right now. Please try again later."
-                )
-
+            if can_send_activation(pending_user):
+                try:
+                    send_activation_email(request, pending_user)
+                except Exception:
+                    logger.exception("Failed to resend activation email for pending registration.")
+            messages.success(
+                request,
+                "If this account is awaiting activation, an activation email has been sent."
+            )
             return redirect("activation_sent")
 
         form = RegisterForm(request.POST)
@@ -54,15 +47,18 @@ def register_view(request):
             user.is_active = False
             user.save()
 
-            try:
-                send_activation_email(request, user)
-            except Exception:
-                logger.exception("Failed to send activation email.")
-                messages.warning(
-                    request,
-                    "Your account was created, but we couldn't send the "
-                    "activation email. You can request another email."
-                )
+            request.session["pending_activation_email"] = user.email
+
+            if can_send_activation(user):
+                try:
+                    send_activation_email(request, user)
+                except Exception:
+                    logger.exception("Failed to send activation email.")
+                    messages.warning(
+                        request,
+                        "Your account was created, but we couldn't send the "
+                        "activation email. Try again using the button below."
+                    )
 
             return redirect("activation_sent")
     else:
@@ -70,60 +66,68 @@ def register_view(request):
 
     return render(request, "accounts/register.html", {"form": form})
 
-
 def resend_activation_view(request):
-    if request.method == "POST":
-        email = request.POST.get("email", "").strip().lower()
+    if request.method != "POST":
+        return redirect("login")
 
-        pending_user = User.objects.filter(
-            email__iexact=email,
-            is_active=False,
-        ).first() if email else None
+    email = request.session.get("pending_activation_email")
+    user = (
+        User.objects.filter(email__iexact=email, is_active=False).first()
+        if email else None
+    )
 
-        if pending_user:
-            try:
-                send_activation_email(request, pending_user)
-            except Exception:
-                logger.exception("Failed to send a resent activation email.")
+    if not user:
+        return redirect("login")
 
-        # Use the same response whether or not a pending account exists.
-        messages.success(
+    if not can_send_activation(user):
+        messages.warning(
             request,
-            "If an account with that email is awaiting activation, "
-            "an activation email will be sent. Please check your inbox "
-            "and spam folder."
+            "An activation email was sent a moment ago. "
+            "Please wait a minute before requesting another."
         )
         return redirect("activation_sent")
 
-    return render(request, "accounts/resend_activation.html")
+    try:
+        send_activation_email(request, user)
+        messages.success(request, "A new activation email is on its way.")
+    except Exception:
+        logger.exception("Failed to send a resent activation email.")
+        messages.error(request, "We couldn't send the email right now. Please try again later.")
+
+    return redirect("activation_sent")
+
 
 def activation_sent_view(request):
-    return render(request, "accounts/activation_sent.html")
+    return render(request, "accounts/activation_sent.html", {
+        "can_resend": bool(request.session.get("pending_activation_email")),
+    })
+
 
 def login_view(request):
+    show_resend_activation = False
+
     if request.method == "POST":
         form = LoginForm(request.POST)
 
         if form.is_valid():
             login(request, form.cleaned_data["user"])
             return redirect("home")
+
+        errors = form.errors.as_data().get("__all__", [])
+        if any(error.code == "account_inactive" for error in errors):
+            show_resend_activation = True
+            request.session["pending_activation_email"] = (
+                form.cleaned_data.get("email", "").strip().lower()
+            )
     else:
         form = LoginForm()
-
-    show_resend_activation = (
-        form.errors.get("__all__")
-        and any(
-            error.code == "account_inactive"
-            for error in form.errors.as_data().get("__all__", [])
-        )
-    )
 
     return render(
         request,
         "accounts/login.html",
         {
             "form": form,
-            "show_resend_activation": bool(show_resend_activation),
+            "show_resend_activation": show_resend_activation,
         },
     )
 
@@ -144,6 +148,7 @@ def activate(request, uidb64, token):
         user.save()
 
         login(request, user)
+        request.session.pop("pending_activation_email", None)
         return redirect("home")
 
     return redirect("login")

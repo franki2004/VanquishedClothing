@@ -36,15 +36,15 @@
         </div>
         {% endif %}
         {% if show_resend_activation %}
-          <div class="mt-4">
-              <a href="{% url 'resend_activation' %}"
-                 class="inline-block border border-black px-4 py-2
-                        text-xs uppercase tracking-widest
-                        hover:bg-black hover:text-white ">
-                  Resend activation email
-              </a>
-          </div>
-      {% endif %}
+            <button
+                type="submit"
+                form="resend-form"
+                formnovalidate
+                class="w-full cursor-pointer border border-black px-4 py-3 text-xs font-semibold uppercase tracking-widest transition-colors hover:bg-black hover:text-white"
+            >
+                Resend activation email
+            </button>
+            {% endif %}
 
         <!-- FORM FIELDS -->
         {% for field in form %}
@@ -126,6 +126,11 @@
         </p>
 
     </form>
+    {% if show_resend_activation %}
+        <form id="resend-form" method="post" action="{% url 'resend_activation' %}">
+            {% csrf_token %}
+        </form>
+        {% endif %}
 </div>
 {% block js %}
 <script src="{% static 'js/login.js' %}"></script>

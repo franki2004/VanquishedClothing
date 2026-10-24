@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+  <title>{% block title %}Vanquished Clothing{% endblock %}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f3f4f6;-webkit-text-size-adjust:100%;">
+
+  <!-- Preview text shown next to the subject in the inbox -->
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#f3f4f6;font-size:1px;line-height:1px;">
+    {% block preheader %}{% endblock %}
+    &nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f3f4f6;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+
+        <!-- CARD -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+               style="max-width:520px;background-color:#ffffff;">
+
+          <!-- HEADER -->
+          <tr>
+            <td align="center" style="background-color:#000000;padding:28px 24px;">
+              <span style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:bold;letter-spacing:6px;text-transform:uppercase;color:#ffffff;">
+                Vanquished
+              </span>
+            </td>
+          </tr>
+
+          <!-- HEADING -->
+          <tr>
+            <td align="center" style="padding:44px 36px 0 36px;">
+              <p style="margin:0 0 12px 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#6b7280;">
+                {% block eyebrow %}{% endblock %}
+              </p>
+              <h1 style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:26px;line-height:32px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#000000;">
+                {% block heading %}{% endblock %}
+              </h1>
+            </td>
+          </tr>
+
+          <!-- INTRO -->
+          <tr>
+            <td align="center" style="padding:20px 36px 0 36px;">
+              <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:24px;color:#4b5563;">
+                {% block intro %}{% endblock %}
+              </p>
+            </td>
+          </tr>
+
+          <!-- BUTTON -->
+          <tr>
+            <td align="center" style="padding:32px 36px 0 36px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" bgcolor="#000000" style="background-color:#000000;">
+                    <a href="{{ link }}"
+                       style="display:inline-block;padding:16px 36px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;letter-spacing:3px;text-transform:uppercase;color:#ffffff;text-decoration:none;border:1px solid #000000;">
+                      {% block button_label %}Continue{% endblock %}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- EXPIRY NOTE -->
+          <tr>
+            <td align="center" style="padding:20px 36px 0 36px;">
+              <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;color:#6b7280;">
+                {% block expiry %}This link is valid for {{ expiry_days }} day{{ expiry_days|pluralize }}.{% endblock %}
+              </p>
+            </td>
+          </tr>
+
+          <!-- DIVIDER -->
+          <tr>
+            <td style="padding:32px 36px 0 36px;">
+              <div style="height:1px;line-height:1px;background-color:#e5e7eb;">&nbsp;</div>
+            </td>
+          </tr>
+
+          <!-- FALLBACK LINK -->
+          <tr>
+            <td style="padding:24px 36px 0 36px;">
+              <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;color:#6b7280;">
+                Button not working? Copy and paste this link into your browser:
+              </p>
+              <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;word-break:break-all;">
+                <a href="{{ link }}" style="color:#000000;text-decoration:underline;">{{ link }}</a>
+              </p>
+            </td>
+          </tr>
+
+          <!-- FOOTNOTE -->
+          <tr>
+            <td style="padding:20px 36px 40px 36px;">
+              <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;color:#6b7280;">
+                {% block footnote %}{% endblock %}
+              </p>
+            </td>
+          </tr>
+
+        </table>
+
+        <!-- FOOTER -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;">
+          <tr>
+            <td align="center" style="padding:24px 16px 0 16px;">
+              <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#9ca3af;">
+                &copy; 2026 Vanquished Clothing
+              </p>
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

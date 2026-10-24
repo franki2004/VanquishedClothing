@@ -9,6 +9,7 @@ from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
 from .models import Review
+from django.conf import settings
 
 User = get_user_model()
 
@@ -113,9 +114,9 @@ class LoginForm(forms.Form):
 
         if user and user.check_password(password):
             if not user.is_active:
-                raise ValidationError(
+                 raise ValidationError(
                     "Your account is awaiting email activation. "
-                    "Use the resend activation link below to receive another email.",
+                    "Check your inbox, or resend the activation email below.",
                     code="account_inactive",
                 )
 
@@ -241,8 +242,26 @@ class StyledPasswordResetForm(PasswordResetForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["email"].widget.attrs.update({
-            "class": TAILWIND_INPUT_CLASSES
+            "class": TAILWIND_INPUT_CLASSES,
+            "placeholder": "Enter a registered email"
         })
+
+    def clean_new_password1(self):
+        password = self.cleaned_data.get("new_password1")
+
+        if password:
+            errors = []
+            if len(password) < 8:
+                errors.append("Password must be at least 8 characters")
+            if not re.search(r'[A-Z]', password):
+                errors.append("Password must contain at least 1 uppercase letter")
+            if not re.search(r'[a-z]', password):
+                errors.append("Password must contain at least 1 lowercase letter")
+            if not re.search(r'\d', password):
+                errors.append("Password must contain at least 1 number")
+            if errors:
+                raise forms.ValidationError(errors)
+        return password
 
     def send_mail(self, subject_template_name, email_template_name,
                   context, from_email, to_email,
@@ -257,17 +276,29 @@ class StyledPasswordResetForm(PasswordResetForm):
 
         reset_link = f"{protocol}://{domain}/account/reset/{uid}/{token}/"
 
+        expiry_days = settings.PASSWORD_RESET_TIMEOUT // 86400
+
         html = render_to_string(
             "accounts/password_reset_email.html",
             {
-                "reset_link": reset_link,
+                "link": reset_link,
                 "email": to_email,
+                "expiry_days": expiry_days,
             }
+        )
+
+        text = (
+            "Reset your Vanquished password\n\n"
+            "We received a request to reset the password for "
+            f"{to_email}. Use the link below to choose a new one:\n"
+            f"{reset_link}\n\n"
+            f"This link is valid for {expiry_days} day(s).\n"
+            "If you didn't request this, you can ignore this email."
         )
 
         msg = EmailMultiAlternatives(
             subject="Reset your Vanquished password",
-            body="Reset your password using the link.",
+            body=text,
             from_email=from_email,
             to=[to_email],
         )

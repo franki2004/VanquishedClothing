@@ -48,6 +48,20 @@
             </p>
         </div>
 
+        <!-- MESSAGES -->
+        {% if messages %}
+        <div class="mt-8 space-y-2">
+            {% for message in messages %}
+            <div class="border px-4 py-3 text-sm
+                {% if message.tags == 'error' %}border-red-200 bg-red-50 text-red-700
+                {% elif message.tags == 'warning' %}border-yellow-200 bg-yellow-50 text-yellow-800
+                {% else %}border-green-200 bg-green-50 text-green-700{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
         <!-- INSTRUCTIONS -->
         <div class="mt-10 border-y border-gray-200 py-7">
             <div class="flex items-start gap-5">
@@ -90,6 +104,16 @@
             Can't find the email? Check your spam or junk folder.
             Make sure you allow a few minutes for delivery.
         </p>
+        
+        {% if can_resend %}
+            <form method="post" action="{% url 'resend_activation' %}" class="mt-6 text-center">
+                {% csrf_token %}
+                <button type="submit"
+                        class="cursor-pointer text-xs uppercase tracking-widest text-gray-600 underline underline-offset-4 transition-colors hover:text-black">
+                    Didn't get it? Resend email
+                </button>
+            </form>
+            {% endif %}
 
         <!-- ACTIONS -->
         <div class="mt-9 flex flex-col gap-3 sm:flex-row">
