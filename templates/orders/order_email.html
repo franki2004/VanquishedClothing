@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Order #{{ order.id }}</title>
+    </head>
+    <body style="margin:0;padding:0;background-color:#f3f4f6;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f3f4f6;">
+        <tr>
+          <td align="center" style="padding:40px 16px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;background-color:#ffffff;">
+    
+              <tr>
+                <td align="center" style="background-color:#000000;padding:28px 24px;">
+                  <span style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:bold;letter-spacing:6px;text-transform:uppercase;color:#ffffff;">Vanquished</span>
+                </td>
+              </tr>
+    
+              <tr>
+                <td align="center" style="padding:40px 36px 0 36px;font-family:Arial,Helvetica,sans-serif;">
+                  <p style="margin:0 0 12px 0;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#6b7280;">
+                    Order #{{ order.id }}
+                  </p>
+                  <h1 style="margin:0;font-size:24px;line-height:30px;text-transform:uppercase;color:#000000;">
+                    {% if order.status == "pending" %}We received your order
+                    {% elif order.status == "accepted" %}Your order is accepted
+                    {% elif order.status == "denied" %}Your order was declined{% endif %}
+                  </h1>
+                  <p style="margin:16px 0 0 0;font-size:15px;line-height:24px;color:#4b5563;">
+                    {% if order.status == "pending" %}
+                      Thanks, {{ order.full_name }}! We'll review your order and email you as soon as it's confirmed.
+                    {% elif order.status == "accepted" %}
+                      Good news, {{ order.full_name }}! Your order has been accepted and is being prepared.
+                    {% elif order.status == "denied" %}
+                      Unfortunately we couldn't accept your order, {{ order.full_name }}.
+                    {% endif %}
+                  </p>
+                  {% if order.status == "denied" and order.comment %}
+                  <p style="margin:16px 0 0 0;font-size:14px;line-height:22px;color:#b91c1c;">
+                    Reason: {{ order.comment }}
+                  </p>
+                  {% endif %}
+                </td>
+              </tr>
+    
+              <!-- ITEMS -->
+              <tr>
+                <td style="padding:32px 36px 0 36px;font-family:Arial,Helvetica,sans-serif;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    {% for item in items %}
+                    <tr>
+                      <td style="padding:10px 0;border-bottom:1px solid #e5e7eb;font-size:14px;color:#111827;">
+                        {{ item.variant.product.name }}
+                        <div style="font-size:12px;color:#6b7280;">Size {{ item.variant.size }} × {{ item.quantity }}</div>
+                      </td>
+                      <td align="right" style="padding:10px 0;border-bottom:1px solid #e5e7eb;font-size:14px;color:#111827;white-space:nowrap;">
+                        €{{ item.total_price|floatformat:2 }}
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </table>
+                </td>
+              </tr>
+    
+              <!-- TOTALS -->
+              <tr>
+                <td style="padding:16px 36px 0 36px;font-family:Arial,Helvetica,sans-serif;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size:14px;color:#4b5563;">
+                    <tr><td style="padding:3px 0;">Subtotal</td><td align="right">€{{ order.subtotal }}</td></tr>
+                    <tr><td style="padding:3px 0;">Delivery</td><td align="right">€{{ order.delivery_fee }}</td></tr>
+                    {% if order.cod_fee and order.cod_fee != 0 %}
+                    <tr><td style="padding:3px 0;">Cash on delivery fee</td><td align="right">€{{ order.cod_fee }}</td></tr>
+                    {% endif %}
+                    <tr><td style="padding:10px 0 0 0;font-weight:bold;color:#000000;">Total</td><td align="right" style="padding:10px 0 0 0;font-weight:bold;color:#000000;">€{{ order.total }}</td></tr>
+                  </table>
+                </td>
+              </tr>
+    
+              <!-- DELIVERY -->
+              <tr>
+                <td style="padding:28px 36px 40px 36px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:20px;color:#4b5563;">
+                  <strong style="color:#000000;">Delivery to</strong><br>
+                  {{ order.full_name }}<br>
+                  {{ order.street }}, {{ order.city }}{% if order.postal_code %} {{ order.postal_code }}{% endif %}<br>
+                  {{ order.country }}<br>
+                  {{ order.phone }}<br>
+                  <span style="color:#000000;">Payment:</span> {{ order.get_payment_method_display }}
+                </td>
+              </tr>
+    
+            </table>
+            <p style="margin:24px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#9ca3af;">
+              &copy; 2026 Vanquished Clothing
+            </p>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>

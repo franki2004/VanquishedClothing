@@ -19,7 +19,7 @@ from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import get_user_model
 from django.db.models import Q
-
+from .emails import send_order_email
 User = get_user_model()
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
@@ -119,9 +119,6 @@ def checkout(request):
         if user else None
     )
 
-    # ---------------------------
-    # POST
-    # ---------------------------
     if request.method == "POST":
         payment_method = request.POST.get("payment_method")
         customer_form = CustomerForm(request.POST)
@@ -303,6 +300,7 @@ def checkout(request):
                     )
 
                 cart.items.all().delete()
+                transaction.on_commit(lambda: send_order_email(order)) 
                 return redirect("checkout_success_page")
 
     # ---------------------------
@@ -412,6 +410,7 @@ def stripe_webhook(request):
             ).delete()
 
             cart.items.all().delete()
+            transaction.on_commit(lambda: send_order_email(order))
 
     return HttpResponse(status=200)
 
@@ -445,11 +444,13 @@ def admin_orders(request):
 
                 order.status = "accepted"
                 order.save()
+                transaction.on_commit(lambda: send_order_email(order))
 
         elif action == "deny":
             order.status = "denied"
             order.comment = request.POST.get("comment", "")
             order.save()
+            send_order_email(order)
 
         return redirect("admin_orders")
 
