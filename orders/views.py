@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
 from django.core.paginator import Paginator
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from datetime import timedelta
 import stripe
 from django.contrib import messages
@@ -20,8 +20,11 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from .emails import send_order_email
-User = get_user_model()
+import logging
+import json
 
+User = get_user_model()
+logger = logging.getLogger(__name__)
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 RESERVATION_MINUTES = 5
@@ -46,6 +49,12 @@ def get_or_create_cart(request=None, user=None):
     cart, _ = Cart.objects.get_or_create(session_key=request.session.session_key)
     return cart
 
+def _owner_q(user, session_key):
+    if user:
+        return Q(user=user)
+    if session_key:
+        return Q(session_key=session_key, user__isnull=True)
+    return Q(pk__in=[])  
 
 # ---------------------------
 # CART
@@ -103,6 +112,9 @@ def checkout(request):
     cart = get_or_create_cart(request)
     items = cart.items.select_related("variant__product")
 
+    if not items.exists():
+        return redirect("cart")
+
     subtotal = sum((item.total_price for item in items), Decimal("0.00"))
     delivery_fee = Decimal("5.00") if 0 < subtotal < 100 else Decimal("0.00")
     total = subtotal + delivery_fee
@@ -119,101 +131,126 @@ def checkout(request):
         if user else None
     )
 
+    customer_initial = {
+        "first_name": getattr(user, "first_name", ""),
+        "last_name": getattr(user, "last_name", ""),
+        "phone": getattr(user, "phone_number", ""),
+        "email": getattr(user, "email", ""),
+    } if user else None
+
+    def render_checkout(customer_form, address_form=None, chosen=None):
+        return render(request, "store/checkout.html", {
+            "items": items,
+            "subtotal": subtotal,
+            "delivery_fee": delivery_fee,
+            "total": total,
+            "addresses": addresses,
+            "selected_address": chosen or selected_address,
+            "customer_form": customer_form,
+            "address_form": address_form,
+        })
+
     if request.method == "POST":
         payment_method = request.POST.get("payment_method")
         customer_form = CustomerForm(request.POST)
+        chosen_address = None
 
         if user:
-            # Address handling for logged-in users
             address_id = request.POST.get("address_id")
-            address_instance = (
+            chosen_address = (
                 addresses.filter(id=int(address_id)).first()
                 if address_id and address_id.isdigit()
                 else None
             )
-
-            address_form = AddressForm(request.POST or None, instance=address_instance)
             action = request.POST.get("address_action", "order")
 
-            if action == "save" and address_form.is_valid():
-                addr = address_form.save(commit=False)
-                addr.user = user
-                addr.save()
+            # --- address modal actions ---
+            if action == "save":
+                address_form = AddressForm(request.POST, instance=chosen_address)
+                if address_form.is_valid():
+                    addr = address_form.save(commit=False)
+                    addr.user = user
+                    try:
+                        addr.save()
+                    except ValueError as exc:  # e.g. max 5 addresses
+                        messages.error(request, str(exc))
+                        return render_checkout(CustomerForm(initial=customer_initial))
+                    return redirect("checkout")
+                messages.error(request, "Please check the address details and try again.")
+                return render_checkout(CustomerForm(initial=customer_initial), address_form)
+
+            if action == "delete":
+                if chosen_address:
+                    chosen_address.delete()
                 return redirect("checkout")
 
-            if action == "delete" and address_instance:
-                address_instance.delete()
-                return redirect("checkout")
+            # --- placing the order ---
+            if not chosen_address:
+                messages.error(request, "Please select a delivery address.")
+                return render_checkout(customer_form)
 
-            if not customer_form.is_valid() or not address_instance:
-                if not address_instance:
-                    customer_form.add_error(None, "Select address.")
-                return render(request, "store/checkout.html", {
-                    "items": items,
-                    "subtotal": subtotal,
-                    "delivery_fee": delivery_fee,
-                    "total": total,
-                    "addresses": addresses,
-                    "selected_address": selected_address,
-                    "customer_form": customer_form,
-                    "address_form": address_form,
-                })
+            if not customer_form.is_valid():
+                messages.error(request, "Please fix the errors in your contact details.")
+                return render_checkout(customer_form, chosen=chosen_address)
 
-            first_name = customer_form.cleaned_data["first_name"]
-            last_name = customer_form.cleaned_data["last_name"]
-            phone = customer_form.cleaned_data["phone"]
-            email = customer_form.cleaned_data["email"]
-            addr_info = address_instance
+            addr_info = chosen_address
 
         else:
-            # Guest checkout
             if not customer_form.is_valid():
-                return render(request, "store/checkout.html", {
-                    "items": items,
-                    "subtotal": subtotal,
-                    "delivery_fee": delivery_fee,
-                    "total": total,
-                    "addresses": [],
-                    "selected_address": None,
-                    "customer_form": customer_form,
-                    "address_form": None,
-                })
+                messages.error(request, "Please fix the errors in your contact details.")
+                return render_checkout(customer_form)
 
-            first_name = customer_form.cleaned_data["first_name"]
-            last_name = customer_form.cleaned_data["last_name"]
-            phone = customer_form.cleaned_data["phone"]
-            email = customer_form.cleaned_data["email"]
-            addr_info = type("Addr", (), {
-                "city": request.POST.get("city"),
-                "postal_code": request.POST.get("postal_code"),
-                "address_line": request.POST.get("street"),
-                "country": request.POST.get("country"),
-            })()
+            street = request.POST.get("street", "").strip()
+            city = request.POST.get("city", "").strip()
+            postal_code = request.POST.get("postal_code", "").strip()
+            country = request.POST.get("country", "").strip()
 
+            if not all([street, city, postal_code, country]):
+                messages.error(request, "Please fill in your full delivery address.")
+                return render_checkout(customer_form)
+
+            addr_info = SimpleNamespace(
+                id=None, city=city, postal_code=postal_code,
+                address_line=street, country=country,
+            )
+
+        if payment_method not in ("card", "cod"):
+            messages.error(request, "Please choose a payment method.")
+            return render_checkout(customer_form, chosen=chosen_address)
+
+        first_name = customer_form.cleaned_data["first_name"]
+        last_name = customer_form.cleaned_data["last_name"]
+        phone = customer_form.cleaned_data["phone"]
+        email = customer_form.cleaned_data["email"]
         full_name = f"{first_name} {last_name}"
 
         cod_fee = Decimal("0.00")
         if payment_method == "cod":
             cod_fee = (subtotal * COD_PERCENT).quantize(Decimal("0.01"))
-
         total_with_fees = (subtotal + delivery_fee + cod_fee).quantize(Decimal("0.01"))
+
+        owner_q = _owner_q(user, session_key)
 
         # ---------------------------
         # CARD (STRIPE)
         # ---------------------------
         if payment_method == "card":
             with transaction.atomic():
-                for item in items.select_for_update():
-                    variant = item.variant
-                    if variant.available_quantity() < item.quantity:
+                # drop this customer's old holds so retries don't block themselves
+                ProductVariantReservation.objects.filter(owner_q).delete()
+
+                locked_items = list(items.select_for_update())
+                for item in locked_items:
+                    if item.variant.available_quantity() < item.quantity:
                         return redirect("cart")
 
+                for item in locked_items:
                     ProductVariantReservation.objects.create(
-                        variant=variant,
-                        user=user if user else None,
+                        variant=item.variant,
+                        user=user,
                         session_key=session_key if not user else None,
                         quantity=item.quantity,
-                        reserved_until=timezone.now() + timedelta(minutes=RESERVATION_MINUTES)
+                        reserved_until=timezone.now() + timedelta(minutes=RESERVATION_MINUTES),
                     )
 
             line_items = [
@@ -238,6 +275,7 @@ def checkout(request):
                 })
 
             metadata = {
+                "cart_id": str(cart.id),
                 "user_id": str(user.id) if user else "",
                 "session_key": session_key if not user else "",
                 "first_name": first_name,
@@ -247,170 +285,217 @@ def checkout(request):
                 "city": addr_info.city,
                 "postal_code": addr_info.postal_code,
                 "street": addr_info.address_line,
-                "country": getattr(addr_info, "country", ""),
+                "country": addr_info.country,
                 "delivery_fee": str(delivery_fee),
-                "address_id": str(addr_info.id) if user else "",
             }
 
-            session = stripe.checkout.Session.create(
-                payment_method_types=["card"],
-                line_items=line_items,
-                mode="payment",
-                success_url=request.build_absolute_uri(reverse("checkout_success_page")),
-                cancel_url=request.build_absolute_uri(reverse("checkout")),
-                metadata=metadata
-            )
+            try:
+                session = stripe.checkout.Session.create(
+                    payment_method_types=["card"],
+                    line_items=line_items,
+                    mode="payment",
+                    success_url=request.build_absolute_uri(reverse("checkout_success_page")),
+                    cancel_url=request.build_absolute_uri(reverse("checkout")),
+                    metadata=metadata,
+                )
+            except Exception:
+                logger.exception("Stripe session creation failed for cart %s", cart.id)
+                ProductVariantReservation.objects.filter(owner_q).delete()
+                messages.error(
+                    request,
+                    "We couldn't start the card payment. Please try again or choose cash on delivery.",
+                )
+                return render_checkout(customer_form, chosen=chosen_address)
+
             return redirect(session.url)
 
         # ---------------------------
         # COD
         # ---------------------------
-        else:
-            with transaction.atomic():
-                for item in items.select_for_update():
-                    variant = item.variant
-                    if variant.available_quantity() < item.quantity:
-                        return redirect("cart")
-                    variant.stock -= item.quantity
-                    variant.save()
-
-                order = Order.objects.create(
-                    user=user,
-                    full_name=full_name,
-                    phone=phone,
-                    email=email,
-                    city=addr_info.city,
-                    postal_code=addr_info.postal_code,
-                    street=addr_info.address_line,
-                    country=getattr(addr_info, "country", ""),
-                    subtotal=subtotal,
-                    delivery_fee=delivery_fee,
-                    cod_fee=cod_fee,
-                    total=total_with_fees,
-                    payment_method="cod",
-                    status="pending"
-                )
-
-                for item in items:
-                    OrderItem.objects.create(
-                        order=order,
-                        variant=item.variant,
-                        quantity=item.quantity,
-                        price_snapshot=item.variant.product.final_price
-                    )
-
-                cart.items.all().delete()
-                transaction.on_commit(lambda: send_order_email(order)) 
-                return redirect("checkout_success_page")
-
-    # ---------------------------
-    # GET
-    # ---------------------------
-    customer_form = CustomerForm(initial={
-        "first_name": getattr(user, "first_name", ""),
-        "last_name": getattr(user, "last_name", ""),
-        "phone": getattr(user, "phone_number", ""),
-        "email": getattr(user, "email", "")
-    } if user else None)
-    address_form = AddressForm() if user else None
-
-    return render(request, "store/checkout.html", {
-        "items": items,
-        "subtotal": subtotal,
-        "delivery_fee": delivery_fee,
-        "total": total,
-        "addresses": addresses,
-        "selected_address": selected_address,
-        "customer_form": customer_form,
-        "address_form": address_form,
-    })
-
-# ---------------------------
-# STRIPE WEBHOOK
-# ---------------------------
-@csrf_exempt
-def stripe_webhook(request):
-    payload = request.body
-    sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
-
-    try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
-        )
-    except Exception:
-        return HttpResponse(status=400)
-
-    if event["type"] == "checkout.session.completed":
-        session = event["data"]["object"]
-        metadata = session.get("metadata", {})
-
-        user_id = metadata.get("user_id") or None
-        session_key = metadata.get("session_key") or None
-
-        user = User.objects.filter(id=user_id).first() if user_id else None
-
-        if user:
-            cart = Cart.objects.filter(user=user).first()
-        else:
-            cart = Cart.objects.filter(session_key=session_key).first()
-
-        if not cart:
-            return HttpResponse(status=200)
-
-        items = cart.items.select_related("variant__product")
-
         with transaction.atomic():
-            subtotal = Decimal("0.00")
+            ProductVariantReservation.objects.filter(owner_q).delete()
 
-            for item in items.select_for_update():
+            locked_items = list(items.select_for_update())
+
+            # check EVERYTHING first, then change stock (the old loop could
+            # commit partial stock changes before returning)
+            for item in locked_items:
+                if item.variant.available_quantity() < item.quantity:
+                    return redirect("cart")
+
+            for item in locked_items:
                 variant = item.variant
-
-                reservation = ProductVariantReservation.objects.filter(
-                    variant=variant,
-                    reserved_until__gt=timezone.now()
-                ).filter(
-                    Q(user=user) | Q(session_key=session_key)
-                ).first()
-
-                if not reservation or reservation.quantity < item.quantity:
-                    continue
-
                 variant.stock -= item.quantity
-                variant.save()
-
-                reservation.delete()
-                subtotal += item.total_price
+                variant.save(update_fields=["stock"])
 
             order = Order.objects.create(
                 user=user,
-                full_name=f"{metadata.get('first_name','')} {metadata.get('last_name','')}".strip(),
-                phone=metadata.get("phone"),
-                email=metadata.get("email") or "", 
-                street=metadata.get("street"),
-                city=metadata.get("city"),
-                postal_code=metadata.get("postal_code"),
-                country=metadata.get("country"),
+                full_name=full_name,
+                phone=phone,
+                email=email,
+                city=addr_info.city,
+                postal_code=addr_info.postal_code,
+                street=addr_info.address_line,
+                country=addr_info.country,
                 subtotal=subtotal,
-                delivery_fee=Decimal(metadata.get("delivery_fee", "0.00")),
-                total=Decimal(session["amount_total"]) / 100,
-                payment_method="card",
-                status="accepted"
+                delivery_fee=delivery_fee,
+                cod_fee=cod_fee,
+                total=total_with_fees,
+                payment_method="cod",
+                status="pending",
             )
 
-            for item in items:
+            for item in locked_items:
                 OrderItem.objects.create(
                     order=order,
                     variant=item.variant,
                     quantity=item.quantity,
-                    price_snapshot=item.variant.product.final_price
+                    price_snapshot=item.variant.product.final_price,
                 )
-
-            ProductVariantReservation.objects.filter(
-                Q(user=user) | Q(session_key=session_key)
-            ).delete()
 
             cart.items.all().delete()
             transaction.on_commit(lambda: send_order_email(order))
+
+        return redirect("checkout_success_page")
+
+    # ---------------------------
+    # GET
+    # ---------------------------
+    return render_checkout(
+        CustomerForm(initial=customer_initial),
+        AddressForm() if user else None,
+    )
+
+# ---------------------------
+# STRIPE WEBHOOK
+# ---------------------------
+def _fulfil_card_order(session):
+    """Create the order for a paid Stripe Checkout session."""
+    session_id = session["id"]
+    metadata = session.get("metadata") or {}
+
+    # already processed (Stripe retries deliveries)
+    if Order.objects.filter(stripe_session_id=session_id).exists():
+        return
+
+    cart_id = str(metadata.get("cart_id") or "")
+    cart = Cart.objects.filter(id=int(cart_id)).first() if cart_id.isdigit() else None
+    if not cart:
+        logger.error("Stripe session %s PAID but cart %r was not found - needs manual review",
+                     session_id, cart_id)
+        return
+
+    user_id = metadata.get("user_id")
+    user = User.objects.filter(id=user_id).first() if user_id else None
+    session_key = metadata.get("session_key") or None
+
+    try:
+        delivery_fee = Decimal(metadata.get("delivery_fee") or "0.00")
+    except InvalidOperation:
+        delivery_fee = Decimal("0.00")
+
+    amount_total = (Decimal(session.get("amount_total") or 0) / 100).quantize(Decimal("0.01"))
+
+    with transaction.atomic():
+        items = list(cart.items.select_related("variant__product").select_for_update())
+        if not items:
+            logger.error("Stripe session %s PAID but cart %s is empty - needs manual review",
+                         session_id, cart.id)
+            return
+
+        subtotal = sum((i.total_price for i in items), Decimal("0.00"))
+
+        # The customer already paid. If real stock is short, don't touch stock;
+        # create the order as "pending" so an admin can review/refund it.
+        short = [i for i in items if i.variant.stock < i.quantity]
+        if short:
+            status = "pending"
+            comment = (
+                "PAID BY CARD - stock problem: "
+                + ", ".join(str(i.variant) for i in short)
+                + f". Check/refund in Stripe ({session_id})."
+            )
+            logger.error("Stripe session %s paid but stock is short: %s", session_id, comment)
+        else:
+            status = "accepted"
+            comment = ""
+            for item in items:
+                variant = item.variant
+                variant.stock -= item.quantity
+                variant.save(update_fields=["stock"])
+
+        # .get(key, "") because Stripe drops empty metadata values
+        order = Order.objects.create(
+            user=user,
+            full_name=f"{metadata.get('first_name', '')} {metadata.get('last_name', '')}".strip(),
+            phone=metadata.get("phone", ""),
+            email=metadata.get("email", ""),
+            street=metadata.get("street", ""),
+            city=metadata.get("city", ""),
+            postal_code=metadata.get("postal_code", ""),
+            country=metadata.get("country", ""),
+            subtotal=subtotal,
+            delivery_fee=delivery_fee,
+            total=amount_total,
+            payment_method="card",
+            status=status,
+            comment=comment,
+            stripe_session_id=session_id,
+        )
+
+        for item in items:
+            OrderItem.objects.create(
+                order=order,
+                variant=item.variant,
+                quantity=item.quantity,
+                price_snapshot=item.variant.product.final_price,
+            )
+
+        ProductVariantReservation.objects.filter(_owner_q(user, session_key)).delete()
+        cart.items.all().delete()
+        transaction.on_commit(lambda: send_order_email(order))
+
+
+@csrf_exempt
+@require_POST
+def stripe_webhook(request):
+    if not settings.STRIPE_WEBHOOK_SECRET:
+        logger.error("STRIPE_WEBHOOK_SECRET is not set")
+        return HttpResponse(status=500)
+
+    payload = request.body
+    sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
+    if not sig_header:
+        logger.warning("Stripe webhook called without a signature header")
+        return HttpResponse(status=400)
+
+    try:
+        # verifies the signature; afterwards we read the payload as plain JSON
+        stripe.Webhook.construct_event(payload, sig_header, settings.STRIPE_WEBHOOK_SECRET)
+        event = json.loads(payload)
+    except Exception as exc:
+        logger.warning("Stripe webhook rejected (signature/payload): %s", exc)
+        return HttpResponse(status=400)
+
+    if event.get("type") != "checkout.session.completed":
+        return HttpResponse(status=200)
+
+    session = event["data"]["object"]
+    session_id = session.get("id")
+
+    if session.get("payment_status") != "paid":
+        logger.warning("Stripe session %s completed but payment_status=%s",
+                       session_id, session.get("payment_status"))
+        return HttpResponse(status=200)
+
+    try:
+        _fulfil_card_order(session)
+    except Exception:
+        # a concurrent duplicate delivery already created it
+        if Order.objects.filter(stripe_session_id=session_id).exists():
+            return HttpResponse(status=200)
+        logger.exception("Failed to create order for Stripe session %s", session_id)
+        return HttpResponse(status=500)  # Stripe will retry
 
     return HttpResponse(status=200)
 

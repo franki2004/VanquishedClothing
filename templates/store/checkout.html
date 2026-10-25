@@ -16,7 +16,13 @@
     <!-- LEFT -->
     <div class="lg:col-span-2 space-y-10">
       <h1 class="text-3xl font-semibold">Checkout</h1>
-
+              {% if messages %}
+        {% for message in messages %}
+          <div class="px-4 py-3 text-sm border {% if message.tags == 'error' %}border-red-200 bg-red-50 text-red-700{% else %}border-green-200 bg-green-50 text-green-700{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
       <!-- CUSTOMER -->
       <div class="bg-white border p-6 shadow-sm">
         <h2 class="text-lg font-semibold mb-4">Customer</h2>
@@ -70,8 +76,8 @@
             value="{{ customer_form.email.value|default:'' }}"
             required
           >
-          {% if customer_form and customer_form.phone.errors %}
-            <p class="text-red-600 text-sm mt-1">{{ customer_form.email.errors.0 }}</p>
+          {% if customer_form and customer_form.email.errors %}
+          <p class="text-red-600 text-sm mt-1">{{ customer_form.email.errors.0 }}</p>
           {% endif %}
         </div>
       </div>

@@ -47,7 +47,8 @@ class Order(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     comment = models.TextField(blank=True)
-
+    stripe_session_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    
     class Meta:
         ordering = ["-created_at"]
 
