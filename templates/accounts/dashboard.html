@@ -56,7 +56,15 @@
       Log out
     </button>
   </header>
-
+  {% if messages %}
+    <div class="mt-6 space-y-2">
+      {% for message in messages %}
+        <div class="px-4 py-3 text-sm border {% if message.tags == 'error' %}border-red-200 bg-red-50 text-red-700{% else %}border-green-200 bg-green-50 text-green-700{% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
   <!-- TABS -->
   <nav class="flex border-b border-gray-200 mt-8 overflow-x-auto" role="tablist">
     <button
@@ -96,7 +104,7 @@
   <section x-show="tab === 'orders'" x-cloak class="mt-8 space-y-4">
 
     {% for order in orders %}
-    <article class="border border-gray-200" x-data="{ open: false }">
+      <article class="border border-gray-200" x-data="{ open: false, returning: false }">
 
       <button
         type="button"
@@ -167,12 +175,61 @@
               <a href="{% url 'product' item.variant.product.id %}" class="font-medium hover:underline">
                 {{ item.variant.product.name }}
               </a>
-              <p class="text-sm text-gray-500">Size {{ item.variant.size }} · Qty {{ item.quantity }}</p>
+            <p class="text-sm text-gray-500">Size {{ item.variant.size }} · Qty {{ item.quantity }}</p>
+              {% if item.return_requested %}
+                <span class="inline-block mt-1 px-2 py-0.5 text-xs
+                  {% if item.return_status == 'approved' %}bg-green-100 text-green-800
+                  {% elif item.return_status == 'rejected' %}bg-red-100 text-red-800
+                  {% else %}bg-orange-100 text-orange-800{% endif %}">
+                  {{ item.get_return_status_display }}
+                </span>
+                {% if item.return_status == "rejected" and item.return_admin_comment %}
+                  <p class="text-xs text-red-700 mt-1">{{ item.return_admin_comment }}</p>
+                {% endif %}
+              {% endif %}
             </div>
             <p class="font-medium">€{{ item.total_price|floatformat:2 }}</p>
           </div>
           {% endwith %}
           {% endfor %}
+          {% if order.can_request_return and order.returnable_items %}
+            <div class="border-t border-gray-200 pt-4">
+              <button type="button" x-show="!returning" @click="returning = true"
+                      class="border border-black px-4 py-2 text-sm hover:bg-black hover:text-white transition cursor-pointer">
+                Request a return
+              </button>
+  
+              <form method="POST" action="{% url 'request_return' order.id %}"
+                    x-show="returning" x-cloak class="space-y-4">
+                {% csrf_token %}
+                <p class="text-sm font-medium">Select the items you want to return</p>
+  
+                {% for item in order.returnable_items %}
+                <label class="flex items-center gap-3 text-sm cursor-pointer">
+                  <input type="checkbox" name="item_ids" value="{{ item.id }}" class="accent-black">
+                  {{ item.variant.product.name }} · Size {{ item.variant.size }} · Qty {{ item.quantity }}
+                </label>
+                {% endfor %}
+  
+                <textarea name="reason" rows="3" required minlength="5"
+                          placeholder="Why are you returning this?"
+                          class="w-full border border-gray-300 p-3 text-sm outline-none focus:border-black"></textarea>
+  
+                <p class="text-xs text-gray-500">
+                  You can request a return until {{ order.return_deadline|date:"j M Y" }}.
+                </p>
+  
+                <div class="flex gap-3">
+                  <button type="submit" class="bg-black text-white px-5 py-2 text-sm cursor-pointer">Send request</button>
+                  <button type="button" @click="returning = false" class="border px-5 py-2 text-sm cursor-pointer">Cancel</button>
+                </div>
+              </form>
+            </div>
+            {% elif order.status == "completed" and not order.can_request_return %}
+            <p class="text-xs text-gray-500 border-t border-gray-200 pt-4">
+              The 14-day return window for this order has closed.
+            </p>
+            {% endif %}
         </div>
 
         <!-- info + totals -->

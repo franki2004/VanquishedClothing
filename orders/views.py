@@ -19,15 +19,16 @@ from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import get_user_model
 from django.db.models import Q
-from .emails import send_order_email
+from .emails import send_order_email, send_return_email
 import logging
 import json
+from types import SimpleNamespace
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
-RESERVATION_MINUTES = 5
+RESERVATION_MINUTES = 10
 COD_PERCENT = Decimal("0.03")
 
 
@@ -123,8 +124,10 @@ def checkout(request):
 
     if not request.session.session_key:
         request.session.create()
-    session_key = request.session.session_key
 
+    session_key = request.session.session_key
+    owner_q = _owner_q(user, session_key)
+    
     addresses = user.addresses.all() if user else []
     selected_address = (
         addresses.filter(is_default=True).first() or addresses.first()
@@ -229,7 +232,7 @@ def checkout(request):
             cod_fee = (subtotal * COD_PERCENT).quantize(Decimal("0.01"))
         total_with_fees = (subtotal + delivery_fee + cod_fee).quantize(Decimal("0.01"))
 
-        owner_q = _owner_q(user, session_key)
+
 
         # ---------------------------
         # CARD (STRIPE)
@@ -297,6 +300,7 @@ def checkout(request):
                     success_url=request.build_absolute_uri(reverse("checkout_success_page")),
                     cancel_url=request.build_absolute_uri(reverse("checkout")),
                     metadata=metadata,
+                    customer_email=email
                 )
             except Exception:
                 logger.exception("Stripe session creation failed for cart %s", cart.id)
@@ -317,16 +321,10 @@ def checkout(request):
 
             locked_items = list(items.select_for_update())
 
-            # check EVERYTHING first, then change stock (the old loop could
-            # commit partial stock changes before returning)
             for item in locked_items:
                 if item.variant.available_quantity() < item.quantity:
                     return redirect("cart")
 
-            for item in locked_items:
-                variant = item.variant
-                variant.stock -= item.quantity
-                variant.save(update_fields=["stock"])
 
             order = Order.objects.create(
                 user=user,
@@ -361,6 +359,7 @@ def checkout(request):
     # ---------------------------
     # GET
     # ---------------------------
+    ProductVariantReservation.objects.filter(owner_q).delete()
     return render_checkout(
         CustomerForm(initial=customer_initial),
         AddressForm() if user else None,
@@ -470,12 +469,20 @@ def stripe_webhook(request):
         return HttpResponse(status=400)
 
     try:
-        # verifies the signature; afterwards we read the payload as plain JSON
         stripe.Webhook.construct_event(payload, sig_header, settings.STRIPE_WEBHOOK_SECRET)
         event = json.loads(payload)
     except Exception as exc:
         logger.warning("Stripe webhook rejected (signature/payload): %s", exc)
         return HttpResponse(status=400)
+
+    if event.get("type") == "checkout.session.expired":
+        meta = event["data"]["object"].get("metadata") or {}
+        uid = meta.get("user_id")
+        user = User.objects.filter(id=uid).first() if uid else None
+        ProductVariantReservation.objects.filter(
+            _owner_q(user, meta.get("session_key") or None)
+        ).delete()
+        return HttpResponse(status=200)
 
     if event.get("type") != "checkout.session.completed":
         return HttpResponse(status=200)
@@ -495,7 +502,7 @@ def stripe_webhook(request):
         if Order.objects.filter(stripe_session_id=session_id).exists():
             return HttpResponse(status=200)
         logger.exception("Failed to create order for Stripe session %s", session_id)
-        return HttpResponse(status=500)  # Stripe will retry
+        return HttpResponse(status=500)
 
     return HttpResponse(status=200)
 
@@ -503,17 +510,89 @@ def checkout_success_page(request):
     return render(request, "store/checkout_success.html")
 
 # ---------------------------
-# ADMIN ORDERS -- 
+# RETURNS (customer)
 # ---------------------------
-@staff_member_required 
+@login_required
+@require_POST
+def request_return(request, order_id):
+    order = get_object_or_404(Order, id=order_id, user=request.user)
+    back = f"{reverse('account_dashboard')}#orders"
+
+    if not order.can_request_return:
+        messages.error(request, "The return window for this order has closed or the order isn't delivered yet.")
+        return redirect(back)
+
+    item_ids = [i for i in request.POST.getlist("item_ids") if i.isdigit()]
+    reason = request.POST.get("reason", "").strip()
+
+    if not item_ids:
+        messages.error(request, "Select at least one item to return.")
+        return redirect(back)
+    if len(reason) < 5:
+        messages.error(request, "Please tell us why you're returning the item(s).")
+        return redirect(back)
+
+    with transaction.atomic():
+        items = list(
+            order.items.select_for_update()
+            .select_related("variant__product")
+            .filter(id__in=item_ids, return_requested=False)
+        )
+        if not items:
+            messages.error(request, "Those items were already returned or can't be returned.")
+            return redirect(back)
+
+        now = timezone.now()
+        for item in items:
+            item.return_requested = True
+            item.return_status = "requested"
+            item.return_reason = reason
+            item.return_requested_at = now
+            item.save(update_fields=[
+                "return_requested", "return_status", "return_reason", "return_requested_at",
+            ])
+
+    send_return_email(order, items, "requested")
+    messages.success(request, "Your return request was sent. We'll email you soon.")
+    return redirect(back)
+
+@staff_member_required
 def admin_orders(request):
     if request.method == "POST":
         action = request.POST.get("action")
-        order_id = request.POST.get("order_id")
-        order = get_object_or_404(Order, id=order_id)
+        order = get_object_or_404(Order, id=request.POST.get("order_id"))
+        next_url = request.get_full_path()
 
+        # --- mark as delivered (starts the return window) ---
+        if action == "complete":
+            if order.status == "accepted":
+                order.status = "completed"
+                order.delivered_at = timezone.now()
+                order.save(update_fields=["status", "delivered_at"])
+                messages.success(request, f"Order #{order.id} marked as delivered.")
+            return redirect(next_url)
+
+        # --- return decisions ---
+        if action in ("approve_return", "reject_return"):
+            item = get_object_or_404(
+                OrderItem.objects.select_related("variant__product"),
+                id=request.POST.get("item_id"),
+                order=order,
+                return_status="requested",
+            )
+            if action == "approve_return":
+                item.return_status = "approved"
+            else:
+                item.return_status = "rejected"
+                item.return_admin_comment = request.POST.get("comment", "").strip()
+            item.save(update_fields=["return_status", "return_admin_comment"])
+            send_return_email(order, [item], item.return_status)
+            messages.success(request, f"Return for {item.variant} {item.return_status}.")
+            return redirect(next_url)
+
+        # --- accept / deny a pending order ---
         if order.status != "pending":
-            return redirect("admin_orders")
+            return redirect(next_url)
 
         if action == "accept":
             with transaction.atomic():
@@ -522,7 +601,7 @@ def admin_orders(request):
 
                     if variant.available_quantity() < item.quantity:
                         messages.error(request, f"Not enough stock for {variant}")
-                        return redirect("admin_orders")
+                        return redirect(next_url)
 
                     variant.stock -= item.quantity
                     variant.save()
@@ -537,17 +616,17 @@ def admin_orders(request):
             order.save()
             send_order_email(order)
 
-        return redirect("admin_orders")
+        return redirect(next_url)
 
     status_filter = request.GET.get("status", "pending")
-
     orders = Order.objects.prefetch_related("items__variant__product")
 
-    if status_filter == "accepted":
-        orders = orders.filter(status="accepted").order_by("-created_at")
-    elif status_filter == "denied":
-        orders = orders.filter(status="denied").order_by("-created_at")
+    if status_filter == "returns":
+        orders = orders.filter(items__return_requested=True).distinct().order_by("-created_at")
+    elif status_filter in ("accepted", "denied", "completed"):
+        orders = orders.filter(status=status_filter).order_by("-created_at")
     else:
+        status_filter = "pending"
         orders = orders.filter(status="pending").order_by("created_at")
 
     paginator = Paginator(orders, 20)
@@ -557,4 +636,5 @@ def admin_orders(request):
         "orders": page_obj,
         "page_obj": page_obj,
         "status_filter": status_filter,
+        "pending_returns_count": OrderItem.objects.filter(return_status="requested").count(),
     })

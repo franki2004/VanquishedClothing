@@ -53,3 +53,45 @@ def send_order_email(order):
         msg.send()
     except Exception:
         logger.exception("Failed to send order email for order %s", order.id)
+
+
+RETURN_SUBJECTS = {
+    "requested": "We received your return request for order #{id}",
+    "approved": "Your return for order #{id} was approved",
+    "rejected": "Your return for order #{id} was declined",
+}
+
+RETURN_INTROS = {
+    "requested": "We received your return request and will review it shortly.",
+    "approved": (
+        "Your return request was approved. We'll contact you with instructions "
+        "for sending the products back and receiving your refund."
+    ),
+    "rejected": "Unfortunately we couldn't approve your return request.",
+}
+
+
+def send_return_email(order, items, status):
+    """Plain-text return update for the customer. Never raises."""
+    if not order.email or status not in RETURN_SUBJECTS:
+        return
+
+    try:
+        subject = RETURN_SUBJECTS[status].format(id=order.id)
+        lines = [subject, "", RETURN_INTROS[status], ""]
+        for item in items:
+            lines.append(
+                f"- {item.variant.product.name} ({item.variant.size}) x {item.quantity}"
+            )
+            if status == "rejected" and item.return_admin_comment:
+                lines.append(f"  Reason: {item.return_admin_comment}")
+
+        msg = EmailMultiAlternatives(
+            subject,
+            "\n".join(lines),
+            settings.DEFAULT_FROM_EMAIL,
+            [order.email],
+        )
+        msg.send()
+    except Exception:
+        logger.exception("Failed to send return email for order %s", order.id)

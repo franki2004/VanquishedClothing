@@ -1,7 +1,9 @@
 from django.db import models
 from django.conf import settings
 from store.models import ProductVariant
-
+from datetime import timedelta
+from django.utils import timezone
+from store.models import ProductVariant
 
 class Order(models.Model):
     STATUS_CHOICES = [
@@ -48,10 +50,31 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     comment = models.TextField(blank=True)
     stripe_session_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
-    
+    delivered_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         ordering = ["-created_at"]
 
+    RETURN_WINDOW_DAYS = 14
+
+    @property
+    def return_deadline(self):
+        if not self.delivered_at:
+            return None
+        return self.delivered_at + timedelta(days=self.RETURN_WINDOW_DAYS)
+
+    @property
+    def can_request_return(self):
+        deadline = self.return_deadline
+        return (
+            self.status == "completed"
+            and deadline is not None
+            and timezone.now() <= deadline
+        )
+
+    @property
+    def returnable_items(self):
+        return [i for i in self.items.all() if not i.return_requested]
 
 class OrderItem(models.Model):
     order = models.ForeignKey(
@@ -72,6 +95,16 @@ class OrderItem(models.Model):
     return_reason = models.TextField(blank=True)
     return_requested_at = models.DateTimeField(null=True, blank=True)
 
+    RETURN_STATUS_CHOICES = [
+        ("requested", "Return requested"),
+        ("approved", "Return approved"),
+        ("rejected", "Return declined"),
+        ]
+    return_status = models.CharField(
+        max_length=10, choices=RETURN_STATUS_CHOICES, blank=True, default=""
+    )
+    return_admin_comment = models.TextField(blank=True)
+    
     class Meta:
         unique_together = ("order", "variant")
 

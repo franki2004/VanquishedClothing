@@ -15,4 +15,19 @@ document.addEventListener("DOMContentLoaded", () => {
     denyModal.classList.add("hidden");
     denyModal.classList.remove("flex");
   });
+  const rejectModal = document.getElementById("rejectReturnModal");
+
+  document.querySelectorAll(".openRejectModal").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.getElementById("rejectOrderId").value = btn.dataset.orderId;
+      document.getElementById("rejectItemId").value = btn.dataset.itemId;
+      rejectModal.classList.remove("hidden");
+      rejectModal.classList.add("flex");
+    });
+  });
+
+  document.getElementById("closeRejectReturn")?.addEventListener("click", () => {
+    rejectModal.classList.add("hidden");
+    rejectModal.classList.remove("flex");
+  });
 });
