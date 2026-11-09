@@ -1,0 +1,208 @@
+{% extends "store/base.html" %}
+{% load static %}
+{% block title %}Order #{{ order.id }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 pt-24 pb-16">
+
+  <a href="{% url 'admin_orders' %}" class="text-sm text-gray-500 hover:text-black">← Back to orders</a>
+
+  {% if messages %}
+    <div class="mt-4 space-y-2">
+      {% for message in messages %}
+        <div class="px-4 py-2 rounded {% if message.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <!-- HEADER -->
+  <div class="flex flex-wrap items-start justify-between gap-4 mt-4 mb-8">
+    <div>
+      <div class="flex items-center gap-3">
+        <h1 class="text-2xl font-bold">Order #{{ order.id }}</h1>
+        {% include "store/_order_status_badge.html" with status=order.status label=order.get_status_display %}
+      </div>
+      <p class="text-sm text-gray-500 mt-1">Placed {{ order.created_at|date:"d M Y, H:i" }}</p>
+    </div>
+
+    <div class="flex gap-3">
+      {% if order.status == "pending" %}
+        <form method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="accept">
+          <button class="bg-green-600 text-white px-5 py-2 cursor-pointer">Accept order</button>
+        </form>
+        <button type="button" id="openDeny" class="bg-red-600 text-white px-5 py-2 cursor-pointer">Decline</button>
+      {% elif order.status == "accepted" %}
+        <form method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="complete">
+          <button class="bg-black text-white px-5 py-2 cursor-pointer">Mark as delivered</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if order.comment %}
+  <div class="mb-8 bg-red-50 text-red-800 p-4 text-sm">
+    <p class="font-medium">Note</p>
+    <p>{{ order.comment }}</p>
+  </div>
+  {% endif %}
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+    <!-- LEFT: ITEMS -->
+    <div class="lg:col-span-2 space-y-6">
+      <div class="border">
+        <div class="px-5 py-3 bg-gray-100 font-semibold text-sm">Items</div>
+
+        <ul class="divide-y">
+          {% for item in items %}
+          {% with product=item.variant.product img=item.variant.product.images.first %}
+          <li class="p-5">
+            <div class="flex gap-4">
+              <div class="w-16 h-[85px] bg-gray-100 shrink-0 overflow-hidden">
+                {% if img %}<img src="{{ img.image.url }}" alt="" class="w-full h-full object-cover">{% endif %}
+              </div>
+
+              <div class="flex-1 min-w-0 text-sm">
+                <a href="{% url 'product' product.id %}" class="font-medium hover:underline">{{ product.name }}</a>
+                <p class="text-gray-500">SKU {{ product.sku }} · Size {{ item.variant.size }}</p>
+                <p class="text-gray-500">€{{ item.price_snapshot }} × {{ item.quantity }}</p>
+                <p class="text-xs text-gray-400 mt-1">
+                  Stock: {{ item.variant.stock }} · Available: {{ item.variant.available_quantity }}
+                </p>
+              </div>
+
+              <p class="font-medium text-sm whitespace-nowrap">€{{ item.total_price|floatformat:2 }}</p>
+            </div>
+
+            {% if item.return_requested %}
+            <div class="mt-4 ml-20 text-xs space-y-1 border-l-2 border-orange-300 pl-3">
+              <span class="px-2 py-0.5 bg-orange-100 text-orange-800">{{ item.get_return_status_display }}</span>
+              {% if item.return_requested_at %}
+                <span class="text-gray-500">requested {{ item.return_requested_at|date:"d M Y" }}</span>
+              {% endif %}
+              <p class="text-gray-600">Customer reason: {{ item.return_reason }}</p>
+              {% if item.return_admin_comment %}
+                <p class="text-gray-600">Your note: {{ item.return_admin_comment }}</p>
+              {% endif %}
+
+              {% if item.return_status == "requested" %}
+              <div class="flex gap-2 pt-2">
+                <form method="POST">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="approve_return">
+                  <input type="hidden" name="item_id" value="{{ item.id }}">
+                  <button class="bg-green-600 text-white px-3 py-1 cursor-pointer">Approve return</button>
+                </form>
+                <button type="button" class="bg-red-600 text-white px-3 py-1 cursor-pointer openRejectModal"
+                        data-item-id="{{ item.id }}">
+                  Reject return
+                </button>
+              </div>
+              {% endif %}
+            </div>
+            {% endif %}
+          </li>
+          {% endwith %}
+          {% endfor %}
+        </ul>
+
+        <!-- TOTALS -->
+        <div class="border-t p-5 text-sm space-y-1">
+          <div class="flex justify-between text-gray-600"><span>Subtotal</span><span>€{{ order.subtotal }}</span></div>
+          <div class="flex justify-between text-gray-600"><span>Delivery</span><span>€{{ order.delivery_fee }}</span></div>
+          {% if order.cod_fee and order.cod_fee != 0 %}
+          <div class="flex justify-between text-gray-600"><span>Cash on delivery fee</span><span>€{{ order.cod_fee }}</span></div>
+          {% endif %}
+          <div class="flex justify-between font-semibold text-base pt-2 border-t mt-2"><span>Total</span><span>€{{ order.total }}</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: INFO -->
+    <div class="space-y-6 text-sm">
+
+      <div class="border p-5">
+        <h2 class="font-semibold mb-2">Customer</h2>
+        <p>{{ order.full_name }}</p>
+        <p class="text-gray-600">{{ order.email|default:"—" }}</p>
+        <p class="text-gray-600">{{ order.phone }}</p>
+        <p class="text-xs text-gray-400 mt-2">
+          {% if order.user %}Registered account ({{ order.user.email }}){% else %}Guest checkout{% endif %}
+        </p>
+      </div>
+
+      <div class="border p-5">
+        <h2 class="font-semibold mb-2">Delivery address</h2>
+        <p class="text-gray-600">{{ order.street }}</p>
+        <p class="text-gray-600">{{ order.city }}{% if order.postal_code %}, {{ order.postal_code }}{% endif %}</p>
+        <p class="text-gray-600">{{ order.country }}</p>
+        {% if order.additional_info %}
+          <p class="text-gray-500 mt-2">{{ order.additional_info }}</p>
+        {% endif %}
+      </div>
+
+      <div class="border p-5">
+        <h2 class="font-semibold mb-2">Payment</h2>
+        <p class="text-gray-600">{{ order.get_payment_method_display }}</p>
+        {% if order.stripe_session_id %}
+          <p class="text-xs text-gray-400 mt-2 break-all">Stripe session: {{ order.stripe_session_id }}</p>
+        {% endif %}
+      </div>
+
+      <div class="border p-5">
+        <h2 class="font-semibold mb-2">Timeline</h2>
+        <ul class="space-y-1 text-gray-600">
+          <li>Placed: {{ order.created_at|date:"d M Y, H:i" }}</li>
+          {% if order.delivered_at %}
+            <li>Delivered: {{ order.delivered_at|date:"d M Y, H:i" }}</li>
+            <li>Returns accepted until: {{ order.return_deadline|date:"d M Y" }}</li>
+          {% endif %}
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- DENY MODAL -->
+<div id="denyModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-[60]">
+  <div class="bg-white p-6 w-full max-w-md">
+    <h3 class="font-semibold mb-4">Decline Order #{{ order.id }}</h3>
+    <form method="POST">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="deny">
+      <textarea name="comment" placeholder="Reason for decline..." class="w-full border px-3 py-2 mb-4"></textarea>
+      <div class="flex justify-end gap-3">
+        <button type="button" id="closeDeny" class="border px-4 py-2 cursor-pointer">Cancel</button>
+        <button class="bg-red-600 text-white px-4 py-2 cursor-pointer">Decline</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- REJECT RETURN MODAL -->
+<div id="rejectReturnModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-[60]">
+  <div class="bg-white p-6 w-full max-w-md">
+    <h3 class="font-semibold mb-4">Reject Return</h3>
+    <form method="POST">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="reject_return">
+      <input type="hidden" name="item_id" id="rejectItemId">
+      <textarea name="comment" required placeholder="Reason for rejecting the return..."
+                class="w-full border px-3 py-2 mb-4"></textarea>
+      <div class="flex justify-end gap-3">
+        <button type="button" id="closeRejectReturn" class="border px-4 py-2 cursor-pointer">Cancel</button>
+        <button class="bg-red-600 text-white px-4 py-2 cursor-pointer">Reject</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block js %}<script src="{% static 'js/admin_orders.js' %}"></script>{% endblock %}

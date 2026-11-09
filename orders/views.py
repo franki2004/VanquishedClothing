@@ -18,7 +18,8 @@ from .forms import CustomerForm
 from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import get_user_model
-from django.db.models import Q
+from django.db.models import Q, Count, Sum, Exists, OuterRef
+from django.utils.dateparse import parse_date
 from .emails import send_order_email, send_return_email
 import logging
 import json
@@ -556,12 +557,135 @@ def request_return(request, order_id):
     messages.success(request, "Your return request was sent. We'll email you soon.")
     return redirect(back)
 
+ORDER_TABS = [
+    ("all", "All"),
+    ("pending", "Pending"),
+    ("accepted", "Accepted"),
+    ("completed", "Delivered"),
+    ("denied", "Denied"),
+    ("returns", "Returns"),
+]
+
+ORDER_SORTS = {
+    "newest": "-created_at",
+    "oldest": "created_at",
+    "total_desc": "-total",
+    "total_asc": "total",
+}
+
+
 @staff_member_required
 def admin_orders(request):
+    status_filter = request.GET.get("status", "all")
+    if status_filter not in dict(ORDER_TABS):
+        status_filter = "all"
+
+    query = request.GET.get("q", "").strip()
+    payment = request.GET.get("payment", "")
+    sort = request.GET.get("sort", "newest")
+    if sort not in ORDER_SORTS:
+        sort = "newest"
+    date_from = parse_date(request.GET.get("from") or "")
+    date_to = parse_date(request.GET.get("to") or "")
+
+    returns_exists = Exists(
+        OrderItem.objects.filter(order=OuterRef("pk"), return_requested=True)
+    )
+    pending_returns_exists = Exists(
+        OrderItem.objects.filter(order=OuterRef("pk"), return_status="requested")
+    )
+
+    orders = Order.objects.annotate(
+        item_count=Sum("items__quantity"),
+        has_return=returns_exists,
+        has_pending_return=pending_returns_exists,
+    )
+
+    # --- filters ---
+    if status_filter == "returns":
+        orders = orders.filter(has_return=True)
+    elif status_filter != "all":
+        orders = orders.filter(status=status_filter)
+
+    if payment in ("card", "cod"):
+        orders = orders.filter(payment_method=payment)
+
+    if date_from:
+        orders = orders.filter(created_at__date__gte=date_from)
+    if date_to:
+        orders = orders.filter(created_at__date__lte=date_to)
+
+    if query:
+        cond = (
+            Q(full_name__icontains=query)
+            | Q(email__icontains=query)
+            | Q(phone__icontains=query)
+            | Q(Exists(OrderItem.objects.filter(
+                order=OuterRef("pk"),
+                variant__product__name__icontains=query,
+            )))
+        )
+        order_no = query.lstrip("#")
+        if order_no.isdigit():
+            cond |= Q(id=int(order_no))
+        orders = orders.filter(cond)
+
+    orders = orders.order_by(ORDER_SORTS[sort])
+
+    # --- tab counts ---
+    status_counts = {
+        row["status"]: row["c"]
+        for row in Order.objects.order_by().values("status").annotate(c=Count("id"))
+    }
+    tab_counts = {
+        "all": sum(status_counts.values()),
+        "returns": Order.objects.filter(returns_exists).count(),
+    }
+    tabs = [
+        {"key": key, "label": label,
+         "count": tab_counts.get(key, status_counts.get(key, 0))}
+        for key, label in ORDER_TABS
+    ]
+
+    # --- querystrings for links ---
+    params = request.GET.copy()
+    params.pop("page", None)
+    page_qs = params.urlencode()      # keeps status, for pagination
+    params.pop("status", None)
+    base_qs = params.urlencode()      # without status, for the tabs
+
+    paginator = Paginator(orders, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    return render(request, "store/admin_orders.html", {
+        "orders": page_obj,
+        "page_obj": page_obj,
+        "tabs": tabs,
+        "status_filter": status_filter,
+        "query": query,
+        "payment": payment,
+        "sort": sort,
+        "date_from": date_from,
+        "date_to": date_to,
+        "page_qs": page_qs,
+        "base_qs": base_qs,
+        "pending_returns_count": OrderItem.objects.filter(return_status="requested").count(),
+        "has_filters": bool(query or payment or date_from or date_to),
+    })
+
+
+@staff_member_required
+def admin_order_detail(request, order_id):
+    order = get_object_or_404(
+        Order.objects.select_related("user").prefetch_related(
+            "items__variant__product__images"
+        ),
+        id=order_id,
+    )
+    detail_url = reverse("admin_order_detail", args=[order.id])
+
     if request.method == "POST":
         action = request.POST.get("action")
-        order = get_object_or_404(Order, id=request.POST.get("order_id"))
-        next_url = request.get_full_path()
 
         # --- mark as delivered (starts the return window) ---
         if action == "complete":
@@ -569,8 +693,8 @@ def admin_orders(request):
                 order.status = "completed"
                 order.delivered_at = timezone.now()
                 order.save(update_fields=["status", "delivered_at"])
-                messages.success(request, f"Order #{order.id} marked as delivered.")
-            return redirect(next_url)
+                messages.success(request, "Order marked as delivered.")
+            return redirect(detail_url)
 
         # --- return decisions ---
         if action in ("approve_return", "reject_return"):
@@ -588,53 +712,53 @@ def admin_orders(request):
             item.save(update_fields=["return_status", "return_admin_comment"])
             send_return_email(order, [item], item.return_status)
             messages.success(request, f"Return for {item.variant} {item.return_status}.")
-            return redirect(next_url)
+            return redirect(detail_url)
 
         # --- accept / deny a pending order ---
         if order.status != "pending":
-            return redirect(next_url)
+            return redirect(detail_url)
 
         if action == "accept":
             with transaction.atomic():
-                for item in order.items.select_related("variant"):
-                    variant = ProductVariant.objects.select_for_update().get(id=item.variant.id)
+                items = list(order.items.select_related("variant"))
+                variants = {
+                    v.id: v
+                    for v in ProductVariant.objects.select_for_update().filter(
+                        id__in=[i.variant_id for i in items]
+                    )
+                }
 
-                    if variant.available_quantity() < item.quantity:
-                        messages.error(request, f"Not enough stock for {variant}")
-                        return redirect(next_url)
+                short = [
+                    variants[i.variant_id] for i in items
+                    if variants[i.variant_id].available_quantity() < i.quantity
+                ]
+                if short:
+                    messages.error(
+                        request,
+                        "Not enough stock for: " + ", ".join(str(v) for v in short),
+                    )
+                    return redirect(detail_url)
 
+                for item in items:
+                    variant = variants[item.variant_id]
                     variant.stock -= item.quantity
-                    variant.save()
+                    variant.save(update_fields=["stock"])
 
                 order.status = "accepted"
-                order.save()
+                order.save(update_fields=["status"])
                 transaction.on_commit(lambda: send_order_email(order))
+            messages.success(request, "Order accepted.")
 
         elif action == "deny":
             order.status = "denied"
-            order.comment = request.POST.get("comment", "")
-            order.save()
+            order.comment = request.POST.get("comment", "").strip()
+            order.save(update_fields=["status", "comment"])
             send_order_email(order)
+            messages.success(request, "Order declined.")
 
-        return redirect(next_url)
+        return redirect(detail_url)
 
-    status_filter = request.GET.get("status", "pending")
-    orders = Order.objects.prefetch_related("items__variant__product")
-
-    if status_filter == "returns":
-        orders = orders.filter(items__return_requested=True).distinct().order_by("-created_at")
-    elif status_filter in ("accepted", "denied", "completed"):
-        orders = orders.filter(status=status_filter).order_by("-created_at")
-    else:
-        status_filter = "pending"
-        orders = orders.filter(status="pending").order_by("created_at")
-
-    paginator = Paginator(orders, 20)
-    page_obj = paginator.get_page(request.GET.get("page"))
-
-    return render(request, "store/admin_orders.html", {
-        "orders": page_obj,
-        "page_obj": page_obj,
-        "status_filter": status_filter,
-        "pending_returns_count": OrderItem.objects.filter(return_status="requested").count(),
+    return render(request, "store/admin_order_detail.html", {
+        "order": order,
+        "items": order.items.all(),
     })

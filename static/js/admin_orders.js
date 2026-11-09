@@ -1,33 +1,29 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const denyModal = document.getElementById("denyModal");
-  const denyOrderIdInput = document.getElementById("denyOrderId");
-  const closeBtn = document.getElementById("closeDeny");
+  function setupModal(modal) {
+    return {
+      open() { modal.classList.remove("hidden"); modal.classList.add("flex"); },
+      close() { modal.classList.add("hidden"); modal.classList.remove("flex"); },
+    };
+  }
 
-  document.querySelectorAll(".openDenyModal").forEach(btn => {
-    btn.addEventListener("click", () => {
-      denyModal.classList.remove("hidden");
-      denyModal.classList.add("flex");
-      denyOrderIdInput.value = btn.dataset.id;
+  // DECLINE ORDER
+  const denyEl = document.getElementById("denyModal");
+  if (denyEl) {
+    const deny = setupModal(denyEl);
+    document.getElementById("openDeny")?.addEventListener("click", deny.open);
+    document.getElementById("closeDeny")?.addEventListener("click", deny.close);
+  }
+
+  // REJECT RETURN
+  const rejectEl = document.getElementById("rejectReturnModal");
+  if (rejectEl) {
+    const reject = setupModal(rejectEl);
+    document.querySelectorAll(".openRejectModal").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.getElementById("rejectItemId").value = btn.dataset.itemId;
+        reject.open();
+      });
     });
-  });
-
-  closeBtn.addEventListener("click", () => {
-    denyModal.classList.add("hidden");
-    denyModal.classList.remove("flex");
-  });
-  const rejectModal = document.getElementById("rejectReturnModal");
-
-  document.querySelectorAll(".openRejectModal").forEach(btn => {
-    btn.addEventListener("click", () => {
-      document.getElementById("rejectOrderId").value = btn.dataset.orderId;
-      document.getElementById("rejectItemId").value = btn.dataset.itemId;
-      rejectModal.classList.remove("hidden");
-      rejectModal.classList.add("flex");
-    });
-  });
-
-  document.getElementById("closeRejectReturn")?.addEventListener("click", () => {
-    rejectModal.classList.add("hidden");
-    rejectModal.classList.remove("flex");
-  });
+    document.getElementById("closeRejectReturn")?.addEventListener("click", reject.close);
+  }
 });
