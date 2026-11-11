@@ -298,7 +298,8 @@ def checkout(request):
                     payment_method_types=["card"],
                     line_items=line_items,
                     mode="payment",
-                    success_url=request.build_absolute_uri(reverse("checkout_success_page")),
+                    success_url=request.build_absolute_uri(reverse("checkout_success_page"))
+                    + "?session_id={CHECKOUT_SESSION_ID}",
                     cancel_url=request.build_absolute_uri(reverse("checkout")),
                     metadata=metadata,
                     customer_email=email
@@ -355,6 +356,7 @@ def checkout(request):
             cart.items.all().delete()
             transaction.on_commit(lambda: send_order_email(order))
 
+        request.session["last_order_id"] = order.id
         return redirect("checkout_success_page")
 
     # ---------------------------
@@ -508,7 +510,30 @@ def stripe_webhook(request):
     return HttpResponse(status=200)
 
 def checkout_success_page(request):
-    return render(request, "store/checkout_success.html")
+    order = None
+    waiting_for_payment = False
+
+    session_id = request.GET.get("session_id", "")
+    if session_id:
+        # card payment: the webhook may not have created the order yet
+        order = Order.objects.filter(stripe_session_id=session_id).first()
+        waiting_for_payment = order is None
+    else:
+        # cash on delivery: order id was stored in the session at checkout
+        order_id = request.session.get("last_order_id")
+        if order_id:
+            order = Order.objects.filter(id=order_id).first()
+
+    items = (
+        order.items.select_related("variant__product").prefetch_related("variant__product__images")
+        if order else []
+    )
+
+    return render(request, "store/checkout_success.html", {
+        "order": order,
+        "items": items,
+        "waiting_for_payment": waiting_for_payment,
+    })
 
 # ---------------------------
 # RETURNS (customer)

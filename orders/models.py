@@ -76,6 +76,10 @@ class Order(models.Model):
     def returnable_items(self):
         return [i for i in self.items.all() if not i.return_requested]
 
+    @property
+    def any_return_requested(self):
+        return any(i.return_requested for i in self.items.all())
+
 class OrderItem(models.Model):
     order = models.ForeignKey(
         Order,

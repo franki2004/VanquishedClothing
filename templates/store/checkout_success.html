@@ -1,23 +1,190 @@
 {% extends "store/base.html" %}
-
-{% block title %}Order Success{% endblock %}
-
+{% load static %}
+{% block title %}Order confirmed{% endblock %}
 {% block content %}
-<div class="flex flex-col items-center justify-center min-h-[70vh] text-center px-4">
-  <!-- Checkmark -->
-  <div class="text-green-600 mb-6">
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-    </svg>
+  <style>
+  .check-circle { stroke-dasharray: 166; stroke-dashoffset: 166; animation: draw .6s ease-out forwards; }
+  .check-mark   { stroke-dasharray: 48;  stroke-dashoffset: 48;  animation: draw .4s .5s ease-out forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  </style>
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 pt-28 pb-20">
+    {% if waiting_for_payment %}
+      <!-- WAITING FOR STRIPE WEBHOOK -->
+      <div class="text-center py-20 space-y-5">
+        <div class="mx-auto w-10 h-10 border-2 border-gray-200 border-t-black rounded-full animate-spin"></div>
+        <h1 class="text-2xl font-semibold">Confirming your payment…</h1>
+        <p id="waitMsg"
+           class="text-sm text-gray-500">This usually takes a few seconds. Please don't close this page.</p>
+        <p id="slowMsg" class="hidden text-sm text-gray-600 max-w-md mx-auto">
+          This is taking longer than usual. Your payment went through, and your order will appear in
+          {% if user.is_authenticated %}<a href="{% url 'account_dashboard' %}#orders"
+                                           class="underline">your account</a>{% else %}your email inbox{% endif %}
+          shortly.
+        </p>
+      </div>
+    {% elif order %}
+      <!-- HEADER -->
+      <div class="text-center space-y-4 mb-12">
+        <svg class="mx-auto h-20 w-20 text-green-600"
+             viewBox="0 0 52 52"
+             fill="none"
+             stroke="currentColor"
+             stroke-width="2.5"
+             aria-hidden="true">
+          <circle class="check-circle" cx="26" cy="26" r="25" />
+          <path class="check-mark" d="M14 27l8 8 16-16" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <p class="text-xs uppercase tracking-[0.3em] text-gray-500">Order #{{ order.id }}</p>
+        <h1 class="text-3xl sm:text-4xl font-semibold">Thank you for your order!</h1>
+        <p class="text-gray-600 max-w-xl mx-auto text-sm leading-6">
+          {% if order.payment_method == "card" and order.status == "accepted" %}
+            Your payment was successful and your order has been accepted.
+          {% elif order.payment_method == "card" %}
+            Your payment was successful. We're reviewing your order and will email you shortly.
+          {% else %}
+            We received your order and will review it shortly. You'll pay when it arrives.
+          {% endif %}
+          {% if order.email %}A confirmation has been sent to <strong>{{ order.email }}</strong>.{% endif %}
+        </p>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+        <!-- LEFT: ITEMS + TOTALS -->
+        <div class="lg:col-span-3 border border-gray-200">
+          <div class="px-5 py-3 bg-gray-50 text-sm font-semibold">Your items</div>
+          <ul class="divide-y divide-gray-100">
+            {% for item in items %}
+              {% with img=item.variant.product.images.first %}
+                <li class="flex gap-4 p-5">
+                  {% if img %}
+                    <img src="{{ img.image.url }}"
+                         alt="{{ item.variant.product.name }}"
+                         class="w-16 aspect-[3/4] object-contain bg-gray-100 shrink-0">
+                  {% else %}
+                    <div class="w-16 aspect-[3/4] bg-gray-100 shrink-0"></div>
+                  {% endif %}
+                  <div class="flex-1 min-w-0 text-sm">
+                    <p class="font-medium">{{ item.variant.product.name }}</p>
+                    <p class="text-xs uppercase tracking-wide text-gray-500 mt-1">Size {{ item.variant.size }} · Qty {{ item.quantity }}</p>
+                  </div>
+                  <p class="text-sm font-medium whitespace-nowrap">€{{ item.total_price|floatformat:2 }}</p>
+                </li>
+              {% endwith %}
+            {% endfor %}
+          </ul>
+          <div class="border-t border-gray-200 p-5 text-sm space-y-2">
+            <div class="flex justify-between text-gray-600"><span>Subtotal</span><span>€{{ order.subtotal }}</span></div>
+            <div class="flex justify-between text-gray-600">
+              <span>Delivery</span>
+              <span>{% if order.delivery_fee == 0 %}Free{% else %}€{{ order.delivery_fee }}{% endif %}</span>
+            </div>
+            {% if order.cod_fee and order.cod_fee != 0 %}
+              <div class="flex justify-between text-gray-600"><span>Cash on delivery fee</span><span>€{{ order.cod_fee }}</span></div>
+            {% endif %}
+            <div class="flex justify-between font-semibold text-base pt-3 border-t border-gray-200">
+              <span>Total</span><span>€{{ order.total }}</span>
+            </div>
+          </div>
+        </div>
+        <!-- RIGHT: DETAILS + NEXT STEPS -->
+        <div class="lg:col-span-2 space-y-6">
+          <div class="border border-gray-200 p-5 text-sm space-y-4">
+            <div>
+              <p class="font-semibold mb-1">Delivery to</p>
+              <p class="text-gray-600">{{ order.full_name }}</p>
+              <p class="text-gray-600">{{ order.street }}, {{ order.city }}{% if order.postal_code %} {{ order.postal_code }}{% endif %}</p>
+              <p class="text-gray-600">{{ order.country }}</p>
+            </div>
+            <div>
+              <p class="font-semibold mb-1">Contact</p>
+              <p class="text-gray-600">{{ order.phone }}</p>
+            </div>
+            <div>
+              <p class="font-semibold mb-1">Payment</p>
+              <p class="text-gray-600">{{ order.get_payment_method_display }}</p>
+            </div>
+          </div>
+          <div class="border border-gray-200 p-5">
+            <p class="font-semibold text-sm mb-4">What happens next</p>
+            <ol class="space-y-4 text-sm">
+              <li class="flex gap-3">
+                <span class="w-6 h-6 shrink-0 bg-black text-white text-xs flex items-center justify-center">1</span>
+                <span class="text-gray-600"><strong class="text-black">Confirmation.</strong>
+                  {% if order.status == "accepted" %}Your order is accepted.{% else %}We review your order and email you when it's confirmed.{% endif %}
+                </span>
+              </li>
+              <li class="flex gap-3">
+                <span class="w-6 h-6 shrink-0 bg-black text-white text-xs flex items-center justify-center">2</span>
+                <span class="text-gray-600"><strong class="text-black">Preparation.</strong> We pack your items with care.</span>
+              </li>
+              <li class="flex gap-3">
+                <span class="w-6 h-6 shrink-0 bg-black text-white text-xs flex items-center justify-center">3</span>
+                <span class="text-gray-600"><strong class="text-black">Delivery.</strong> Your order is shipped to the address above.</span>
+              </li>
+            </ol>
+          </div>
+          <p class="text-xs text-gray-500">
+            Changed your mind? You can return items within 14 days of delivery.
+            See our <a href="{% url 'returns' %}"
+                       class="underline underline-offset-2">exchange &amp; returns policy</a>.
+          </p>
+        </div>
+      </div>
+      <!-- ACTIONS -->
+      <div class="mt-12 flex flex-col sm:flex-row gap-3 justify-center">
+        <a href="{% url 'new_products' %}"
+           class="flex items-center justify-center bg-black text-white px-8 py-3 text-sm tracking-wide uppercase hover:opacity-90 transition">
+          Continue shopping
+        </a>
+        {% if user.is_authenticated %}
+          <a href="{% url 'account_dashboard' %}#orders"
+             class="flex items-center justify-center border border-black px-8 py-3 text-sm tracking-wide uppercase hover:bg-black hover:text-white transition">
+            View my orders
+          </a>
+        {% else %}
+          <a href="{% url 'register' %}"
+             class="flex items-center justify-center border border-black px-8 py-3 text-sm tracking-wide uppercase hover:bg-black hover:text-white transition">
+            Create an account
+          </a>
+        {% endif %}
+      </div>
+    {% else %}
+      <!-- FALLBACK (page opened without an order) -->
+      <div class="text-center py-20 space-y-5">
+        <svg class="mx-auto h-20 w-20 text-green-600"
+             viewBox="0 0 52 52"
+             fill="none"
+             stroke="currentColor"
+             stroke-width="2.5"
+             aria-hidden="true">
+          <circle class="check-circle" cx="26" cy="26" r="25" />
+          <path class="check-mark" d="M14 27l8 8 16-16" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <h1 class="text-3xl font-semibold">Thank you for your order!</h1>
+        <p class="text-sm text-gray-600">Your order is being processed. We'll email you the details.</p>
+        <a href="{% url 'home' %}"
+           class="inline-block bg-black text-white px-8 py-3 text-sm tracking-wide uppercase hover:opacity-90 transition">
+          Back to home
+        </a>
+      </div>
+    {% endif %}
   </div>
-
-  <!-- Success message -->
-  <h1 class="text-3xl font-bold mb-2">Thank you for your order!</h1>
-  <p class="text-gray-700 mb-6">Your payment was successful and your order is being processed.</p>
-
-  <!-- Button back to home -->
-  <a href="{% url 'home' %}" class="px-6 py-3 bg-blue-600 text-white hover:bg-blue-700 transition">
-    Back to Home
-  </a>
-</div>
+  <script>
+  (function () {
+    var KEY = "checkout_success_retries";
+    try {
+      {% if waiting_for_payment %}
+        var n = parseInt(sessionStorage.getItem(KEY) || "0", 10);
+        if (n < 10) {
+          sessionStorage.setItem(KEY, n + 1);
+          setTimeout(function () { location.reload(); }, 2000);
+        } else {
+          document.getElementById("waitMsg").classList.add("hidden");
+          document.getElementById("slowMsg").classList.remove("hidden");
+        }
+      {% else %}
+        sessionStorage.removeItem(KEY);
+      {% endif %}
+    } catch (e) {}
+  })();
+  </script>
 {% endblock %}

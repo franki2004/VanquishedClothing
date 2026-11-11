@@ -4,10 +4,14 @@ from django.core.validators import RegexValidator
 
 class AddToCartForm(forms.Form):
     variant = forms.ModelChoiceField(
-        queryset=ProductVariant.objects.none(),
-        widget=forms.RadioSelect,
-        empty_label=None
-    )
+    queryset=ProductVariant.objects.none(),
+    widget=forms.RadioSelect,
+    empty_label=None,
+    error_messages={
+        "required": "Please select a size.",
+        "invalid_choice": "Please select a valid size.",
+    },
+)
 
     def __init__(self, *args, product=None, **kwargs):
         super().__init__(*args, **kwargs)

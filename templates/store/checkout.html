@@ -1,267 +1,399 @@
 {% extends "store/base.html" %}
 {% load static %}
-
 {% block title %}Checkout{% endblock %}
-
 {% block content %}
-
-<form method="POST" id="checkoutForm">
-  {% csrf_token %}
-  <input type="hidden" name="address_action" id="addressActionInput" value="order">
-  <input type="hidden" name="address_id" id="selectedAddressInput" value="{{ selected_address.id }}">
-  <input type="hidden" name="payment_method" id="paymentMethodInput" value="card">
-
-  <div class="max-w-6xl mx-auto px-6 py-16 mt-12 grid grid-cols-1 lg:grid-cols-3 gap-12">
-
-    <!-- LEFT -->
-    <div class="lg:col-span-2 space-y-10">
-      <h1 class="text-3xl font-semibold">Checkout</h1>
-              {% if messages %}
-        {% for message in messages %}
-          <div class="px-4 py-3 text-sm border {% if message.tags == 'error' %}border-red-200 bg-red-50 text-red-700{% else %}border-green-200 bg-green-50 text-green-700{% endif %}">
-            {{ message }}
-          </div>
-        {% endfor %}
-      {% endif %}
-      <!-- CUSTOMER -->
-      <div class="bg-white border p-6 shadow-sm">
-        <h2 class="text-lg font-semibold mb-4">Customer</h2>
-      
-        <div class="grid md:grid-cols-2 gap-4">
-          <div>
-            <input 
-              name="first_name"
-              class="border w-full px-3 py-2"
-              placeholder="First Name"
-              value="{{ customer_form.first_name.value|default:'' }}"
-              required
-            >
-            {% if customer_form and customer_form.first_name.errors %}
-              <p class="text-red-600 text-sm mt-1">{{ customer_form.first_name.errors.0 }}</p>
-            {% endif %}
-          </div>
-      
-          <div>
-            <input 
-              name="last_name"
-              class="border w-full px-3 py-2"
-              placeholder="Last Name"
-              value="{{ customer_form.last_name.value|default:'' }}"
-              required
-            >
-            {% if customer_form and customer_form.last_name.errors %}
-              <p class="text-red-600 text-sm mt-1">{{ customer_form.last_name.errors.0 }}</p>
-            {% endif %}
-          </div>
+  <form method="post"
+        id="checkoutForm"
+        data-auth="{% if user.is_authenticated %}true{% else %}false{% endif %}">
+    {% csrf_token %}
+    <input type="hidden" name="address_action" value="order">
+    <input type="hidden"
+           name="address_id"
+           id="selectedAddressInput"
+           value="{{ selected_address.id|default:'' }}">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 pt-28 pb-20 grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-12">
+      <!-- LEFT -->
+      <div class="lg:col-span-2 space-y-10">
+        <div class="flex items-baseline justify-between">
+          <h1 class="text-3xl font-semibold">Checkout</h1>
+          <a href="{% url 'cart' %}"
+             class="text-sm text-gray-500 hover:text-black underline underline-offset-2">← Back to bag</a>
         </div>
-      
-        <div class="mt-4">
-          <input 
-            name="phone"
-            class="border w-full px-3 py-2"
-            placeholder="Phone"
-            value="{{ customer_form.phone.value|default:'' }}"
-            required
-          >
-          {% if customer_form and customer_form.phone.errors %}
-            <p class="text-red-600 text-sm mt-1">{{ customer_form.phone.errors.0 }}</p>
-          {% endif %}
-        </div>
-
-        <div class="mt-4">
-          <input 
-            name="email"
-            class="border w-full px-3 py-2"
-            placeholder="Email"
-            value="{{ customer_form.email.value|default:'' }}"
-            required
-          >
-          {% if customer_form and customer_form.email.errors %}
-          <p class="text-red-600 text-sm mt-1">{{ customer_form.email.errors.0 }}</p>
-          {% endif %}
-        </div>
-      </div>
-
-      <!-- DELIVERY ADDRESS -->
-      <div>
-        <h2 class="text-lg font-semibold mb-4">Delivery Address</h2>
-      
-        {% if user.is_authenticated %}
-      
-          {% if addresses|length < 5 %}
-          <button type="button" id="openAddressModal"
-            class="cursor-pointer border-2 border-dashed p-6 flex items-center justify-center gap-3 w-full hover:bg-gray-50">
-            <div class="w-10 h-10 rounded-full border flex items-center justify-center text-xl">+</div>
-            <span>Add Address</span>
-          </button>
-          {% endif %}
-      
-          <div class="space-y-4 mt-4">
-            {% for addr in addresses %}
-            <div class="address-box cursor-pointer border p-5 relative transition {% if addr == selected_address %}ring-2 ring-black{% endif %}"
-                 data-id="{{ addr.id }}">
-              <p class="font-medium">{{ addr.address_line }}</p>
-              <p class="text-sm text-gray-500">{{ addr.country }}, {{ addr.city }}, {{ addr.postal_code }}</p>
-      
-              <div class="absolute top-4 right-4 flex gap-3 items-center">
-                <button type="button" class="editAddressBtn"
-                        data-id="{{ addr.id }}"
-                        data-address="{{ addr.address_line }}"
-                        data-country="{{ addr.country }}"
-                        data-city="{{ addr.city }}"
-                        data-postal="{{ addr.postal_code }}">
-                  <img src="{% static 'icons/pen.svg' %}" class="w-5 h-5 cursor-pointer">
-                </button>
-      
-                <button type="button" class="deleteAddressBtn" data-id="{{ addr.id }}">
-                  <img src="{% static 'icons/trash.svg' %}" class="w-5 h-5 cursor-pointer">
-                </button>
+        {% if messages %}
+          <div class="space-y-2">
+            {% for message in messages %}
+              <div role="alert"
+                   class="px-4 py-3 text-sm border {% if message.tags == 'error' %}border-red-200 bg-red-50 text-red-700{% else %}border-green-200 bg-green-50 text-green-700{% endif %}">
+                {{ message }}
               </div>
-            </div>
             {% endfor %}
           </div>
-      
-        {% else %}
-      
-          <div class="bg-white border p-6 shadow-sm space-y-4">
-            <input name="street" class="border w-full px-3 py-2" placeholder="Street, number, entrance..." required>
-            <input name="city" class="border w-full px-3 py-2" placeholder="City" required>
-      
-            <div class="grid md:grid-cols-2 gap-4">
-              <input name="postal_code" class="border w-full px-3 py-2" placeholder="Postal Code" required>
-              <input name="country" class="border w-full px-3 py-2" placeholder="Country" required>
-            </div>
-          </div>
-      
         {% endif %}
-      </div>
-
-      <!-- PAYMENT -->
-      <div>
-        <h2 class="text-lg font-semibold mb-4">Payment</h2>
-
-        <div class="grid gap-3">
-          <div class="payment-option border p-4 cursor-pointer flex justify-between items-center ring-2 ring-black">
-            <div class="flex items-center gap-3">
-              <input type="radio" value="card" class="hidden" checked>
-              <div class="w-5 h-5 border rounded-full flex items-center justify-center">
-                <div class="dot w-2.5 h-2.5 bg-black rounded-full"></div>
-              </div>
-              <div>
-                <p class="font-medium">Card</p>
-                <p class="text-sm text-gray-500">Instant payment</p>
-              </div>
-            </div>
-            <span class="text-sm text-gray-500">No fee</span>
+        <!-- 1. CONTACT -->
+        <section class="space-y-5">
+          <div class="flex items-center justify-between">
+            <h2 class="flex items-center gap-3 text-lg font-semibold">
+              <span class="w-7 h-7 bg-black text-white text-sm flex items-center justify-center">1</span>
+              Contact details
+            </h2>
+            {% if not user.is_authenticated %}
+              <p class="text-sm text-gray-500">
+                Have an account?
+                <a href="{% url 'login' %}"
+                   class="text-black underline underline-offset-2">Log in</a>
+              </p>
+            {% endif %}
           </div>
-
-          <div class="payment-option border p-4 cursor-pointer flex justify-between items-center">
-            <div class="flex items-center gap-3">
-              <input type="radio" value="cod" class="hidden">
-              <div class="w-5 h-5 border rounded-full flex items-center justify-center">
-                <div class="dot w-2.5 h-2.5 bg-black rounded-full hidden"></div>
-              </div>
+          <div class="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label for="first_name" class="block text-sm text-gray-600 mb-1">First name</label>
+              <input id="first_name"
+                     name="first_name"
+                     type="text"
+                     autocomplete="given-name"
+                     required
+                     value="{{ customer_form.first_name.value|default:'' }}"
+                     class="w-full border px-3 py-3 text-sm outline-none focus:border-black transition {% if customer_form.first_name.errors %}border-red-500{% else %}border-gray-300{% endif %}">
+              {% if customer_form.first_name.errors %}
+                <p class="text-red-600 text-xs mt-1">{{ customer_form.first_name.errors.0 }}</p>
+              {% endif %}
+            </div>
+            <div>
+              <label for="last_name" class="block text-sm text-gray-600 mb-1">Last name</label>
+              <input id="last_name"
+                     name="last_name"
+                     type="text"
+                     autocomplete="family-name"
+                     required
+                     value="{{ customer_form.last_name.value|default:'' }}"
+                     class="w-full border px-3 py-3 text-sm outline-none focus:border-black transition {% if customer_form.last_name.errors %}border-red-500{% else %}border-gray-300{% endif %}">
+              {% if customer_form.last_name.errors %}
+                <p class="text-red-600 text-xs mt-1">{{ customer_form.last_name.errors.0 }}</p>
+              {% endif %}
+            </div>
+          </div>
+          <div class="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label for="email" class="block text-sm text-gray-600 mb-1">Email</label>
+              <input id="email"
+                     name="email"
+                     type="email"
+                     autocomplete="email"
+                     required
+                     placeholder="Order updates are sent here"
+                     value="{{ customer_form.email.value|default:'' }}"
+                     class="w-full border px-3 py-3 text-sm outline-none focus:border-black transition {% if customer_form.email.errors %}border-red-500{% else %}border-gray-300{% endif %}">
+              {% if customer_form.email.errors %}
+                <p class="text-red-600 text-xs mt-1">{{ customer_form.email.errors.0 }}</p>
+              {% endif %}
+            </div>
+            <div>
+              <label for="phone" class="block text-sm text-gray-600 mb-1">Phone</label>
+              <input id="phone"
+                     name="phone"
+                     type="tel"
+                     inputmode="tel"
+                     autocomplete="tel"
+                     required
+                     placeholder="+359..."
+                     value="{{ customer_form.phone.value|default:'' }}"
+                     class="w-full border px-3 py-3 text-sm outline-none focus:border-black transition {% if customer_form.phone.errors %}border-red-500{% else %}border-gray-300{% endif %}">
+              {% if customer_form.phone.errors %}
+                <p class="text-red-600 text-xs mt-1">{{ customer_form.phone.errors.0 }}</p>
+              {% endif %}
+            </div>
+          </div>
+        </section>
+        <!-- 2. DELIVERY -->
+        <section id="addressSection" class="space-y-5">
+          <h2 class="flex items-center gap-3 text-lg font-semibold">
+            <span class="w-7 h-7 bg-black text-white text-sm flex items-center justify-center">2</span>
+            Delivery address
+          </h2>
+          {% if user.is_authenticated %}
+            <p id="addressError"
+               role="alert"
+               class="hidden text-sm text-red-600 border border-red-200 bg-red-50 px-4 py-3">
+              Please select or add a delivery address to continue.
+            </p>
+            <div class="grid sm:grid-cols-2 gap-4">
+              {% for addr in addresses %}
+                <div class="address-box cursor-pointer border p-5 relative transition hover:border-black {% if addr == selected_address %}ring-2 ring-black{% endif %}"
+                     data-id="{{ addr.id }}">
+                  {% if addr.is_default %}
+                    <span class="inline-block bg-black text-white text-[10px] uppercase tracking-wide px-2 py-0.5 mb-2">Default</span>
+                  {% endif %}
+                  <p class="font-medium pr-16">{{ addr.address_line }}</p>
+                  <p class="text-sm text-gray-500">{{ addr.city }}, {{ addr.postal_code }}</p>
+                  <p class="text-sm text-gray-500">{{ addr.country }}</p>
+                  <div class="absolute top-4 right-4 flex gap-3 items-center">
+                    <button type="button"
+                            class="editAddressBtn"
+                            aria-label="Edit address"
+                            data-id="{{ addr.id }}"
+                            data-address="{{ addr.address_line }}"
+                            data-country="{{ addr.country }}"
+                            data-city="{{ addr.city }}"
+                            data-postal="{{ addr.postal_code }}">
+                      <img src="{% static 'icons/pen.svg' %}"
+                           class="w-4 h-4 cursor-pointer"
+                           alt="">
+                    </button>
+                    <button type="button"
+                            class="deleteAddressBtn"
+                            aria-label="Delete address"
+                            data-id="{{ addr.id }}">
+                      <img src="{% static 'icons/trash.svg' %}"
+                           class="w-4 h-4 cursor-pointer"
+                           alt="">
+                    </button>
+                  </div>
+                </div>
+              {% endfor %}
+              {% if addresses|length < 5 %}
+                <button type="button"
+                        id="openAddressModal"
+                        class="cursor-pointer border-2 border-dashed border-gray-300 min-h-[110px] p-5 flex items-center justify-center gap-3 hover:border-black hover:bg-gray-50 transition">
+                  <span class="w-8 h-8 rounded-full border flex items-center justify-center text-lg leading-none">+</span>
+                  <span class="text-sm">Add address</span>
+                </button>
+              {% endif %}
+            </div>
+          {% else %}
+            <div class="space-y-4">
               <div>
-                <p class="font-medium">Cash on Delivery</p>
-                <p class="text-sm text-gray-500">Pay on arrival</p>
+                <label for="street" class="block text-sm text-gray-600 mb-1">Street address</label>
+                <input id="street"
+                       name="street"
+                       type="text"
+                       autocomplete="street-address"
+                       required
+                       placeholder="Street, number, entrance, floor..."
+                       class="border border-gray-300 w-full px-3 py-3 text-sm outline-none focus:border-black transition">
+              </div>
+              <div class="grid sm:grid-cols-3 gap-4">
+                <div>
+                  <label for="city" class="block text-sm text-gray-600 mb-1">City</label>
+                  <input id="city"
+                         name="city"
+                         type="text"
+                         autocomplete="address-level2"
+                         required
+                         class="border border-gray-300 w-full px-3 py-3 text-sm outline-none focus:border-black transition">
+                </div>
+                <div>
+                  <label for="postal_code" class="block text-sm text-gray-600 mb-1">Postal code</label>
+                  <input id="postal_code"
+                         name="postal_code"
+                         type="text"
+                         autocomplete="postal-code"
+                         required
+                         class="border border-gray-300 w-full px-3 py-3 text-sm outline-none focus:border-black transition">
+                </div>
+                <div>
+                  <label for="country" class="block text-sm text-gray-600 mb-1">Country</label>
+                  <input id="country"
+                         name="country"
+                         type="text"
+                         autocomplete="country-name"
+                         required
+                         class="border border-gray-300 w-full px-3 py-3 text-sm outline-none focus:border-black transition">
+                </div>
               </div>
             </div>
-            <span class="text-sm text-gray-500">+3%</span>
+          {% endif %}
+        </section>
+        <!-- 3. PAYMENT -->
+        <section class="space-y-5">
+          <h2 class="flex items-center gap-3 text-lg font-semibold">
+            <span class="w-7 h-7 bg-black text-white text-sm flex items-center justify-center">3</span>
+            Payment
+          </h2>
+          <div class="grid gap-3">
+            <label class="payment-option group border border-gray-300 p-4 cursor-pointer flex justify-between items-center transition hover:border-black has-[:checked]:ring-2 has-[:checked]:ring-black has-[:checked]:border-black">
+              <div class="flex items-center gap-4">
+                <input type="radio"
+                       name="payment_method"
+                       value="card"
+                       class="sr-only"
+                       checked>
+                <span class="w-5 h-5 border border-gray-400 rounded-full flex items-center justify-center shrink-0">
+                  <span class="w-2.5 h-2.5 bg-black rounded-full hidden group-has-[:checked]:block"></span>
+                </span>
+                <span>
+                  <span class="block font-medium">Card</span>
+                  <span class="block text-sm text-gray-500">Secure payment through Stripe</span>
+                </span>
+              </div>
+              <span class="text-sm text-gray-500">No fee</span>
+            </label>
+            <label class="payment-option group border border-gray-300 p-4 cursor-pointer flex justify-between items-center transition hover:border-black has-[:checked]:ring-2 has-[:checked]:ring-black has-[:checked]:border-black">
+              <div class="flex items-center gap-4">
+                <input type="radio" name="payment_method" value="cod" class="sr-only">
+                <span class="w-5 h-5 border border-gray-400 rounded-full flex items-center justify-center shrink-0">
+                  <span class="w-2.5 h-2.5 bg-black rounded-full hidden group-has-[:checked]:block"></span>
+                </span>
+                <span>
+                  <span class="block font-medium">Cash on delivery</span>
+                  <span class="block text-sm text-gray-500">Pay when your order arrives</span>
+                </span>
+              </div>
+              <span class="text-sm text-gray-500">+3%</span>
+            </label>
+          </div>
+        </section>
+      </div>
+      <!-- RIGHT: SUMMARY -->
+      <div class="lg:col-span-1">
+        <div class="lg:sticky lg:top-28 border border-gray-200 p-6 space-y-5">
+          <div class="flex items-baseline justify-between">
+            <h2 class="text-xl font-semibold">Order summary</h2>
+            <a href="{% url 'cart' %}"
+               class="text-xs text-gray-500 hover:text-black underline underline-offset-2">Edit bag</a>
+          </div>
+          <ul class="divide-y divide-gray-100">
+            {% for item in items %}
+              {% with img=item.variant.product.images.first %}
+                <li class="flex gap-4 py-4 first:pt-0">
+                  <div class="relative shrink-0">
+                    {% if img %}
+                      <img src="{{ img.image.url }}"
+                           alt="{{ item.variant.product.name }}"
+                           class="w-16 aspect-[3/4] object-contain bg-gray-100">
+                    {% else %}
+                      <div class="w-16 aspect-[3/4] bg-gray-100"></div>
+                    {% endif %}
+                    <span class="absolute -top-2 -right-2 bg-black text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center">
+                      {{ item.quantity }}
+                    </span>
+                  </div>
+                  <div class="flex-1 min-w-0 text-sm">
+                    <p class="font-medium truncate">{{ item.variant.product.name }}</p>
+                    <p class="text-xs uppercase tracking-wide text-gray-500 mt-1">Size {{ item.variant.size }}</p>
+                  </div>
+                  <p class="text-sm font-medium whitespace-nowrap">€{{ item.total_price|floatformat:2 }}</p>
+                </li>
+              {% endwith %}
+            {% endfor %}
+          </ul>
+          <hr class="border-gray-200">
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between text-gray-600">
+              <span>Subtotal</span><span>€{{ subtotal|floatformat:2 }}</span>
+            </div>
+            <div class="flex justify-between text-gray-600">
+              <span>Delivery</span>
+              <span>{% if delivery_fee == 0 %}Free{% else %}€{{ delivery_fee|floatformat:2 }}{% endif %}</span>
+            </div>
+            <div id="codRow" class="hidden flex justify-between text-gray-600">
+              <span>Cash on delivery fee</span><span id="codFee">€0.00</span>
+            </div>
+          </div>
+          <hr class="border-gray-200">
+          <div class="flex justify-between font-semibold text-lg">
+            <span>Total</span><span id="totalValue">€{{ total|floatformat:2 }}</span>
+          </div>
+          <button type="submit"
+                  id="submitBtn"
+                  class="w-full bg-black text-white py-4 text-sm tracking-wide uppercase cursor-pointer hover:opacity-90 transition disabled:opacity-60 disabled:cursor-not-allowed">
+            <span id="submitLabel">Pay now</span>
+            <span id="submitTotal">· €{{ total|floatformat:2 }}</span>
+          </button>
+          <div class="text-xs text-gray-500 text-center space-y-1">
+            <p>Taxes included. Free delivery on orders over €100.</p>
+            <p>
+              By ordering you agree to our
+              <a href="{% url 'returns' %}"
+                 target="_blank"
+                 class="underline underline-offset-2">exchange &amp; returns policy</a>.
+            </p>
           </div>
         </div>
       </div>
-
     </div>
-
-    <!-- RIGHT -->
-    <div class="lg:col-span-1">
-      <div class="sticky top-28 bg-white border p-6 shadow-sm">
-        <h2 class="text-xl font-semibold mb-6">Summary</h2>
-        {% for item in items %}
-          <div class="flex justify-between text-sm">
-            <span>{{ item.variant.product.name }} × {{ item.quantity }}</span>
-            <span>€{{ item.total_price|floatformat:2 }}</span>
+  </form>
+  <!-- ADDRESS MODAL -->
+  <div id="addressModal"
+       class="hidden fixed inset-0 bg-black/50 items-center justify-center z-[60] px-4">
+    <div class="bg-white p-6 w-full max-w-md"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="addressModalTitle">
+      <h2 id="addressModalTitle" class="text-lg font-semibold mb-4">Address</h2>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="address_action" value="save">
+        <input type="hidden" name="address_id" id="addressIdInput">
+        <div class="space-y-3">
+          <input name="address_line"
+                 id="modalAddress"
+                 required
+                 minlength="5"
+                 class="border w-full px-3 py-3 text-sm"
+                 placeholder="Street, number, entrance, floor...">
+          <input name="country"
+                 id="modalCountry"
+                 required
+                 class="border w-full px-3 py-3 text-sm"
+                 placeholder="Country">
+          <div class="grid grid-cols-2 gap-3">
+            <input name="city"
+                   id="modalCity"
+                   required
+                   minlength="2"
+                   class="border w-full px-3 py-3 text-sm"
+                   placeholder="City">
+            <input name="postal_code"
+                   id="modalPostal"
+                   required
+                   class="border w-full px-3 py-3 text-sm"
+                   placeholder="Postal code">
           </div>
-        {% endfor %}
-        <hr class="my-4">
-        <div class="flex justify-between text-sm"><span>Subtotal</span><span>€{{ subtotal }}</span></div>
-        <div class="flex justify-between text-sm"><span>Delivery</span><span>€{{ delivery_fee }}</span></div>
-        <div class="flex justify-between text-sm"><span>COD Fee</span><span id="codFee">€0.00</span></div>
-        <hr class="my-4">
-        <div class="flex justify-between font-semibold"><span>Total</span><span id="totalValue">€{{ total }}</span></div>
-        <button class="w-full mt-6 bg-black text-white py-3 cursor-pointer">Complete Order</button>
-      </div>
+          <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" name="is_default" class="accent-black">
+            Use as my default address
+          </label>
+        </div>
+        <div class="flex justify-end gap-3 mt-5">
+          <button type="button"
+                  onclick="closeModal()"
+                  class="px-4 py-2 border text-sm cursor-pointer">Cancel</button>
+          <button type="submit"
+                  class="px-5 py-2 bg-black text-white text-sm cursor-pointer">Save address</button>
+        </div>
+      </form>
     </div>
-
   </div>
-</form>
-
-<!-- ADDRESS MODAL -->
-<div id="addressModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-  <div class="bg-white p-6 w-full max-w-md">
-
-    <h2 class="text-lg font-semibold mb-4">Address</h2>
-
-    <form method="POST">
-      {% csrf_token %}
-
-      <input type="hidden" name="address_action" value="save">
-      <input type="hidden" name="address_id" id="addressIdInput">
-
-      <div class="space-y-3">
-        <input name="address_line" id="modalAddress" class="border  w-full px-3 py-2" placeholder="Street, number, entrance, floor...">
-        <input name="country" id="modalCountry" class="border  w-full px-3 py-2" placeholder="Country">
-        <input name="city" id="modalCity" class="border w-full px-3 py-2" placeholder="City">
-        <input name="postal_code" id="modalPostal" class="border w-full px-3 py-2" placeholder="Postal Code">
-
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" name="is_default" class="mr-2">
-          <span>Set as default</span>
-        </label>
-      </div>
-
-      <div class="flex justify-end gap-3 mt-4">
-        <button type="button" onclick="closeModal()" class="px-4 py-2 border cursor-pointer">Cancel</button>
-        <button type="submit" class="px-4 py-2 bg-black text-white cursor-pointer">Save</button>
-      </div>
-
-    </form>
+  <!-- DELETE MODAL -->
+  <div id="deleteModal"
+       class="hidden fixed inset-0 bg-black/50 items-center justify-center z-[60] px-4">
+    <div class="bg-white p-6 w-full max-w-sm"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="deleteModalTitle">
+      <h2 id="deleteModalTitle" class="text-lg font-semibold mb-2">Delete this address?</h2>
+      <p class="text-sm text-gray-600 mb-6">This can't be undone.</p>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="address_action" value="delete">
+        <input type="hidden" name="address_id" id="deleteAddressId">
+        <div class="flex justify-end gap-3">
+          <button type="button"
+                  onclick="closeDeleteModal()"
+                  class="px-4 py-2 border text-sm cursor-pointer">Keep address</button>
+          <button type="submit"
+                  class="px-4 py-2 bg-red-600 text-white text-sm cursor-pointer">Delete</button>
+        </div>
+      </form>
+    </div>
   </div>
-</div>
-
-<!-- DELETE MODAL -->
-<div id="deleteModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-  <div class="bg-white p-6 w-full max-w-sm">
-
-    <h2 class="text-lg font-semibold mb-4">Delete Address</h2>
-
-    <p class="text-sm text-gray-600 mb-6">
-      Are you sure you want to delete this address?
-    </p>
-
-    <form method="POST">
-      {% csrf_token %}
-
-      <input type="hidden" name="address_action" value="delete">
-      <input type="hidden" name="address_id" id="deleteAddressId">
-
-      <div class="flex justify-end gap-3">
-        <button type="button" onclick="closeDeleteModal()" class="px-4 py-2 border  cursor-pointer">Cancel</button>
-        <button type="submit" class="px-4 py-2 bg-red-600 text-white cursor-pointer">Delete</button>
-      </div>
-
-    </form>
-
-  </div>
-</div>
 {% endblock %}
-
 {% block js %}
-<script>
+  <script>
 window.CHECKOUT_DATA = {
   subtotal: {{ subtotal|floatformat:2 }},
   delivery: {{ delivery_fee|floatformat:2 }}
 };
-</script>
-<script src="{% static 'js/checkout.js' %}"></script>
+  </script>
+  <script src="{% static 'js/checkout.js' %}"></script>
 {% endblock %}

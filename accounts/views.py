@@ -14,10 +14,19 @@ from django.contrib import messages
 from django.http import HttpResponseForbidden
 from django.urls import reverse
 import logging
+from django.db.models import Count, Q
 from django.views.decorators.http import require_http_methods
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+
+ORDER_FILTERS = [
+    ("all", "All"),
+    ("active", "In progress"),
+    ("completed", "Delivered"),
+    ("denied", "Declined"),
+    ("returns", "Returns"),
+]
 
 def register_view(request):
     if request.method == "POST":
@@ -199,9 +208,44 @@ def account_dashboard(request):
                 address.delete()
                 return redirect("account_dashboard")
 
-    # ORDERS WITH PAGINATION
-    orders_qs = user.orders.prefetch_related("items__variant__product").order_by("-created_at")
-    paginator = Paginator(orders_qs, 10)  # 10 orders per page
+    # ORDERS (status filter + pagination)
+    order_filter = request.GET.get("status", "all")
+    if order_filter not in dict(ORDER_FILTERS):
+        order_filter = "all"
+
+    base_orders = user.orders.all()
+
+    agg = base_orders.aggregate(
+        n_all=Count("id"),
+        n_active=Count("id", filter=Q(status__in=["pending", "accepted"])),
+        n_completed=Count("id", filter=Q(status="completed")),
+        n_denied=Count("id", filter=Q(status="denied")),
+    )
+    counts = {
+        "all": agg["n_all"],
+        "active": agg["n_active"],
+        "completed": agg["n_completed"],
+        "denied": agg["n_denied"],
+        "returns": base_orders.filter(items__return_requested=True).distinct().count(),
+    }
+    order_tabs = [
+        {"key": key, "label": label, "count": counts[key]}
+        for key, label in ORDER_FILTERS
+    ]
+
+    orders_qs = (
+        base_orders
+        .prefetch_related("items__variant__product__images")
+        .order_by("-created_at")
+    )
+    if order_filter == "active":
+        orders_qs = orders_qs.filter(status__in=["pending", "accepted"])
+    elif order_filter in ("completed", "denied"):
+        orders_qs = orders_qs.filter(status=order_filter)
+    elif order_filter == "returns":
+        orders_qs = orders_qs.filter(items__return_requested=True).distinct()
+
+    paginator = Paginator(orders_qs, 10)
     page_number = request.GET.get("page")
     orders_page = paginator.get_page(page_number)
 
@@ -215,7 +259,9 @@ def account_dashboard(request):
         "addresses": addresses,
         "address_form": address_form,
         "address_action": address_action,
-        "active_address": active_address
+        "active_address": active_address,
+        "order_tabs": order_tabs,
+        "order_filter": order_filter,
     })
 
 def _can_modify(user, review):
