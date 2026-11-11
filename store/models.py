@@ -158,6 +158,10 @@ class Product(models.Model):
             return (self.price * (100 - self.discount_percent) / 100).quantize(Decimal("0.01"))
         return self.price
 
+    @property
+    def is_sold_out(self):
+        return not any(v.stock > 0 for v in self.variants.all())
+
 class ProductVariant(models.Model):
     SIZE_CHOICES = [("XS","XS"),("S","S"),("M","M"),("L","L"),("XL","XL"),("2XL","2XL")]
     SIZE_ORDER = {"XS":1,"S":2,"M":3,"L":4,"XL":5,"2XL":6}

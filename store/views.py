@@ -10,12 +10,65 @@ from orders.views import get_or_create_cart
 from orders.models import CartItem, OrderItem
 from django.core.paginator import Paginator
 from django.db.models import Prefetch
+from urllib.parse import urlencode
+from django.utils import timezone
 import json
 from django.contrib import messages
 from .forms import DiscountForm
 
 SIZES = ["XS", "S", "M", "L", "XL", "2XL"]
+def active_discount_q():
+    """Products whose discount is running right now."""
+    now = timezone.now()
+    return (
+        Q(discount_percent__gt=0)
+        & (Q(discount_start__isnull=True) | Q(discount_start__lte=now))
+        & (Q(discount_end__isnull=True) | Q(discount_end__gte=now))
+    )
 
+
+def listing_context(request, page_obj):
+    """Shared extras for collection.html (collection + search views)."""
+    params = request.GET.copy()
+    params.pop("page", None)
+
+    def remove(key, value=None):
+        p = params.copy()
+        if value is None:
+            p.pop(key, None)
+        else:
+            p.setlist(key, [v for v in p.getlist(key) if v != value])
+        qs = p.urlencode()
+        return f"{request.path}?{qs}" if qs else request.path
+
+    chips = []
+    if params.get("min_price"):
+        chips.append({"label": f"From €{params['min_price']}", "url": remove("min_price")})
+    if params.get("max_price"):
+        chips.append({"label": f"Up to €{params['max_price']}", "url": remove("max_price")})
+    for size in params.getlist("size"):
+        chips.append({"label": f"Size {size}", "url": remove("size", size)})
+    if params.get("limited") == "true":
+        chips.append({"label": "Limited only", "url": remove("limited")})
+    if params.get("discount"):
+        chips.append({"label": f"{params['discount']}%+ off", "url": remove("discount")})
+
+    keep = {k: params[k] for k in ("q", "sort") if params.get(k)}
+    clear_url = request.path + (f"?{urlencode(keep)}" if keep else "")
+
+    hidden_params = [
+        (key, value)
+        for key in params
+        if key != "sort"
+        for value in params.getlist(key)
+    ]
+
+    return {
+        "querystring": params.urlencode(),
+        "hidden_params": hidden_params,
+        "active_filters": chips,
+        "clear_url": clear_url,
+    }
 def apply_filters(request, products):
     min_price = request.GET.get("min_price")
     max_price = request.GET.get("max_price")
@@ -39,8 +92,8 @@ def apply_filters(request, products):
         products = products.filter(is_limited=True)
 
     discount = request.GET.get("discount")
-    if discount:
-        products = products.filter(discount_percent__gte=discount)
+    if discount and discount.isdigit():
+        products = products.filter(active_discount_q(), discount_percent__gte=int(discount))
 
     sort = request.GET.get("sort")
     if sort == "price_asc":
@@ -69,7 +122,7 @@ def returns(request):
 
 def collection(request, slug=None, filter_type=None):
     category = None
-    products = Product.objects.filter(status="active")
+    products = Product.objects.filter(status="active").prefetch_related("images", "variants")
 
     if filter_type == "new":
         products = products.order_by("-created_at")
@@ -77,7 +130,7 @@ def collection(request, slug=None, filter_type=None):
         title = "New"
 
     elif filter_type == "sale":
-        products = products.filter(discount_percent__gt=0)
+        products = products.filter(active_discount_q())
         active_filter = "sale"
         title = "Sale"
 
@@ -93,26 +146,24 @@ def collection(request, slug=None, filter_type=None):
     products, selected_sizes = apply_filters(request, products)
 
     paginator = Paginator(products, 42)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
-
-    categories = Category.objects.all()
+    page_obj = paginator.get_page(request.GET.get("page"))
 
     return render(request, "store/collection.html", {
         "category": category,
         "title": title,
         "products": page_obj,
         "page_obj": page_obj,
-        "categories": categories,
+        "categories": Category.objects.all(),
         "active_filter": active_filter,
         "selected_sizes": selected_sizes,
-        "sizes": SIZES
+        "sizes": SIZES,
+        **listing_context(request, page_obj),
     })
 
 def search(request):
     q = request.GET.get("q", "").strip()
 
-    base_qs = Product.objects.filter(status="active")
+    base_qs = Product.objects.filter(status="active").prefetch_related("images", "variants")
 
     if q:
         base_qs = base_qs.filter(
@@ -125,8 +176,7 @@ def search(request):
     products, selected_sizes = apply_filters(request, base_qs)
 
     paginator = Paginator(products, 42)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
+    page_obj = paginator.get_page(request.GET.get("page"))
 
     return render(request, "store/collection.html", {
         "products": page_obj,
@@ -138,6 +188,7 @@ def search(request):
         "active_filter": "search",
         "query": q,
         "category": None,
+        **listing_context(request, page_obj),
     })
 
 def product_detail(request, id):

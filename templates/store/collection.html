@@ -1,504 +1,353 @@
 {% extends "store/base.html" %}
-
-{% block title %}
-{% if title %}
-{{ title }}
-{% else %}
-{{ category.name }}
-{% endif %}
-{% endblock %}
-
+{% load static %}
+{% block title %}{% if title %}{{ title }}{% else %}{{ category.name }}{% endif %}{% endblock %}
 {% block content %}
+  <style>
+  [x-cloak] { display: none !important; }
 
-<div x-data="{ filterOpen: false }">
+  /* card arrows/dots: always visible on touch, fade in on hover for desktop */
+  .card-ui { opacity: 1; transition: opacity .15s ease; }
+  @media (hover: hover) {
+    .card-ui { opacity: 0; }
+    .group:hover .card-ui,
+    .card-ui:focus-visible { opacity: 1; }
+  }
 
-  <div
-    x-show="filterOpen"
-    x-transition.opacity
-    class="fixed inset-0 bg-black/50 z-40"
-    @click="filterOpen = false"
-  ></div>
-
-  <aside
-    x-show="filterOpen"
-    x-transition:enter="transition ease-out duration-300"
-    x-transition:enter-start="-translate-x-full"
-    x-transition:enter-end="translate-x-0"
-    x-transition:leave="transition ease-in duration-200"
-    x-transition:leave-start="translate-x-0"
-    x-transition:leave-end="-translate-x-full"
-    class="fixed top-0 left-0 w-80 h-full bg-white z-50 overflow-y-auto shadow-xl"
-  >
-
-    <div class="p-6 border-b flex items-center justify-between">
-      <h2 class="text-lg font-semibold">Filters</h2>
-
-      <button
-        @click="filterOpen = false"
-        class="text-3xl leading-none cursor-pointer"
-      >
-        &times;
-      </button>
-    </div>
-
-    <form method="get" class="p-6 space-y-8">
-
-      <div class="space-y-3">
-        <h3 class="text-sm font-semibold uppercase tracking-wide">
-          Price
-        </h3>
-
-        <div class="flex gap-3">
-          <input
-            type="number"
-            name="min_price"
-            placeholder="Min"
-            value="{{ request.GET.min_price }}"
-            class="w-full border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black"
-          >
-
-          <input
-            type="number"
-            name="max_price"
-            placeholder="Max"
-            value="{{ request.GET.max_price }}"
-            class="w-full border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black"
-          >
+  .no-scrollbar { scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  </style>
+  <div x-data="{ filterOpen: false }"
+       @keydown.escape.window="filterOpen = false"
+       x-effect="document.body.style.overflow = filterOpen ? 'hidden' : ''">
+    <!-- ===================== FILTER DRAWER ===================== -->
+    <div x-show="filterOpen"
+         x-cloak
+         x-transition.opacity
+         class="fixed inset-0 bg-black/50 z-[60]"
+         @click="filterOpen = false"></div>
+    <aside x-show="filterOpen"
+           x-cloak
+           x-transition:enter="transition ease-out duration-300"
+           x-transition:enter-start="-translate-x-full"
+           x-transition:enter-end="translate-x-0"
+           x-transition:leave="transition ease-in duration-200"
+           x-transition:leave-start="translate-x-0"
+           x-transition:leave-end="-translate-x-full"
+           class="fixed top-0 left-0 w-full max-w-sm h-full bg-white z-[70] shadow-xl flex flex-col"
+           role="dialog"
+           aria-modal="true"
+           aria-label="Filters">
+      <div class="px-6 py-5 border-b flex items-center justify-between shrink-0">
+        <h2 class="text-lg font-semibold">Filters</h2>
+        <button type="button"
+                @click="filterOpen = false"
+                aria-label="Close filters"
+                class="text-3xl leading-none cursor-pointer">×</button>
+      </div>
+      <form method="get" class="flex-1 flex flex-col min-h-0">
+        {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+        {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}">{% endif %}
+        <div class="flex-1 overflow-y-auto p-6 space-y-8">
+          <!-- PRICE -->
+          <div class="space-y-3">
+            <h3 class="text-sm font-semibold uppercase tracking-wide">Price</h3>
+            <div class="flex items-center gap-3">
+              <div class="relative flex-1">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">€</span>
+                <input type="number"
+                       name="min_price"
+                       min="0"
+                       step="any"
+                       inputmode="decimal"
+                       placeholder="Min"
+                       value="{{ request.GET.min_price }}"
+                       class="w-full border border-gray-300 pl-7 pr-3 py-2.5 text-sm outline-none focus:border-black">
+              </div>
+              <span class="text-gray-400">–</span>
+              <div class="relative flex-1">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">€</span>
+                <input type="number"
+                       name="max_price"
+                       min="0"
+                       step="any"
+                       inputmode="decimal"
+                       placeholder="Max"
+                       value="{{ request.GET.max_price }}"
+                       class="w-full border border-gray-300 pl-7 pr-3 py-2.5 text-sm outline-none focus:border-black">
+              </div>
+            </div>
+          </div>
+          <!-- SIZE -->
+          <div class="space-y-3">
+            <h3 class="text-sm font-semibold uppercase tracking-wide">Size</h3>
+            <div class="grid grid-cols-3 gap-2">
+              {% for size in sizes %}
+                <label class="cursor-pointer">
+                  <input type="checkbox"
+                         name="size"
+                         value="{{ size }}"
+                         class="peer sr-only"
+                         {% if size in selected_sizes %}checked{% endif %}>
+                  <span class="block text-center border border-gray-300 py-2 text-sm transition-colors hover:border-black peer-checked:bg-black peer-checked:text-white peer-checked:border-black peer-focus-visible:ring-2 peer-focus-visible:ring-black peer-focus-visible:ring-offset-2">
+                    {{ size }}
+                  </span>
+                </label>
+              {% endfor %}
+            </div>
+          </div>
+          <!-- LIMITED -->
+          <div class="space-y-3">
+            <h3 class="text-sm font-semibold uppercase tracking-wide">Limited</h3>
+            <label class="flex items-center gap-3 text-sm cursor-pointer">
+              <input type="checkbox"
+                     name="limited"
+                     value="true"
+                     class="accent-black w-4 h-4"
+                     {% if request.GET.limited == "true" %}checked{% endif %}>
+              Limited editions only
+            </label>
+          </div>
+          <!-- DISCOUNT -->
+          <div class="space-y-3">
+            <h3 class="text-sm font-semibold uppercase tracking-wide">Discount</h3>
+            <select name="discount"
+                    class="w-full border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black">
+              <option value="">All</option>
+              <option value="10" {% if request.GET.discount == "10" %}selected{% endif %}>10% or more</option>
+              <option value="20" {% if request.GET.discount == "20" %}selected{% endif %}>20% or more</option>
+              <option value="30" {% if request.GET.discount == "30" %}selected{% endif %}>30% or more</option>
+              <option value="50" {% if request.GET.discount == "50" %}selected{% endif %}>50% or more</option>
+            </select>
+          </div>
         </div>
-      </div>
-
-      <div class="space-y-3">
-        <h3 class="text-sm font-semibold uppercase tracking-wide">
-          Size
-        </h3>
-
-        <div class="grid grid-cols-3 gap-3 text-sm">
-
-          {% for size in sizes %}
-          <label class="flex items-center gap-2 cursor-pointer">
-
-            <input
-              type="checkbox"
-              name="size"
-              value="{{ size }}"
-              {% if size in selected_sizes %}checked{% endif %}
-              class="accent-black"
-            >
-
-            {{ size }}
-
-          </label>
-          {% endfor %}
-
+        <div class="shrink-0 border-t p-4 flex gap-3">
+          <a href="{{ clear_url }}"
+             class="flex-1 text-center border border-black py-3 text-sm tracking-wide hover:bg-black hover:text-white transition-colors">
+            Clear all
+          </a>
+          <button type="submit"
+                  class="flex-1 bg-black text-white py-3 text-sm tracking-wide cursor-pointer hover:opacity-90 transition">
+            Apply filters
+          </button>
         </div>
-      </div>
-
-      <div class="space-y-3">
-        <h3 class="text-sm font-semibold uppercase tracking-wide">
-          Limited
-        </h3>
-
-        <label class="flex items-center gap-2 text-sm cursor-pointer">
-
-          <input
-            type="checkbox"
-            name="limited"
-            value="true"
-            {% if request.GET.limited == "true" %}checked{% endif %}
-            class="accent-black"
-          >
-
-          Limited only
-
-        </label>
-      </div>
-
-      <div class="space-y-3">
-        <h3 class="text-sm font-semibold uppercase tracking-wide">
-          Discount
-        </h3>
-
-        <select
-          name="discount"
-          class="w-full border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black"
-        >
-
-          <option value="">All</option>
-
-          <option
-            value="10"
-            {% if request.GET.discount == "10" %}selected{% endif %}
-          >
-            10%+
-          </option>
-
-          <option
-            value="20"
-            {% if request.GET.discount == "20" %}selected{% endif %}
-          >
-            20%+
-          </option>
-
-          <option
-            value="30"
-            {% if request.GET.discount == "30" %}selected{% endif %}
-          >
-            30%+
-          </option>
-
-          <option
-            value="50"
-            {% if request.GET.discount == "50" %}selected{% endif %}
-          >
-            50%+
-          </option>
-
-        </select>
-      </div>
-
-      <button
-        type="submit"
-        class="w-full bg-black text-white py-3 text-sm tracking-wide cursor-pointer"
-      >
-        Apply Filters
-      </button>
-
-    </form>
-
-  </aside>
-
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 mt-28">
-
-    <div class="flex flex-col gap-8 mb-10">
-
-      <h1 class="text-2xl md:text-3xl font-semibold tracking-tight text-center">
-        {{ title }}
-      </h1>
-
-      <div class="overflow-x-auto">
-
-        <div class="flex gap-2 min-w-max justify-center">
-
-          <a
-            href="{% url 'new_products' %}"
-            class="px-4 py-2 border text-sm whitespace-nowrap transition-colors {% if active_filter == 'new' %}bg-black text-white{% endif %}"
-          >
+      </form>
+    </aside>
+    <!-- ===================== PAGE ===================== -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 mt-28">
+      <h1 class="text-2xl md:text-3xl font-semibold tracking-tight text-center mb-8">{{ title }}</h1>
+      <!-- CATEGORY PILLS -->
+      <nav aria-label="Categories" class="overflow-x-auto no-scrollbar mb-8">
+        <div class="flex gap-2 w-max min-w-full md:justify-center">
+          <a href="{% url 'new_products' %}"
+             class="px-4 py-2 border text-sm whitespace-nowrap transition-colors hover:border-black {% if active_filter == 'new' %}bg-black text-white border-black{% endif %}">
             New
           </a>
-
-          <a
-            href="{% url 'sale_products' %}"
-            class="px-4 py-2 border text-sm whitespace-nowrap transition-colors {% if active_filter == 'sale' %}bg-black text-white{% endif %}"
-          >
+          <a href="{% url 'sale_products' %}"
+             class="px-4 py-2 border text-sm whitespace-nowrap transition-colors hover:border-black {% if active_filter == 'sale' %}bg-black text-white border-black{% endif %}">
             Sale
           </a>
-
           {% for cat in categories %}
-          <a
-            href="{% url 'collection' cat.slug %}"
-            class="px-4 py-2 border text-sm whitespace-nowrap transition-colors {% if category and category.id == cat.id %}bg-black text-white{% endif %}"
-          >
-            {{ cat.name }}
-          </a>
+            <a href="{% url 'collection' cat.slug %}"
+               class="px-4 py-2 border text-sm whitespace-nowrap transition-colors hover:border-black {% if category and category.id == cat.id %}bg-black text-white border-black{% endif %}">
+              {{ cat.name }}
+            </a>
           {% endfor %}
-
         </div>
-
-      </div>
-
-      <div class="flex items-center justify-between">
-
-        <button
-          @click="filterOpen = true"
-          class="border px-4 py-2 text-sm cursor-pointer hover:bg-black hover:text-white transition-colors"
-        >
+      </nav>
+      <!-- TOOLBAR -->
+      <div class="flex items-center justify-between gap-3">
+        <button type="button"
+                @click="filterOpen = true"
+                class="inline-flex items-center gap-2 border px-4 py-2 text-sm cursor-pointer hover:bg-black hover:text-white transition-colors">
+          <svg class="w-4 h-4"
+               viewBox="0 0 24 24"
+               fill="none"
+               stroke="currentColor"
+               stroke-width="2"
+               stroke-linecap="round"
+               aria-hidden="true">
+            <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" />
+            <circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" />
+          </svg>
           Filter
+          {% if active_filters %}
+            <span class="bg-white text-black border border-black text-[10px] min-w-5 h-5 px-1 rounded-full flex items-center justify-center">
+              {{ active_filters|length }}
+            </span>
+          {% endif %}
         </button>
-
-        <form method="get">
-
-          <input
-            type="hidden"
-            name="min_price"
-            value="{{ request.GET.min_price }}"
-          >
-
-          <input
-            type="hidden"
-            name="max_price"
-            value="{{ request.GET.max_price }}"
-          >
-
-          <input
-            type="hidden"
-            name="discount"
-            value="{{ request.GET.discount }}"
-          >
-
-          {% for s in selected_sizes %}
-          <input type="hidden" name="size" value="{{ s }}">
+        <p class="hidden sm:block text-sm text-gray-500">
+          {{ page_obj.paginator.count }} product{{ page_obj.paginator.count|pluralize }}
+        </p>
+        <form method="get" class="flex items-center gap-2">
+          {% for key, value in hidden_params %}
+            <input type="hidden" name="{{ key }}" value="{{ value }}">
           {% endfor %}
-
-          <input
-            type="hidden"
-            name="limited"
-            value="{{ request.GET.limited }}"
-          >
-
-          <select
-            name="sort"
-            onchange="this.form.submit()"
-            class="border px-4 py-2 text-sm outline-none"
-          >
-
+          <label for="sort" class="sr-only">Sort by</label>
+          <select id="sort"
+                  name="sort"
+                  onchange="this.form.submit()"
+                  class="border px-3 py-2 text-sm outline-none focus:border-black">
             <option value="">Sort</option>
-
-            <option
-              value="price_asc"
-              {% if request.GET.sort == "price_asc" %}selected{% endif %}
-            >
-              Price ↑
-            </option>
-
-            <option
-              value="price_desc"
-              {% if request.GET.sort == "price_desc" %}selected{% endif %}
-            >
-              Price ↓
-            </option>
-
-            <option
-              value="az"
-              {% if request.GET.sort == "az" %}selected{% endif %}
-            >
-              A–Z
-            </option>
-
-            <option
-              value="za"
-              {% if request.GET.sort == "za" %}selected{% endif %}
-            >
-              Z–A
-            </option>
-
-            <option
-              value="newest"
-              {% if request.GET.sort == "newest" %}selected{% endif %}
-            >
-              Newest
-            </option>
-
-            <option
-              value="oldest"
-              {% if request.GET.sort == "oldest" %}selected{% endif %}
-            >
-              Oldest
-            </option>
-
+            <option value="price_asc"
+                    {% if request.GET.sort == "price_asc" %}selected{% endif %}>Price ↑</option>
+            <option value="price_desc"
+                    {% if request.GET.sort == "price_desc" %}selected{% endif %}>Price ↓</option>
+            <option value="az" {% if request.GET.sort == "az" %}selected{% endif %}>A–Z</option>
+            <option value="za" {% if request.GET.sort == "za" %}selected{% endif %}>Z–A</option>
+            <option value="newest"
+                    {% if request.GET.sort == "newest" %}selected{% endif %}>Newest</option>
+            <option value="oldest"
+                    {% if request.GET.sort == "oldest" %}selected{% endif %}>Oldest</option>
           </select>
-
         </form>
-
       </div>
-
-    </div>
-
-    {% if products %}
-
-    <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-10">
-
-      {% for product in products %}
-
-      <div
-        x-data="{
+      <!-- ACTIVE FILTER CHIPS -->
+      {% if active_filters %}
+        <div class="flex flex-wrap items-center gap-2 pt-4">
+          {% for chip in active_filters %}
+            <a href="{{ chip.url }}"
+               aria-label="Remove filter: {{ chip.label }}"
+               class="inline-flex items-center gap-2 border border-gray-300 px-3 py-1 text-xs hover:border-black transition-colors">
+              {{ chip.label }} <span aria-hidden="true">×</span>
+            </a>
+          {% endfor %}
+          <a href="{{ clear_url }}"
+             class="text-xs text-gray-500 underline underline-offset-2 hover:text-black">Clear all</a>
+        </div>
+      {% endif %}
+      <!-- ===================== PRODUCT GRID ===================== -->
+      {% if products %}
+        <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-x-4 gap-y-10 mt-8">
+          {% for product in products %}
+            {% with total=product.images.all|length sold_out=product.is_sold_out on_sale=product.is_discount_active %}
+              <article x-data="{
           active: 0,
-          hover: false,
-          total: {{ product.images.count }},
-
-          next() {
-            this.active = (this.active + 1) % this.total
-          },
-
-          prev() {
-            this.active = (this.active - 1 + this.total) % this.total
-          },
-
-          current(index) {
-            return this.active === index
-          }
+          total: {{ total }},
+          touchX: 0,
+          next() { this.active = (this.active + 1) % this.total },
+          prev() { this.active = (this.active - 1 + this.total) % this.total }
         }"
-        class="group"
-      >
-
-        <div
-          class="relative overflow-hidden bg-gray-100"
-          style="aspect-ratio: 3/4;"
-          @mouseenter="hover = true"
-          @mouseleave="hover = false"
-        >
-
-          <a href="{% url 'product' product.id %}">
-
-            {% for image in product.images.all %}
-
-            <img
-              src="{{ image.image.url }}"
-              alt="{{ product.name }}"
-              x-show="current({{ forloop.counter0 }})"
-              x-transition:enter="transition-opacity duration-200"
-              x-transition:enter-start="opacity-0"
-              x-transition:enter-end="opacity-100"
-              class="absolute inset-0 w-full h-full object-contain"
-            >
-
-            {% endfor %}
-
-          </a>
-
-          {% if product.images.count > 1 %}
-
-          <button
-            x-show="hover"
-            x-transition.opacity
-            @click.prevent="prev()"
-            class="absolute left-3 top-1/2 -translate-y-1/2 z-20 text-black text-3xl cursor-pointer"
-          >
-            ‹
-          </button>
-
-          <button
-            x-show="hover"
-            x-transition.opacity
-            @click.prevent="next()"
-            class="absolute right-3 top-1/2 -translate-y-1/2 z-20 text-black text-3xl cursor-pointer"
-          >
-            ›
-          </button>
-
-          {% endif %}
-
-          {% if product.discount_percent %}
-          <span class="absolute top-2 left-0 bg-red-500 text-white text-xs px-2 py-1 z-20">
-            -{{ product.discount_percent }}%
-          </span>
-          {% endif %}
-
-          {% if product.is_sold_out %}
-          <span class="absolute top-3 right-3 bg-white border text-black text-xs px-2 py-1 z-20">
-            Sold out
-          </span>
-          {% endif %}
-
-        </div>
-
-        <div class="pt-4 space-y-1">
-
-          <a href="{% url 'product' product.id %}">
-
-            <h3 class="text-sm font-medium hover:underline underline-offset-2">
-              {{ product.name }}
-            </h3>
-
-          </a>
-
-          {% if product.discount_percent %}
-
-          <div class="flex items-center gap-2 text-sm">
-
-            <span class="line-through text-gray-400">
-              €{{ product.price }}
-            </span>
-
-            <span class="font-semibold text-red-500">
-              €{{ product.final_price|floatformat:2 }}
-            </span>
-
-          </div>
-
-          {% else %}
-
-          <p class="text-sm">
-            €{{ product.price }}
+                       class="group">
+                <div class="relative overflow-hidden bg-gray-100 aspect-[3/4]"
+                     @touchstart.passive="touchX = $event.touches[0].clientX"
+                     @touchend.passive="const d = $event.changedTouches[0].clientX - touchX; if (total > 1 && Math.abs(d) > 40) { d < 0 ? next() : prev() }">
+                  <a href="{% url 'product' product.id %}"
+                     class="block absolute inset-0 {% if sold_out %}opacity-60{% endif %}"
+                     aria-label="{{ product.name }}">
+                    {% for image in product.images.all %}
+                      <img src="{{ image.image.url }}"
+                           alt="{{ product.name }}"
+                           crossorigin="anonymous"
+                           {% if forloop.first %} x-show="active === 0" {% else %} x-cloak x-show="active === {{ forloop.counter0 }}" loading="lazy" {% endif %}
+                           x-transition.opacity.duration.200ms
+                           class="product-img absolute inset-0 w-full h-full object-contain">
+                    {% endfor %}
+                  </a>
+                  {% if total > 1 %}
+                    <button type="button"
+                            @click.prevent="prev()"
+                            aria-label="Previous image"
+                            class="card-ui absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center bg-white/80 text-xl leading-none cursor-pointer">
+                      ‹
+                    </button>
+                    <button type="button"
+                            @click.prevent="next()"
+                            aria-label="Next image"
+                            class="card-ui absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center bg-white/80 text-xl leading-none cursor-pointer">
+                      ›
+                    </button>
+                    <div class="card-ui absolute bottom-2 inset-x-0 z-20 flex justify-center gap-1.5 pointer-events-none">
+                      <template x-for="i in total" :key="i">
+                        <span class="h-1.5 w-1.5 rounded-full transition-colors"
+                              :class="active === i - 1 ? 'bg-black' : 'bg-black/25'"></span>
+                      </template>
+                    </div>
+                  {% endif %}
+                  {% if on_sale %}
+                    <span class="absolute top-2 left-0 bg-red-500 text-white text-xs px-2 py-1 z-20">
+                      -{{ product.discount_percent }}%
+                    </span>
+                  {% endif %}
+                  {% if sold_out %}
+                    <span class="absolute top-2 right-2 bg-white border text-black text-xs px-2 py-1 z-20">
+                      Sold out
+                    </span>
+                  {% elif product.is_limited %}
+                    <span class="absolute top-2 right-2 bg-black text-white text-[10px] uppercase tracking-wide px-2 py-1 z-20">
+                      Limited
+                    </span>
+                  {% endif %}
+                </div>
+                <div class="pt-3 space-y-1">
+                  <a href="{% url 'product' product.id %}">
+                    <h3 class="text-sm font-medium hover:underline underline-offset-2">{{ product.name }}</h3>
+                  </a>
+                  {% if on_sale %}
+                    <div class="flex items-center gap-2 text-sm">
+                      <span class="line-through text-gray-400">€{{ product.price }}</span>
+                      <span class="font-semibold text-red-500">€{{ product.final_price|floatformat:2 }}</span>
+                    </div>
+                  {% else %}
+                    <p class="text-sm">€{{ product.price }}</p>
+                  {% endif %}
+                </div>
+              </article>
+            {% endwith %}
+          {% endfor %}
+        </section>
+      {% else %}
+        <div class="py-24 text-center space-y-4">
+          <p class="text-lg font-medium">No products found</p>
+          <p class="text-sm text-gray-500">
+            {% if active_filters %}Try removing some filters.{% else %}Check back soon for new arrivals.{% endif %}
           </p>
-
+          {% if active_filters %}
+            <a href="{{ clear_url }}"
+               class="inline-block border border-black px-6 py-3 text-sm tracking-wide hover:bg-black hover:text-white transition-colors">
+              Clear filters
+            </a>
+          {% else %}
+            <a href="{% url 'new_products' %}"
+               class="inline-block bg-black text-white px-6 py-3 text-sm tracking-wide hover:opacity-90 transition">
+              Shop new arrivals
+            </a>
           {% endif %}
-
         </div>
-
-      </div>
-
-      {% endfor %}
-
-    </section>
-
-    {% else %}
-
-    <div class="py-24 text-center text-gray-400">
-      No products found
+      {% endif %}
+      <!-- ===================== PAGINATION ===================== -->
+      {% if page_obj.paginator.num_pages > 1 %}
+        <nav class="mt-16 space-y-3" aria-label="Pagination">
+          <div class="flex justify-center items-center gap-2">
+            {% if page_obj.has_previous %}
+              <a href="?page={{ page_obj.previous_page_number }}{% if querystring %}&{{ querystring }}{% endif %}"
+                 aria-label="Previous page"
+                 class="border px-4 py-2 text-sm hover:bg-black hover:text-white transition-colors">←</a>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+              {% if page_obj.number == num %}
+                <span aria-current="page" class="bg-black text-white px-4 py-2 text-sm">{{ num }}</span>
+              {% elif num == 1 or num == page_obj.paginator.num_pages or num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+                <a href="?page={{ num }}{% if querystring %}&{{ querystring }}{% endif %}"
+                   class="border px-4 py-2 text-sm hover:bg-black hover:text-white transition-colors">{{ num }}</a>
+              {% elif num == page_obj.number|add:"-3" or num == page_obj.number|add:"3" %}
+                <span class="px-2 text-gray-400">…</span>
+              {% endif %}
+            {% endfor %}
+            {% if page_obj.has_next %}
+              <a href="?page={{ page_obj.next_page_number }}{% if querystring %}&{{ querystring }}{% endif %}"
+                 aria-label="Next page"
+                 class="border px-4 py-2 text-sm hover:bg-black hover:text-white transition-colors">→</a>
+            {% endif %}
+          </div>
+          <p class="text-center text-xs text-gray-500">
+            Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+          </p>
+        </nav>
+      {% endif %}
     </div>
-
-    {% endif %}
-
-    {% if page_obj.paginator.num_pages > 1 %}
-
-    <div class="flex justify-center items-center mt-16 gap-2">
-
-      {% if page_obj.has_previous %}
-
-      <a
-        href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode }}"
-        class="border px-4 py-2 text-sm hover:bg-black hover:text-white transition-colors"
-      >
-        ←
-      </a>
-
-      {% endif %}
-
-      {% for num in page_obj.paginator.page_range %}
-
-      {% if page_obj.number == num %}
-
-      <span class="bg-black text-white px-4 py-2 text-sm">
-        {{ num }}
-      </span>
-
-      {% elif num == 1 or num == page_obj.paginator.num_pages or num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
-
-      <a
-        href="?page={{ num }}&{{ request.GET.urlencode }}"
-        class="border px-4 py-2 text-sm hover:bg-black hover:text-white transition-colors"
-      >
-        {{ num }}
-      </a>
-
-      {% elif num == page_obj.number|add:"-3" or num == page_obj.number|add:"3" %}
-
-      <span class="px-2 text-gray-400">
-        …
-      </span>
-
-      {% endif %}
-
-      {% endfor %}
-
-      {% if page_obj.has_next %}
-
-      <a
-        href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode }}"
-        class="border px-4 py-2 text-sm hover:bg-black hover:text-white transition-colors"
-      >
-        →
-      </a>
-
-      {% endif %}
-
-    </div>
-
-    {% endif %}
-
   </div>
-
-</div>
-
 {% endblock %}
-
+{% block js %}
+  <script src="{% static 'js/collection.js' %}" defer></script>
+{% endblock %}
