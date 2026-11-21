@@ -1,67 +1,263 @@
 {% extends "store/base.html" %}
 {% load static %}
 {% block title %}Vanquished{% endblock %}
-
 {% block content %}
+  <style>
+  @keyframes hero-zoom {
+    from { transform: scale(1); }
+    to   { transform: scale(1.08); }
+  }
+  .hero-img { animation: hero-zoom 18s ease-out forwards; }
+  
+  @keyframes nudge {
+    0%, 100% { transform: translateX(0); }
+    50%      { transform: translateX(6px); }
+  }
+  .swipe-arrow { animation: nudge 1.2s ease-in-out infinite; }
 
-<!-- Hero Section -->
-<div class="relative w-full h-screen overflow-hidden">
-  <img src="{% static 'images/new.webp' %}" class="w-full h-full object-cover">
-  <div class="absolute inset-0 bg-black/40 flex flex-col justify-center items-center text-center px-4">
-    <h2 class="text-5xl md:text-6xl font-bold text-white mb-6">New Arrivals</h2>
-    <a href="{% url 'new_products' %}" class="bg-white text-black px-8 py-3 text-lg font-semibold hover:bg-gray-200 transition">
-      Shop Now
-    </a>
-  </div>
-</div>
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+  .marquee-track { animation: marquee 28s linear infinite; }
+  .marquee-wrap:hover .marquee-track { animation-play-state: paused; }
 
-<!-- Repeat for other categories -->
-<div class="relative w-full h-screen overflow-hidden">
-  <img src="{% static 'images/tshirts.webp' %}" class="w-full h-full object-cover">
-  <div class="absolute inset-0 bg-black/40 flex flex-col justify-center items-center text-center px-4">
-    <h2 class="text-5xl md:text-6xl font-bold text-white mb-6">T-Shirts</h2>
-    <a href="{% url 'collection' "tshirts" %}" class="bg-white text-black px-8 py-3 text-lg font-semibold hover:bg-gray-200 transition ">
-      Shop Now
-    </a>
-  </div>
-</div>
+  .no-scrollbar { scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
 
-<div class="relative w-full h-screen overflow-hidden">
-  <img src="{% static 'images/pants.webp' %}" class="w-full h-full object-cover">
-  <div class="absolute inset-0 bg-black/40 flex flex-col justify-center items-center text-center px-4">
-    <h2 class="text-5xl md:text-6xl font-bold text-white mb-6">Pants</h2>
-    <a href="{% url 'collection' "pants" %}" class="bg-white text-black px-8 py-3 text-lg font-semibold hover:bg-gray-200 transition ">
-      Shop Now
-    </a>
+  @media (prefers-reduced-motion: reduce) {
+    .hero-img, .marquee-track, .swipe-arrow { animation: none; }
+  }
+  </style>
+  <!-- ===================== HERO ===================== -->
+  <section class="relative w-full h-svh overflow-hidden bg-black">
+    <img src="{% static 'images/new.webp' %}"
+         alt="Vanquished new arrivals"
+         class="hero-img absolute inset-0 w-full h-full object-cover object-top">
+    <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/30"></div>
+    <div class="absolute inset-0 flex flex-col items-center justify-end text-center text-white px-4 pb-24 sm:pb-28">
+      <p class="text-xs sm:text-sm uppercase tracking-[0.4em] mb-4 text-white/80">New Season</p>
+      <h1 class="text-5xl sm:text-7xl lg:text-8xl font-bold uppercase tracking-tight leading-none mb-8">
+        New Arrivals
+      </h1>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <a href="{% url 'new_products' %}"
+           class="bg-white text-black px-10 py-4 text-sm font-semibold uppercase tracking-widest hover:bg-gray-200 transition">
+          Shop New
+        </a>
+        <a href="{% url 'sale_products' %}"
+           class="border border-white text-white px-10 py-4 text-sm font-semibold uppercase tracking-widest hover:bg-white hover:text-black transition">
+          Shop Sale
+        </a>
+      </div>
+    </div>
+    <div class="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/70">
+      <span class="text-[10px] uppercase tracking-[0.3em]">Scroll</span>
+      <span class="block w-px h-8 bg-white/70 animate-pulse"></span>
+    </div>
+  </section>
+  <!-- ===================== INFO STRIP ===================== -->
+  <!-- Small screens: static, centered, wraps -->
+  <div class="sm:hidden bg-black text-white py-3 px-4 text-center text-[11px] uppercase tracking-[0.15em] leading-relaxed">
+    <p>Free delivery over €100 &nbsp;•&nbsp; 14-day returns</p>
+    <p>Limited drops &nbsp;•&nbsp; Card or cash on delivery</p>
   </div>
-</div>
-
-<div class="relative w-full h-screen overflow-hidden">
-  <img src="{% static 'images/sweatshirts.webp' %}" class="w-full h-full object-cover">
-  <div class="absolute inset-0 bg-black/40 flex flex-col justify-center items-center text-center px-4">
-    <h2 class="text-5xl md:text-6xl font-bold text-white mb-6">Sweatshirts</h2>
-    <a href="{% url 'collection' "sweatshirts" %}" class="bg-white text-black px-8 py-3 text-lg font-semibold hover:bg-gray-200 transition ">
-      Shop Now
-    </a>
+  <!-- sm and up: scrolling marquee -->
+  <div class="marquee-wrap hidden sm:block bg-black text-white overflow-hidden py-3">
+    <div class="marquee-track flex w-max whitespace-nowrap text-xs uppercase tracking-[0.25em]">
+      {% for i in "12" %}
+        <div class="flex items-center gap-10 pr-10">
+          <span>Free delivery over €100</span><span>•</span>
+          <span>14-day returns</span><span>•</span>
+          <span>Limited drops</span><span>•</span>
+          <span>Pay by card or cash on delivery</span><span>•</span>
+        </div>
+      {% endfor %}
+    </div>
   </div>
-</div>
-<div class="relative w-full h-screen overflow-hidden">
-  <img src="{% static 'images/accessory.jpg' %}" class="w-full h-full object-cover">
-  <div class="absolute inset-0 bg-black/40 flex flex-col justify-center items-center text-center px-4">
-    <h2 class="text-5xl md:text-6xl font-bold text-white mb-6">Accessories</h2>
-    <a href="{% url 'collection' "accessories" %}" class="bg-white text-black px-8 py-3 text-lg font-semibold hover:bg-gray-200 transition ">
-      Shop Now
+  <!-- ===================== SHOP BY CATEGORY ===================== -->
+  <section class="max-w-[1600px] mx-auto px-1 sm:px-2 pt-16">
+    <h2 class="text-center text-sm uppercase tracking-[0.3em] mb-8">Shop by category</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+      <a href="{% url 'collection' 'tshirts' %}"
+         class="group relative block aspect-[4/5] sm:aspect-[3/4] overflow-hidden bg-gray-100">
+        <img src="{% static 'images/tshirts.webp' %}"
+             alt="T-Shirts"
+             loading="lazy"
+             class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
+        <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+        <div class="absolute bottom-4 left-4 right-4 flex items-center justify-between text-white">
+          <h3 class="text-lg sm:text-2xl font-semibold uppercase tracking-tight">T-Shirts</h3>
+          <span class="text-xl transition-transform duration-300 group-hover:translate-x-1">→</span>
+        </div>
+      </a>
+      <a href="{% url 'collection' 'pants' %}"
+         class="group relative block aspect-[4/5] sm:aspect-[3/4] overflow-hidden bg-gray-100">
+        <img src="{% static 'images/pants.webp' %}"
+             alt="Pants"
+             loading="lazy"
+             class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
+        <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+        <div class="absolute bottom-4 left-4 right-4 flex items-center justify-between text-white">
+          <h3 class="text-lg sm:text-2xl font-semibold uppercase tracking-tight">Pants</h3>
+          <span class="text-xl transition-transform duration-300 group-hover:translate-x-1">→</span>
+        </div>
+      </a>
+      <a href="{% url 'collection' 'sweatshirts' %}"
+         class="group relative block aspect-[4/5] sm:aspect-[3/4] overflow-hidden bg-gray-100">
+        <img src="{% static 'images/sweatshirts.webp' %}"
+             alt="Sweatshirts"
+             loading="lazy"
+             class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
+        <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+        <div class="absolute bottom-4 left-4 right-4 flex items-center justify-between text-white">
+          <h3 class="text-lg sm:text-2xl font-semibold uppercase tracking-tight">Sweatshirts</h3>
+          <span class="text-xl transition-transform duration-300 group-hover:translate-x-1">→</span>
+        </div>
+      </a>
+      <a href="{% url 'collection' 'accessories' %}"
+         class="group relative block aspect-[4/5] sm:aspect-[3/4] overflow-hidden bg-gray-100">
+        <img src="{% static 'images/accessory.jpg' %}"
+             alt="Accessories"
+             loading="lazy"
+             class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
+        <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+        <div class="absolute bottom-4 left-4 right-4 flex items-center justify-between text-white">
+          <h3 class="text-lg sm:text-2xl font-semibold uppercase tracking-tight">Accessories</h3>
+          <span class="text-xl transition-transform duration-300 group-hover:translate-x-1">→</span>
+        </div>
+      </a>
+    </div>
+  </section>
+  <!-- ===================== NEW ARRIVALS CAROUSEL ===================== -->
+  {% if new_arrivals %}
+    <section class="pt-24"
+             x-data="{
+               scrolled: false,
+               atEnd: false,
+               check() {
+                 const t = $refs.track;
+                 this.scrolled = t.scrollLeft > 8;
+                 this.atEnd = t.scrollLeft + t.clientWidth >= t.scrollWidth - 8;
+               }
+             }"
+             x-init="$nextTick(() => check())">
+      <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 flex items-end justify-between mb-4 sm:mb-8">
+        <div>
+          <p class="text-xs uppercase tracking-[0.3em] text-gray-500 mb-2">Just dropped</p>
+          <h2 class="text-2xl sm:text-3xl font-semibold uppercase tracking-tight">New Arrivals</h2>
+        </div>
+        <div class="flex items-center gap-3">
+          <button type="button"
+                  @click="$refs.track.scrollBy({ left: -($refs.track.clientWidth * 0.8), behavior: 'smooth' })"
+                  aria-label="Scroll left"
+                  class="hidden sm:flex w-10 h-10 items-center justify-center border hover:bg-black hover:text-white transition cursor-pointer">‹</button>
+          <button type="button"
+                  @click="$refs.track.scrollBy({ left: $refs.track.clientWidth * 0.8, behavior: 'smooth' })"
+                  aria-label="Scroll right"
+                  class="hidden sm:flex w-10 h-10 items-center justify-center border hover:bg-black hover:text-white transition cursor-pointer">›</button>
+          <a href="{% url 'new_products' %}"
+             class="text-sm underline underline-offset-4 hover:no-underline ml-2">View all</a>
+        </div>
+      </div>
+      <!-- Swipe hint (small screens only, hides after first scroll) -->
+      <p x-show="!scrolled"
+         x-transition.opacity
+         class="sm:hidden px-4 mb-3 text-xs uppercase tracking-[0.2em] text-gray-500 flex items-center gap-2">
+        Swipe to see more
+        <span class="swipe-arrow inline-block">→</span>
+      </p>
+      <div class="relative">
+        <ul x-ref="track"
+            @scroll.passive="check()"
+            class="no-scrollbar flex gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth px-4 sm:px-6 lg:px-12 pb-2">
+          {% for product in new_arrivals %}
+            <li class="snap-start shrink-0 w-[68%] sm:w-[38%] lg:w-[24%] xl:w-[19%]">
+              {% include "store/_product_card.html" %}
+            </li>
+          {% endfor %}
+        </ul>
+        <!-- Right-edge fade + tap arrow (small screens only, hidden at the end) -->
+        <div x-show="!atEnd"
+             x-transition.opacity
+             class="sm:hidden pointer-events-none absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-white via-white/70 to-transparent">
+        </div>
+        <button type="button"
+                x-show="!atEnd"
+                x-transition.opacity
+                @click="$refs.track.scrollBy({ left: $refs.track.clientWidth * 0.7, behavior: 'smooth' })"
+                aria-label="Scroll right"
+                class="sm:hidden absolute right-3 top-1/3 w-11 h-11 rounded-full bg-black text-white text-xl flex items-center justify-center shadow-lg cursor-pointer">
+          <span class="swipe-arrow inline-block">›</span>
+        </button>
+      </div>
+    </section>
+  {% endif %}
+  <!-- ===================== SALE BANNER ===================== -->
+  <section class="relative w-full h-[75vh] min-h-[460px] overflow-hidden mt-24 bg-black">
+    <img src="{% static 'images/discount.webp' %}"
+         alt="Sale"
+         loading="lazy"
+         class="absolute inset-0 w-full h-full object-cover">
+    <div class="absolute inset-0 bg-black/45"></div>
+    <div class="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-4">
+      <p class="text-xs sm:text-sm uppercase tracking-[0.4em] mb-4 text-white/80">Limited time</p>
+      <h2 class="text-5xl sm:text-7xl font-bold uppercase tracking-tight mb-8">The Sale</h2>
+      <a href="{% url 'sale_products' %}"
+         class="bg-white text-black px-10 py-4 text-sm font-semibold uppercase tracking-widest hover:bg-gray-200 transition">
+        Shop Discounted
+      </a>
+    </div>
+  </section>
+  <!-- ===================== LIVE SALE PICKS ===================== -->
+  {% if sale_items %}
+    <section class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 pt-24">
+      <div class="flex items-end justify-between mb-8">
+        <div>
+          <p class="text-xs uppercase tracking-[0.3em] text-gray-500 mb-2">Don't miss out</p>
+          <h2 class="text-2xl sm:text-3xl font-semibold uppercase tracking-tight">Now on sale</h2>
+        </div>
+        <a href="{% url 'sale_products' %}"
+           class="text-sm underline underline-offset-4 hover:no-underline">View all</a>
+      </div>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-x-3 sm:gap-x-4 gap-y-10">
+        {% for product in sale_items %}
+          {% include "store/_product_card.html" %}
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+  <!-- ===================== BRAND STATEMENT ===================== -->
+  <section class="max-w-4xl mx-auto px-6 py-28 text-center">
+    <p class="text-xs uppercase tracking-[0.4em] text-gray-500 mb-6">Vanquished</p>
+    <h2 class="text-3xl sm:text-5xl font-semibold uppercase tracking-tight leading-tight">
+      Premium streetwear.
+      <br>
+      Designed with quality, inspired by culture.
+    </h2>
+    <a href="{% url 'collection' %}"
+       class="inline-block mt-10 border border-black px-10 py-4 text-sm font-semibold uppercase tracking-widest hover:bg-black hover:text-white transition">
+      Explore everything
     </a>
-  </div>
-</div>
-<div class="relative w-full h-screen overflow-hidden">
-  <img src="{% static 'images/discount.webp' %}" class="w-full h-full object-cover">
-  <div class="absolute inset-0 bg-black/40 flex flex-col justify-center items-center text-center px-4">
-    <h2 class="text-5xl md:text-6xl font-bold text-white mb-6">Discounted</h2>
-    <a href="{% url 'sale_products' %}" class="bg-white text-black px-8 py-3 text-lg font-semibold hover:bg-gray-200 transition ">
-      Shop Now
-    </a>
-  </div>
-</div>
-
+  </section>
+  <!-- ===================== TRUST BAR ===================== -->
+  <section class="border-t border-gray-200">
+    <div class="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-200 text-center">
+      <div class="py-10 px-6">
+        <p class="text-sm font-semibold uppercase tracking-widest mb-2">Free delivery</p>
+        <p class="text-sm text-gray-500">On all orders over €100</p>
+      </div>
+      <div class="py-10 px-6">
+        <p class="text-sm font-semibold uppercase tracking-widest mb-2">Easy returns</p>
+        <p class="text-sm text-gray-500">
+          14 days after delivery ·
+          <a href="{% url 'returns' %}" class="underline underline-offset-2">See policy</a>
+        </p>
+      </div>
+      <div class="py-10 px-6">
+        <p class="text-sm font-semibold uppercase tracking-widest mb-2">Secure payment</p>
+        <p class="text-sm text-gray-500">Card via Stripe or cash on delivery</p>
+      </div>
+    </div>
+  </section>
 {% endblock %}

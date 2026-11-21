@@ -113,8 +113,16 @@ def apply_filters(request, products):
 
 
 def home(request):
-    categories = Category.objects.all()
-    return render(request, 'store/home.html', {'categories': categories})
+    base = Product.objects.filter(status="active").prefetch_related("images", "variants")
+
+    new_arrivals = list(base.order_by("-created_at")[:8])
+    sale_items = list(base.filter(active_discount_q()).order_by("-discount_percent")[:4])
+
+    return render(request, "store/home.html", {
+        "categories": Category.objects.all(),
+        "new_arrivals": new_arrivals,
+        "sale_items": sale_items,
+    })
 
 
 def returns(request):

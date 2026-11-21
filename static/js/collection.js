@@ -1,6 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
     const imgs = document.querySelectorAll(".product-img");
-    console.log("[collection.js] product images found:", imgs.length);
   
     const RATIO = 3 / 4;
     const W = 90;

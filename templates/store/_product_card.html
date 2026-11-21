@@ -1,0 +1,37 @@
+{% with imgs=product.images.all sold_out=product.is_sold_out on_sale=product.is_discount_active %}
+    <a href="{% url 'product' product.id %}" class="group block">
+        <div class="relative aspect-[3/4] bg-gray-100 overflow-hidden">
+            {% if imgs.0 %}
+                <img src="{{ imgs.0.image.url }}"
+                     alt="{{ product.name }}"
+                     loading="lazy"
+                     class="absolute inset-0 w-full h-full object-contain transition-all duration-700 group-hover:scale-105 {% if imgs.1 %}group-hover:opacity-0{% endif %} {% if sold_out %}opacity-60{% endif %}">
+            {% endif %}
+            {% if imgs.1 %}
+                <img src="{{ imgs.1.image.url }}"
+                     alt=""
+                     loading="lazy"
+                     class="absolute inset-0 w-full h-full object-contain opacity-0 transition-opacity duration-700 group-hover:opacity-100">
+            {% endif %}
+            {% if on_sale %}
+                <span class="absolute top-2 left-0 bg-red-500 text-white text-xs px-2 py-1 z-10">-{{ product.discount_percent }}%</span>
+            {% endif %}
+            {% if sold_out %}
+                <span class="absolute top-2 right-2 bg-white border text-black text-xs px-2 py-1 z-10">Sold out</span>
+            {% elif product.is_limited %}
+                <span class="absolute top-2 right-2 bg-black text-white text-[10px] uppercase tracking-wide px-2 py-1 z-10">Limited</span>
+            {% endif %}
+        </div>
+        <div class="pt-3 space-y-1">
+            <h3 class="text-sm font-medium group-hover:underline underline-offset-2">{{ product.name }}</h3>
+            {% if on_sale %}
+                <p class="text-sm flex items-center gap-2">
+                    <span class="line-through text-gray-400">€{{ product.price }}</span>
+                    <span class="font-semibold text-red-500">€{{ product.final_price|floatformat:2 }}</span>
+                </p>
+            {% else %}
+                <p class="text-sm">€{{ product.price }}</p>
+            {% endif %}
+        </div>
+    </a>
+{% endwith %}
