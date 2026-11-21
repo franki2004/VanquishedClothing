@@ -69,7 +69,7 @@ def cart_view(request):
     delivery_fee = Decimal("5.00") if 0 < subtotal < 100 else Decimal("0.00")
     total = subtotal + delivery_fee
 
-    return render(request, "store/cart.html", {
+    return render(request, "orders/cart.html", {
         "cart": cart,
         "items": items,
         "subtotal": subtotal,
@@ -143,7 +143,7 @@ def checkout(request):
     } if user else None
 
     def render_checkout(customer_form, address_form=None, chosen=None):
-        return render(request, "store/checkout.html", {
+        return render(request, "orders/checkout.html", {
             "items": items,
             "subtotal": subtotal,
             "delivery_fee": delivery_fee,
@@ -529,7 +529,7 @@ def checkout_success_page(request):
         if order else []
     )
 
-    return render(request, "store/checkout_success.html", {
+    return render(request, "orders/checkout_success.html", {
         "order": order,
         "items": items,
         "waiting_for_payment": waiting_for_payment,
@@ -682,7 +682,7 @@ def admin_orders(request):
     paginator = Paginator(orders, 20)
     page_obj = paginator.get_page(request.GET.get("page"))
 
-    return render(request, "store/admin_orders.html", {
+    return render(request, "orders/admin_orders.html", {
         "orders": page_obj,
         "page_obj": page_obj,
         "tabs": tabs,
@@ -783,7 +783,7 @@ def admin_order_detail(request, order_id):
 
         return redirect(detail_url)
 
-    return render(request, "store/admin_order_detail.html", {
+    return render(request, "orders/admin_order_detail.html", {
         "order": order,
         "items": order.items.all(),
     })

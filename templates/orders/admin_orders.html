@@ -1,0 +1,135 @@
+{% extends "store/base.html" %}
+{% block title %}Orders{% endblock %}
+{% block content %}
+  <div class="max-w-7xl mx-auto px-4 pt-28 pb-16">
+    <h1 class="text-2xl font-bold mb-6">Orders</h1>
+    {% if messages %}
+      {% for message in messages %}
+        <div class="mb-3 px-4 py-2 rounded {% if message.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+    <!-- STATUS TABS -->
+    <div class="flex gap-2 overflow-x-auto mb-4">
+      {% for tab in tabs %}
+        <a href="?status={{ tab.key }}{% if base_qs %}&{{ base_qs }}{% endif %}"
+           class="px-4 py-2 border text-sm whitespace-nowrap transition-colors {% if status_filter == tab.key %}bg-black text-white{% else %}hover:bg-gray-100{% endif %}">
+          {{ tab.label }}
+          <span class="ml-1 text-xs {% if status_filter == tab.key %}text-white/70{% else %}text-gray-400{% endif %}">{{ tab.count }}</span>
+          {% if tab.key == "returns" and pending_returns_count %}
+            <span class="ml-1 inline-block bg-orange-500 text-white text-[10px] px-1.5 rounded-full">{{ pending_returns_count }} new</span>
+          {% endif %}
+        </a>
+      {% endfor %}
+    </div>
+    <!-- SEARCH / FILTER -->
+    <form method="get" class="flex flex-wrap items-end gap-3 mb-4">
+      <input type="hidden" name="status" value="{{ status_filter }}">
+      <input type="text"
+             name="q"
+             value="{{ query }}"
+             placeholder="Search order #, name, email, phone or product"
+             class="border rounded px-3 py-2 flex-1 min-w-[240px]">
+      <select name="payment" class="border rounded px-3 py-2">
+        <option value="">All payments</option>
+        <option value="card" {% if payment == "card" %}selected{% endif %}>Card</option>
+        <option value="cod" {% if payment == "cod" %}selected{% endif %}>Cash on delivery</option>
+      </select>
+      <div>
+        <label class="block text-xs text-gray-500">From</label>
+        <input type="date"
+               name="from"
+               value="{{ date_from|date:'Y-m-d' }}"
+               class="border rounded px-3 py-2">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500">To</label>
+        <input type="date"
+               name="to"
+               value="{{ date_to|date:'Y-m-d' }}"
+               class="border rounded px-3 py-2">
+      </div>
+      <select name="sort" class="border rounded px-3 py-2">
+        <option value="newest" {% if sort == "newest" %}selected{% endif %}>Newest first</option>
+        <option value="oldest" {% if sort == "oldest" %}selected{% endif %}>Oldest first</option>
+        <option value="total_desc" {% if sort == "total_desc" %}selected{% endif %}>Total ↓</option>
+        <option value="total_asc" {% if sort == "total_asc" %}selected{% endif %}>Total ↑</option>
+      </select>
+      <button type="submit"
+              class="bg-gray-800 text-white px-4 py-2 rounded cursor-pointer">Filter</button>
+      {% if has_filters %}
+        <a href="?status={{ status_filter }}"
+           class="text-sm text-gray-500 underline py-2">Reset</a>
+      {% endif %}
+    </form>
+    <!-- TABLE -->
+    <div class="overflow-x-auto border rounded">
+      <table class="min-w-full text-sm">
+        <thead class="bg-gray-100 text-left">
+          <tr>
+            <th class="p-3">Order</th>
+            <th class="p-3">Date</th>
+            <th class="p-3">Customer</th>
+            <th class="p-3 text-center">Items</th>
+            <th class="p-3">Payment</th>
+            <th class="p-3 text-right">Total</th>
+            <th class="p-3">Status</th>
+            <th class="p-3">Returns</th>
+            <th class="p-3"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for order in orders %}
+            <tr class="border-t hover:bg-gray-50 cursor-pointer"
+                onclick="window.location='{% url 'admin_order_detail' order.id %}'">
+              <td class="p-3 font-medium">#{{ order.id }}</td>
+              <td class="p-3 text-gray-600 whitespace-nowrap">{{ order.created_at|date:"d M Y, H:i" }}</td>
+              <td class="p-3">
+                {{ order.full_name }}
+                <div class="text-xs text-gray-500">{{ order.email|default:order.phone }}</div>
+              </td>
+              <td class="p-3 text-center">{{ order.item_count|default:0 }}</td>
+              <td class="p-3">{{ order.get_payment_method_display }}</td>
+              <td class="p-3 text-right font-medium whitespace-nowrap">€{{ order.total }}</td>
+              <td class="p-3">
+                {% include "orders/_order_status_badge.html" with status=order.status label=order.get_status_display %}
+              </td>
+              <td class="p-3">
+                {% if order.has_pending_return %}
+                  <span class="px-2 py-0.5 text-xs bg-orange-100 text-orange-800">Needs review</span>
+                {% elif order.has_return %}
+                  <span class="px-2 py-0.5 text-xs bg-gray-100 text-gray-700">Handled</span>
+                {% else %}
+                  <span class="text-gray-300">—</span>
+                {% endif %}
+              </td>
+              <td class="p-3 text-right">
+                <a href="{% url 'admin_order_detail' order.id %}"
+                   class="text-blue-600 hover:underline">View</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="9" class="p-6 text-center text-gray-500">No orders found.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <!-- PAGINATION -->
+    {% if page_obj.paginator.num_pages > 1 %}
+      <div class="flex items-center gap-2 my-4">
+        {% if page_obj.has_previous %}
+          <a href="?page={{ page_obj.previous_page_number }}&{{ page_qs }}"
+             class="px-3 py-1 border rounded">Prev</a>
+        {% endif %}
+        <span class="px-3 py-1">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+          <a href="?page={{ page_obj.next_page_number }}&{{ page_qs }}"
+             class="px-3 py-1 border rounded">Next</a>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}
