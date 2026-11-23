@@ -2,80 +2,142 @@
 {% load static %}
 {% block content %}
   <div class="max-w-7xl mx-auto px-4 pt-28 pb-16">
-    <h1 class="text-2xl font-bold mb-6">Manage Discounts</h1>
+    <!-- Page header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-8">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight">Manage Discounts</h1>
+        <p class="text-sm text-gray-500 mt-1">Apply, schedule, or remove discounts from your products.</p>
+      </div>
+      <p class="text-sm text-gray-500">{{ page_obj.paginator.count }} products</p>
+    </div>
+    <!-- Messages -->
     {% if messages %}
-      {% for message in messages %}
-        {% if message.tags == "success" %}
-          <div id="discount-success-flag" class="hidden"></div>
-        {% endif %}
-        <div class="mb-3 px-4 py-2 rounded {% if message.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
-          {{ message }}
-        </div>
-      {% endfor %}
-    {% endif %}
-    <!-- Search / filter -->
-    <form method="get" class="flex flex-wrap gap-3 mb-4">
-      <input type="text"
-             name="q"
-             value="{{ query }}"
-             placeholder="Search by name, tag, or SKU"
-             class="border rounded px-3 py-2 flex-1 min-w-[200px]">
-      <select name="category" class="border rounded px-3 py-2">
-        <option value="">All categories</option>
-        {% for c in categories %}
-          <option value="{{ c.id }}"
-                  {% if selected_category == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+      <div class="mb-6 space-y-2">
+        {% for message in messages %}
+          {% if message.tags == "success" %}
+            <div id="discount-success-flag" class="hidden"></div>
+          {% endif %}
+          <div role="alert"
+               class="px-4 py-3 border text-sm {% if message.tags == 'error' %} bg-red-50 border-red-200 text-red-700 {% elif message.tags == 'warning' %} bg-yellow-50 border-yellow-200 text-yellow-800 {% else %} bg-green-50 border-green-200 text-green-700 {% endif %}">
+            {{ message }}
+          </div>
         {% endfor %}
-      </select>
-      <button type="submit" class="bg-gray-800 text-white px-4 py-2 rounded">Filter</button>
-    </form>
+      </div>
+    {% endif %}
+    <!-- Search and filters -->
+    <div class="border border-gray-200 p-4 sm:p-5 mb-6">
+      <div class="mb-4">
+        <h2 class="text-sm font-semibold uppercase tracking-wider">Search and filters</h2>
+        <p class="text-xs text-gray-500 mt-1">Find products by name, tag, SKU, or category.</p>
+      </div>
+      <form method="get" class="flex flex-col sm:flex-row gap-3">
+        <div class="flex-1 min-w-0">
+          <label for="discount-search" class="sr-only">Search products</label>
+          <input id="discount-search"
+                 type="text"
+                 name="q"
+                 value="{{ query }}"
+                 placeholder="Search by name, tag, or SKU"
+                 autocomplete="off"
+                 class="w-full border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black">
+        </div>
+        <div class="sm:w-56">
+          <label for="discount-category" class="sr-only">Filter by category</label>
+          <select id="discount-category"
+                  name="category"
+                  class="w-full border border-gray-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black">
+            <option value="">All categories</option>
+            {% for c in categories %}
+              <option value="{{ c.id }}"
+                      {% if selected_category == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="flex gap-2">
+          <button type="submit"
+                  class="bg-black text-white px-5 py-2.5 text-sm font-medium hover:bg-gray-800 transition cursor-pointer">
+            Filter
+          </button>
+          {% if query or selected_category %}
+            <a href="{% url 'product_discount_manage' %}"
+               class="border border-gray-300 px-4 py-2.5 text-sm hover:bg-gray-100 transition cursor-pointer">Clear</a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+    <!-- Discount form -->
     <form method="post" id="discount-form">
       {% csrf_token %}
       <input type="hidden" name="q" value="{{ query }}">
       <input type="hidden" name="category" value="{{ selected_category }}">
-      <div class="overflow-x-auto border rounded">
-        <table class="min-w-full text-sm">
+      <!-- Products table -->
+      <div class="border border-gray-200 overflow-x-auto">
+        <table class="min-w-[900px] w-full text-sm">
           <thead class="bg-gray-100 text-left">
             <tr>
-              <th class="p-3">
-                <input type="checkbox" id="select-all">
+              <th scope="col" class="p-4 w-12">
+                <input type="checkbox"
+                       id="select-all"
+                       aria-label="Select all products on this page"
+                       class="accent-black cursor-pointer w-4 h-4">
               </th>
-              <th class="p-3">Name</th>
-              <th class="p-3">SKU</th>
-              <th class="p-3">Category</th>
-              <th class="p-3">Tags</th>
-              <th class="p-3">Price</th>
-              <th class="p-3">Discount</th>
-              <th class="p-3">Status</th>
+              <th scope="col" class="p-4 font-semibold">Product</th>
+              <th scope="col" class="p-4 font-semibold">SKU</th>
+              <th scope="col" class="p-4 font-semibold">Category</th>
+              <th scope="col" class="p-4 font-semibold">Tags</th>
+              <th scope="col" class="p-4 font-semibold">Price</th>
+              <th scope="col" class="p-4 font-semibold">Discount</th>
+              <th scope="col" class="p-4 font-semibold">Status</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody class="divide-y divide-gray-200">
             {% for product in page_obj %}
-              <tr class="border-t">
-                <td class="p-3">
+              <tr class="hover:bg-gray-50 transition-colors">
+                <td class="p-4">
                   <input type="checkbox"
                          name="product_ids"
                          value="{{ product.id }}"
-                         class="row-check">
+                         aria-label="Select {{ product.name }}"
+                         class="row-check accent-black cursor-pointer w-4 h-4">
                 </td>
-                <td class="p-3">{{ product.name }}</td>
-                <td class="p-3 text-gray-500">{{ product.sku }}</td>
-                <td class="p-3">{{ product.category.name|default:"—" }}</td>
-                <td class="p-3">{% for t in product.tags.all %}{{ t.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
-                <td class="p-3">
-                  ${{ product.price }}
+                <td class="p-4">
+                  <span class="font-medium text-gray-900">{{ product.name }}</span>
+                </td>
+                <td class="p-4 text-gray-500 whitespace-nowrap">{{ product.sku }}</td>
+                <td class="p-4 text-gray-700">{{ product.category.name|default:"—" }}</td>
+                <td class="p-4 text-gray-500 max-w-52">
+                  {% for t in product.tags.all %}
+                    {{ t.name }}{% if not forloop.last %}, {% endif %}
+                  {% empty %}
+                    —
+                  {% endfor %}
+                </td>
+                <td class="p-4 whitespace-nowrap">
+                  <span class="font-medium">${{ product.price }}</span>
                   {% if product.discount_percent %}
-                    <span class="text-red-600 text-xs block">→ ${{ product.final_price }}</span>
+                    <span class="block text-xs text-red-600 mt-1">→ ${{ product.final_price }}</span>
                   {% endif %}
                 </td>
-                <td class="p-3">{% if product.discount_percent %}{{ product.discount_percent }}%{% else %}—{% endif %}</td>
-                <td class="p-3">
+                <td class="p-4 whitespace-nowrap">
+                  {% if product.discount_percent %}
+                    <span class="font-medium">{{ product.discount_percent }}%</span>
+                  {% else %}
+                    <span class="text-gray-400">—</span>
+                  {% endif %}
+                </td>
+                <td class="p-4 whitespace-nowrap">
                   {% if product.discount_status == "active" %}
-                    <span class="text-green-600 font-medium">Active</span>
+                    <span class="inline-block border border-green-200 bg-green-50 text-green-700 px-2 py-1 text-xs font-medium">
+                      Active
+                    </span>
                   {% elif product.discount_status == "scheduled" %}
-                    <span class="text-blue-600 font-medium">Scheduled</span>
+                    <span class="inline-block border border-blue-200 bg-blue-50 text-blue-700 px-2 py-1 text-xs font-medium">
+                      Scheduled
+                    </span>
                   {% elif product.discount_status == "expired" %}
-                    <span class="text-gray-400">Expired</span>
+                    <span class="inline-block border border-gray-200 bg-gray-100 text-gray-500 px-2 py-1 text-xs font-medium">
+                      Expired
+                    </span>
                   {% else %}
                     <span class="text-gray-400">—</span>
                   {% endif %}
@@ -83,63 +145,128 @@
               </tr>
             {% empty %}
               <tr>
-                <td colspan="8" class="p-6 text-center text-gray-500">No products found.</td>
+                <td colspan="8" class="p-12 text-center">
+                  <p class="font-medium text-gray-700">No products found</p>
+                  <p class="text-sm text-gray-500 mt-1">Try changing your search or filters.</p>
+                </td>
               </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
       <!-- Pagination -->
-      <div class="flex gap-2 my-4">
-        {% if page_obj.has_previous %}
-          <a href="?page={{ page_obj.previous_page_number }}&q={{ query }}&category={{ selected_category }}"
-             class="px-3 py-1 border rounded">Prev</a>
-        {% endif %}
-        <span class="px-3 py-1">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-        {% if page_obj.has_next %}
-          <a href="?page={{ page_obj.next_page_number }}&q={{ query }}&category={{ selected_category }}"
-             class="px-3 py-1 border rounded">Next</a>
-        {% endif %}
-      </div>
+      {% if page_obj.paginator.num_pages > 1 %}
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-5 border-b border-gray-200">
+          <p class="text-sm text-gray-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</p>
+          <div class="flex items-center gap-2">
+            {% if page_obj.has_previous %}
+              <a href="?page={{ page_obj.previous_page_number }}&q={{ query|urlencode }}&category={{ selected_category|urlencode }}"
+                 class="border border-gray-300 px-4 py-2 text-sm hover:bg-gray-100 transition cursor-pointer">
+                Previous
+              </a>
+            {% else %}
+              <span class="border border-gray-200 text-gray-300 px-4 py-2 text-sm">Previous</span>
+            {% endif %}
+            <span class="bg-black text-white px-4 py-2 text-sm font-medium">{{ page_obj.number }}</span>
+            {% if page_obj.has_next %}
+              <a href="?page={{ page_obj.next_page_number }}&q={{ query|urlencode }}&category={{ selected_category|urlencode }}"
+                 class="border border-gray-300 px-4 py-2 text-sm hover:bg-gray-100 transition cursor-pointer">Next</a>
+            {% else %}
+              <span class="border border-gray-200 text-gray-300 px-4 py-2 text-sm">Next</span>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
       <!-- Bulk discount panel -->
-      <div class="border-t pt-4">
+      <div class="mt-8">
+        <div class="mb-5">
+          <h2 class="text-lg font-semibold">Bulk discount</h2>
+          <p class="text-sm text-gray-500 mt-1">Select one or more products above, then configure their discount.</p>
+        </div>
+        <!-- Selection bar -->
         <div id="selection-bar"
-             class="flex items-center gap-3 mb-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded hidden">
-          <span id="selection-count" class="text-sm font-medium text-blue-800">0 selected</span>
+             class="hidden flex items-center justify-between gap-3 mb-5 px-4 py-3 bg-gray-100 border border-gray-200">
+          <span id="selection-count"
+                class="text-sm font-medium text-gray-900"
+                aria-live="polite">0 selected</span>
           <button type="button"
                   id="clear-selection"
-                  class="text-sm text-blue-600 underline hover:text-blue-800">Clear selection</button>
+                  class="text-sm text-gray-600 underline underline-offset-4 hover:text-black cursor-pointer">
+            Clear selection
+          </button>
         </div>
-        <div class="flex flex-wrap items-end gap-3">
-          <div>
-            <label class="block text-sm text-gray-600">Discount %</label>
-            {{ form.discount_percent }}
+        <div class="border border-gray-200 p-4 sm:p-6">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div class="discount-control">
+              <label for="{{ form.discount_percent.id_for_label }}"
+                     class="block text-sm font-medium text-gray-700 mb-2">Discount percentage</label>
+              {{ form.discount_percent }}
+              {% for error in form.discount_percent.errors %}
+                <p class="text-xs text-red-600 mt-1">{{ error }}</p>
+              {% endfor %}
+            </div>
+            <div class="discount-control">
+              <label for="{{ form.discount_start.id_for_label }}"
+                     class="block text-sm font-medium text-gray-700 mb-2">Start date</label>
+              {{ form.discount_start }}
+              {% for error in form.discount_start.errors %}
+                <p class="text-xs text-red-600 mt-1">{{ error }}</p>
+              {% endfor %}
+            </div>
+            <div class="discount-control">
+              <label for="{{ form.discount_end.id_for_label }}"
+                     class="block text-sm font-medium text-gray-700 mb-2">End date</label>
+              {{ form.discount_end }}
+              {% for error in form.discount_end.errors %}
+                <p class="text-xs text-red-600 mt-1">{{ error }}</p>
+              {% endfor %}
+            </div>
           </div>
-          <div>
-            <label class="block text-sm text-gray-600">Starts</label>
-            {{ form.discount_start }}
-          </div>
-          <div>
-            <label class="block text-sm text-gray-600">Ends</label>
-            {{ form.discount_end }}
-          </div>
-          <button type="submit"
-                  name="action"
-                  value="apply"
-                  class="bg-black text-white px-4 py-2 rounded">Apply to selected</button>
-          <button type="submit"
-                  name="action"
-                  value="clear"
-                  formnovalidate
-                  class="border border-red-500 text-red-600 px-4 py-2 rounded">Remove discount</button>
-          {% if form.errors %}
-            <div class="text-red-600 text-sm w-full">{{ form.non_field_errors }}</div>
+          {% if form.non_field_errors %}
+            <div class="mb-4 text-sm text-red-600">{{ form.non_field_errors }}</div>
           {% endif %}
+          <div class="flex flex-col sm:flex-row gap-3 pt-5 border-t border-gray-200">
+            <button type="submit"
+                    name="action"
+                    value="apply"
+                    class="bg-black text-white px-6 py-3 text-sm font-medium hover:bg-gray-800 transition cursor-pointer">
+              Apply to selected
+            </button>
+            <button type="submit"
+                    name="action"
+                    value="clear"
+                    formnovalidate
+                    class="border border-red-300 text-red-600 px-6 py-3 text-sm font-medium hover:bg-red-50 transition cursor-pointer">
+              Remove discount
+            </button>
+          </div>
         </div>
       </div>
     </form>
   </div>
-  {% block js %}
-    <script src="{% static 'js/discount_manage.js' %}"></script>
-  {% endblock %}
+  <style>
+    .discount-control input,
+    .discount-control select,
+    .discount-control textarea {
+        width: 100%;
+        min-height: 42px;
+        padding: 9px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 0;
+        background-color: #fff;
+        color: #111827;
+        font-size: 14px;
+    }
+
+    .discount-control input:focus,
+    .discount-control select:focus,
+    .discount-control textarea:focus {
+        outline: none;
+        border-color: #000;
+        box-shadow: 0 0 0 1px #000;
+    }
+  </style>
+{% endblock %}
+{% block js %}
+  <script src="{% static 'js/discount_manage.js' %}"></script>
 {% endblock %}
