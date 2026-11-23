@@ -18,4 +18,9 @@ urlpatterns = [
     path("product/search/", views.related_products_search, name="related_products_search"),
     path("product/manage-discounts/", views.product_discount_manage, name="product_discount_manage"),
     path("tags/create/", views.create_tag, name="create_tag"),
+    path(
+    "search/suggestions/",
+    views.search_suggestions,
+    name="search_suggestions",
+),
 ]

@@ -94,10 +94,12 @@ class LoginForm(forms.Form):
     email = forms.EmailField(widget=forms.EmailInput(attrs={
         "class": TAILWIND_INPUT_CLASSES,
         "placeholder": "Enter registered email",
+        "autocomplete": "email"
     }))
     password = forms.CharField(widget=forms.PasswordInput(attrs={
         "class": TAILWIND_INPUT_CLASSES,
         "placeholder": "Enter your password",
+        "autocomplete": "current-password",
     }))
 
     def clean(self):

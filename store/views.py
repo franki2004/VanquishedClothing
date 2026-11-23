@@ -2,7 +2,17 @@ from django.shortcuts import render, get_object_or_404, redirect
 from .models import Category, Product, ProductImage, ProductVariant, Tag
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
-from django.db.models import Q, Count
+from django.db.models import (
+    Q,
+    Case,
+    When,
+    Value,
+    IntegerField,
+    Exists,
+    OuterRef,
+    F,
+    Count
+)
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db import transaction 
 from orders.forms import AddToCartForm
@@ -13,7 +23,9 @@ from django.db.models import Prefetch
 from urllib.parse import urlencode
 from django.utils import timezone
 import json
+from django.urls import reverse
 from django.contrib import messages
+from django.views.decorators.http import require_GET
 from .forms import DiscountForm
 
 SIZES = ["XS", "S", "M", "L", "XL", "2XL"]
@@ -168,36 +180,243 @@ def collection(request, slug=None, filter_type=None):
         **listing_context(request, page_obj),
     })
 
-def search(request):
-    q = request.GET.get("q", "").strip()
+def search_products(query):
+    query = " ".join(query.split())[:100]
 
-    base_qs = Product.objects.filter(status="active").prefetch_related("images", "variants")
+    qs = (
+        Product.objects
+        .filter(status="active")
+        .select_related("category")
+        .prefetch_related("images", "variants", "tags")
+    )
+
+    if not query:
+        return qs.none()
+
+    # Проверяваме дали цялата фраза съществува в таговете.
+    tag_phrase_qs = Product.objects.filter(
+        pk=OuterRef("pk"),
+        tags__name__icontains=query,
+    )
+
+    qs = qs.annotate(
+        tag_phrase_match=Exists(tag_phrase_qs)
+    )
+
+    # Основни точки за релевантност.
+    qs = qs.annotate(
+        score_sku_exact=Case(
+            When(sku__iexact=query, then=Value(2000)),
+            default=Value(0),
+            output_field=IntegerField(),
+        ),
+
+        score_sku_contains=Case(
+            When(sku__icontains=query, then=Value(150)),
+            default=Value(0),
+            output_field=IntegerField(),
+        ),
+
+        score_name_exact=Case(
+            When(name__iexact=query, then=Value(1200)),
+            default=Value(0),
+            output_field=IntegerField(),
+        ),
+
+        score_name_starts=Case(
+            When(name__istartswith=query, then=Value(850)),
+            default=Value(0),
+            output_field=IntegerField(),
+        ),
+
+        score_name_contains=Case(
+            When(name__icontains=query, then=Value(600)),
+            default=Value(0),
+            output_field=IntegerField(),
+        ),
+
+        score_category_exact=Case(
+            When(category__name__iexact=query, then=Value(280)),
+            default=Value(0),
+            output_field=IntegerField(),
+        ),
+
+        score_category_contains=Case(
+            When(category__name__icontains=query, then=Value(180)),
+            default=Value(0),
+            output_field=IntegerField(),
+        ),
+
+        score_tag_phrase=Case(
+            When(tag_phrase_match=True, then=Value(220)),
+            default=Value(0),
+            output_field=IntegerField(),
+        ),
+    )
+
+    score_parts = [
+        F("score_sku_exact"),
+        F("score_sku_contains"),
+        F("score_name_exact"),
+        F("score_name_starts"),
+        F("score_name_contains"),
+        F("score_category_exact"),
+        F("score_category_contains"),
+        F("score_tag_phrase"),
+    ]
+
+    words = list(dict.fromkeys(query.casefold().split()))[:6]
+
+    match_q = (
+        Q(name__icontains=query)
+        | Q(sku__icontains=query)
+        | Q(category__name__icontains=query)
+        | Q(tag_phrase_match=True)
+    )
+
+    for index, word in enumerate(words):
+        tag_alias = f"tag_token_{index}"
+
+        tag_word_qs = Product.objects.filter(
+            pk=OuterRef("pk"),
+            tags__name__icontains=word,
+        )
+
+        qs = qs.annotate(
+            **{
+                tag_alias: Exists(tag_word_qs)
+            }
+        )
+
+        name_score = f"score_name_token_{index}"
+        category_score = f"score_category_token_{index}"
+        tag_score = f"score_tag_token_{index}"
+
+        qs = qs.annotate(
+            **{
+                name_score: Case(
+                    When(name__icontains=word, then=Value(70)),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                ),
+
+                category_score: Case(
+                    When(category__name__icontains=word, then=Value(30)),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                ),
+
+                tag_score: Case(
+                    When(
+                        **{tag_alias: True},
+                        then=Value(40),
+                    ),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                ),
+            }
+        )
+
+        score_parts.extend([
+            F(name_score),
+            F(category_score),
+            F(tag_score),
+        ])
+
+        match_q |= (
+            Q(name__icontains=word)
+            | Q(category__name__icontains=word)
+            | Q(**{tag_alias: True})
+        )
+
+    score_expression = sum(
+        score_parts,
+        Value(0, output_field=IntegerField()),
+    )
+
+    return (
+        qs
+        .annotate(search_score=score_expression)
+        .filter(match_q)
+        .order_by("-search_score", "-created_at")
+    )
+
+@require_GET
+def search_suggestions(request):
+    q = " ".join(request.GET.get("q", "").split())[:100]
+
+    if len(q) < 2:
+        return JsonResponse([], safe=False)
+
+    products = search_products(q)[:6]
+
+    results = []
+
+    for product in products:
+        image = next(
+            iter(product.images.all()),
+            None
+        )
+
+        image_url = ""
+
+        if image and image.image:
+            try:
+                image_url = image.image.url
+            except ValueError:
+                image_url = ""
+
+        results.append({
+            "id": product.pk,
+            "name": product.name,
+            "price": str(product.final_price),
+            "image": image_url,
+            "url": reverse(
+                "product_detail",
+                kwargs={"slug": product.slug},
+            ),
+        })
+
+    return JsonResponse(results, safe=False)
+
+def search(request):
+    q = " ".join(request.GET.get("q", "").split())[:100]
+
+    base_qs = search_products(q)
+
+    products, selected_sizes = apply_filters(
+        request,
+        base_qs,
+    )
 
     if q:
-        base_qs = base_qs.filter(
-            Q(name__icontains=q) |
-            Q(tags__name__icontains=q)
-        ).distinct()
-    else:
-        base_qs = Product.objects.none()
-
-    products, selected_sizes = apply_filters(request, base_qs)
+        products = products.order_by(
+            "-search_score",
+            "-created_at",
+        )
 
     paginator = Paginator(products, 42)
-    page_obj = paginator.get_page(request.GET.get("page"))
 
-    return render(request, "store/collection.html", {
-        "products": page_obj,
-        "page_obj": page_obj,
-        "categories": Category.objects.all(),
-        "selected_sizes": selected_sizes,
-        "sizes": SIZES,
-        "title": f"Search: {q}",
-        "active_filter": "search",
-        "query": q,
-        "category": None,
-        **listing_context(request, page_obj),
-    })
+    page_obj = paginator.get_page(
+        request.GET.get("page")
+    )
+
+    return render(
+        request,
+        "store/collection.html",
+        {
+            "products": page_obj,
+            "page_obj": page_obj,
+            "categories": Category.objects.all(),
+            "selected_sizes": selected_sizes,
+            "sizes": SIZES,
+            "title": f"Search: {q}",
+            "active_filter": "search",
+            "query": q,
+            "category": None,
+            **listing_context(request, page_obj),
+        }
+    )
 
 def product_detail(request, id):
     if request.user.is_staff:

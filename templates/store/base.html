@@ -11,38 +11,104 @@
     <link rel="icon"
           type="image/png"
           sizes="512x512"
-          href="{% static 'images/favicon512.png' %}">
+          href="{% static 'images/favicon512.png' %}" />
     <link href="https://unpkg.com/filepond@^4/dist/filepond.css"
           rel="stylesheet" />
     <script src="https://unpkg.com/filepond@^4/dist/filepond.js"></script>
     {% block js %}{% endblock %}
+    {% block style %}
+      <style>
+        [x-cloak] {
+          display: none !important;
+        }
+      </style>
+    {% endblock %}
+    {% block extra_style %}{% endblock %}
   </head>
   <body class="bg-white text-gray-800 flex flex-col min-h-screen">
+    <!-- NAV & SEARCH SHELL -->
     <div x-data="{
         menuOpen: false,
         searchOpen: false,
         query: '',
         results: [],
+        loading: false,
+        searchController: null,
+
+        openSearch() {
+            this.searchOpen = true;
+            this.$nextTick(() => {
+                this.$refs.searchInput?.focus();
+            });
+        },
+
+        closeSearch() {
+            this.searchOpen = false;
+        },
+
+        clearSearch() {
+            this.query = '';
+            this.results = [];
+        },
+
         async search() {
-          if (this.query.length < 2) {
-            this.results = []
-            return
-          }
-          const res = await fetch(`/search/suggestions/?q=${encodeURIComponent(this.query)}`)
-          this.results = await res.json()
+            const term = this.query.trim();
+
+            if (term.length < 2) {
+                this.results = [];
+                this.loading = false;
+                return;
+            }
+
+            if (this.searchController) {
+                this.searchController.abort();
+            }
+
+            const controller = new AbortController();
+            this.searchController = controller;
+            this.loading = true;
+
+            try {
+                const response = await fetch(
+                    `{% url 'search_suggestions' %}?q=${encodeURIComponent(term)}`,
+                    { signal: controller.signal }
+                );
+
+                if (!response.ok) {
+                    throw new Error('Search request failed');
+                }
+
+                const data = await response.json();
+
+                // Ignore responses from stale requests.
+                if (this.query.trim() === term) {
+                    this.results = data;
+                }
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    this.results = [];
+                }
+            } finally {
+                if (this.searchController === controller) {
+                    this.loading = false;
+                    this.searchController = null;
+                }
+            }
         }
-      }">
+    }">
       <!-- HEADER -->
       <header id="mainHeader"
-              class="fixed top-0 left-0 w-full z-50 pointer-events-auto mix-blend-difference invert isolate">
+              class="fixed top-0 left-0 w-full z-40 pointer-events-auto mix-blend-difference invert isolate">
         <div class="max-w-7xl mx-auto h-16 px-4 relative flex items-center justify-between">
           <div class="flex items-center gap-3 min-w-[80px]">
             <button type="button"
                     @click="menuOpen = true"
-                    class="text-2xl cursor-pointer">☰</button>
+                    class="text-2xl cursor-pointer"
+                    aria-label="Open menu">☰</button>
             <button type="button"
-                    @click="searchOpen = true"
-                    class="cursor-pointer md:hidden">
+                    @click="openSearch()"
+                    class="cursor-pointer md:hidden"
+                    aria-label="Open search">
               <img alt="search icon"
                    src="{% static 'icons/search.svg' %}"
                    class="h-6 w-6" />
@@ -58,22 +124,23 @@
           <!-- RIGHT -->
           <div class="flex items-center gap-4 justify-end min-w-[80px]">
             <button type="button"
-                    @click="searchOpen = true"
-                    class="cursor-pointer hidden md:block">
+                    @click="openSearch()"
+                    class="cursor-pointer hidden md:block"
+                    aria-label="Open search">
               <img alt="search icon"
                    src="{% static 'icons/search.svg' %}"
                    class="h-6 w-6" />
             </button>
             {% if user.is_authenticated %}
-              <a href="{% url 'account_dashboard' %}">
+              <a href="{% url 'account_dashboard' %}" aria-label="Account dashboard">
                 <img alt="user icon" src="{% static 'icons/user.svg' %}" class="h-6 w-6" />
               </a>
             {% else %}
-              <a href="{% url 'login' %}">
+              <a href="{% url 'login' %}" aria-label="Log in">
                 <img alt="user icon" src="{% static 'icons/user.svg' %}" class="h-6 w-6" />
               </a>
             {% endif %}
-            <a href="{% url 'cart' %}" class="relative">
+            <a href="{% url 'cart' %}" class="relative" aria-label="Shopping bag">
               <img alt="bag icon" src="{% static 'icons/bag.svg' %}" class="h-6 w-6" />
               {% if cart_count > 0 %}
                 <span class="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full px-1">
@@ -84,96 +151,240 @@
           </div>
         </div>
       </header>
-      <!-- Search Modal -->
-      <div x-show="searchOpen"
-           x-transition.opacity
-           class="fixed inset-0 flex items-start justify-center pt-20 z-50">
-        <div class="fixed inset-0 bg-black/50 transition-opacity"
-             @click="searchOpen = false"></div>
-        <div class="relative bg-white w-full max-w-2xl shadow-lg overflow-hidden max-h-[80vh] flex flex-col"
-             x-transition>
-          <div class="p-4 border-b">
+      <!-- SEARCH MODAL -->
+      <div x-cloak
+           x-show="searchOpen"
+           class="fixed inset-0 z-[100] flex items-start md:items-center justify-center"
+           @keydown.escape.window="closeSearch()">
+        <!-- BACKDROP -->
+        <div class="absolute inset-0 bg-black/65 backdrop-blur-sm cursor-pointer"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             @click="closeSearch()"></div>
+        <!-- MODAL -->
+        <div class="relative w-full md:max-w-5xl bg-white shadow-2xl overflow-hidden flex flex-col h-full md:h-auto md:max-h-[90vh]"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 translate-y-5 md:scale-95"
+             x-transition:enter-end="opacity-100 translate-y-0 md:scale-100"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 translate-y-0 md:scale-100"
+             x-transition:leave-end="opacity-0 translate-y-5 md:scale-95">
+          <div class="px-5 sm:px-8 pt-6 pb-5 border-b border-gray-200 shrink-0">
+            <div class="flex items-start justify-between mb-6">
+              <div>
+                <p class="text-[10px] tracking-[0.3em] font-semibold text-gray-400 mb-2">VANQUISHED / COLLECTION</p>
+                <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight text-black">Find your piece.</h2>
+              </div>
+              <button type="button"
+                      @click="closeSearch()"
+                      class="w-10 h-10 flex items-center justify-center bg-gray-100 hover:bg-black hover:text-white transition duration-200 cursor-pointer"
+                      aria-label="Close search">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     width="20"
+                     height="20"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="1.8">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             <form action="{% url 'search' %}" method="get" @submit="results = []">
-              <input type="text"
-                     name="q"
-                     x-model="query"
-                     @input.debounce.300ms="search"
-                     @keydown.escape="searchOpen = false"
-                     class="w-full border px-4 py-3 text-lg outline-none"
-                     placeholder="Search products…"
-                     autofocus />
+              <div class="flex items-center gap-3 border border-gray-300 px-4 py-4 focus-within:border-black focus-within:ring-1 focus-within:ring-black transition">
+                <img src="{% static 'icons/search.svg' %}" alt="" class="w-5 h-5 shrink-0" />
+                <input type="text"
+                       name="q"
+                       x-ref="searchInput"
+                       x-model="query"
+                       @input.debounce.300ms="search"
+                       @keydown.escape="closeSearch()"
+                       class="w-full outline-none bg-transparent text-base text-black placeholder:text-gray-400"
+                       placeholder="Search products..."
+                       autocomplete="off" />
+                <button type="button"
+                        x-show="query.length"
+                        @click="clearSearch()"
+                        class="text-xs uppercase tracking-wider text-gray-400 hover:text-black transition cursor-pointer">
+                  Clear
+                </button>
+                <span class="hidden sm:block text-[10px] text-gray-400 border border-gray-300 px-2 py-1">ESC</span>
+              </div>
             </form>
           </div>
-          <div class="overflow-y-auto" :class="results.length ? 'py-2' : ''">
-            <template x-for="item in results" :key="item.id">
-              <a :href="item.url"
-                 @click="searchOpen = false"
-                 class="flex items-center gap-4 p-3 border-b hover:bg-gray-100">
-                <img x-show="item.image"
-                     :src="item.image"
+          <!-- RESULTS AREA -->
+          <div class="flex-1 overflow-y-auto px-5 sm:px-8 py-6">
+            <div x-show="query.trim().length < 2" class="py-4">
+              <p class="text-[10px] tracking-[0.25em] font-semibold text-gray-400 mb-5">DISCOVER VANQUISHED</p>
+              <div class="flex flex-wrap gap-2">
+                <template x-for="suggestion in ['Hoodie', 'T-shirt', 'Black', 'Oversized']"
+                          :key="suggestion">
+                  <button type="button"
+                          @click="query = suggestion; search()"
+                          class="px-5 py-3 border border-gray-300 text-xs uppercase tracking-wider text-gray-600 hover:bg-black hover:text-white hover:border-black transition cursor-pointer"
+                          x-text="suggestion"></button>
+                </template>
+              </div>
+            </div>
+            <div x-show="loading"
+                 class="py-16 flex flex-col items-center justify-center gap-4">
+              <div class="w-7 h-7 border-2 border-gray-200 border-t-black rounded-full animate-spin"></div>
+              <p class="text-[10px] text-gray-400 tracking-[0.25em]">SEARCHING...</p>
+            </div>
+            <div x-show="!loading && results.length > 0">
+              <div class="flex items-center justify-between mb-6">
+                <p class="text-[10px] tracking-[0.25em] font-semibold text-gray-400">SEARCH RESULTS</p>
+                <span class="text-xs text-gray-400" x-text="results.length + ' products'"></span>
+              </div>
+              <!-- PRODUCT GRID -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-8 sm:gap-y-10">
+                <template x-for="item in results" :key="item.id">
+                  <a :href="item.url"
+                     @click="closeSearch()"
+                     class="group block min-w-0 cursor-pointer">
+                    <div class="relative w-full aspect-[4/5] bg-gray-50 overflow-hidden">
+                      <template x-if="item.image">
+                        <img :src="item.image"
+                             :alt="item.name"
+                             loading="lazy"
+                             class="w-full h-full object-contain p-2 sm:p-3 group-hover:scale-105 transition duration-500" />
+                      </template>
+                      <template x-if="!item.image">
+                        <div class="w-full h-full flex items-center justify-center text-[10px] tracking-widest text-gray-400">
+                          NO IMAGE
+                        </div>
+                      </template>
+                      <div class="absolute bottom-3 right-3 w-10 h-10 bg-black text-white flex items-center justify-center opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition duration-300">
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                             width="17"
+                             height="17"
+                             viewBox="0 0 24 24"
+                             fill="none"
+                             stroke="currentColor"
+                             stroke-width="1.8">
+                          <path d="M7 17 17 7M7 7h10v10" />
+                        </svg>
+                      </div>
+                    </div>
+                    <!-- PRODUCT DETAILS -->
+                    <div class="pt-3">
+                      <h3 class="text-sm sm:text-base font-medium text-black group-hover:text-gray-500 transition truncate"
+                          x-text="item.name"></h3>
+                      <p class="text-sm text-gray-500 mt-1">
+                        <span x-text="item.price"></span> лв
+                      </p>
+                    </div>
+                  </a>
+                </template>
+              </div>
+            </div>
+            <!-- NO RESULTS -->
+            <div x-show="!loading && query.trim().length >= 2 && results.length === 0"
+                 class="py-16 text-center">
+              <div class="w-14 h-14 bg-gray-100 flex items-center justify-center mx-auto mb-5">
+                <img src="{% static 'icons/search.svg' %}"
                      alt=""
-                     class="w-40 object-contain" />
-                <div class="flex flex-col justify-center text-center">
-                  <span class="text-base font-medium" x-text="item.name"></span>
-                  <span class="text-sm font-semibold text-gray-700 mt-1"
-                        x-text="item.price + ' лв'"></span>
-                </div>
-              </a>
-            </template>
+                     class="w-6 h-6 opacity-50" />
+              </div>
+              <h3 class="text-lg font-medium text-black">No products found</h3>
+              <p class="text-sm text-gray-400 mt-2">Try another search term.</p>
+            </div>
           </div>
-          <div class="p-4 text-center inline-block bg-black" x-show="results.length">
-            <a :href="`{% url 'search' %}?q=${query}`"
-               class="text-white cursor-pointer p-2">Show all results</a>
+          <!-- FOOTER -->
+          <div x-show="query.trim().length >= 2"
+               class="px-5 sm:px-8 py-5 border-t border-gray-200 bg-white shrink-0">
+            <a :href="`{% url 'search' %}?q=${encodeURIComponent(query.trim())}`"
+               class="flex items-center justify-center gap-3 w-full bg-black text-white py-4 text-xs font-semibold tracking-[0.2em] hover:bg-gray-800 transition cursor-pointer">
+              VIEW ALL RESULTS
+              <svg xmlns="http://www.w3.org/2000/svg"
+                   width="17"
+                   height="17"
+                   viewBox="0 0 24 24"
+                   fill="none"
+                   stroke="currentColor"
+                   stroke-width="1.8">
+                <path d="M7 17 17 7M7 7h10v10" />
+              </svg>
+            </a>
           </div>
         </div>
       </div>
       <!-- MENU OVERLAY -->
-      <div x-show="menuOpen"
-           x-transition.opacity
-           class="fixed inset-0 bg-black/50 z-40"
+      <div x-cloak
+           x-show="menuOpen"
+           x-transition:enter="transition ease-out duration-300"
+           x-transition:enter-start="opacity-0"
+           x-transition:enter-end="opacity-100"
+           x-transition:leave="transition ease-in duration-200"
+           x-transition:leave-start="opacity-100"
+           x-transition:leave-end="opacity-0"
+           class="fixed inset-0 bg-black/65 backdrop-blur-sm z-40 cursor-pointer"
            @click="menuOpen = false"></div>
       <!-- SIDE MENU -->
-      <aside x-show="menuOpen"
+      <aside x-cloak
+             x-show="menuOpen"
              x-transition:enter="transition transform ease-out duration-300"
              x-transition:enter-start="-translate-x-full"
              x-transition:enter-end="translate-x-0"
              x-transition:leave="transition transform ease-in duration-200"
              x-transition:leave-start="translate-x-0"
              x-transition:leave-end="-translate-x-full"
-             class="fixed top-0 left-0 w-72 h-full bg-white z-50 p-6">
+             class="fixed top-0 left-0 w-80 max-w-[85vw] h-full bg-white z-50 p-6 overflow-y-auto">
+        <!-- CLOSE BUTTON -->
         <button type="button"
                 @click="menuOpen = false"
-                class="text-3xl mb-6 cursor-pointer">×</button>
-        <nav class="space-y-4 mb-6">
+                class="text-3xl mb-8 cursor-pointer hover:opacity-50 transition"
+                aria-label="Close menu">×</button>
+        <!-- MAIN NAVIGATION -->
+        <nav class="space-y-4 mb-8">
           {% if user.is_staff %}
             <a href="{% url 'admin:index' %}"
-               class="block text-lg font-semibold text-gray-900">Admin</a>
+               class="block text-lg font-semibold text-gray-900 hover:text-gray-500 transition cursor-pointer">
+              Admin
+            </a>
             <a href="{% url 'admin_orders' %}"
-               class="block text-lg font-semibold text-gray-900">Orders</a>
+               class="block text-lg font-semibold text-gray-900 hover:text-gray-500 transition cursor-pointer">
+              Orders
+            </a>
             <a href="{% url 'add_product' %}"
-               class="block text-lg font-semibold text-gray-900">Add a product</a>
+               class="block text-lg font-semibold text-gray-900 hover:text-gray-500 transition cursor-pointer">
+              Add a product
+            </a>
             <a href="{% url 'product_discount_manage' %}"
-               class="block text-lg font-semibold text-gray-900">Manage Discounts</a>
+               class="block text-lg font-semibold text-gray-900 hover:text-gray-500 transition cursor-pointer">
+              Manage Discounts
+            </a>
             <a href="{% url 'draft_products' %}"
-               class="block text-lg font-semibold text-gray-900">Drafts</a>
-            <hr class="my-6" />
+               class="block text-lg font-semibold text-gray-900 hover:text-gray-500 transition cursor-pointer">
+              Drafts
+            </a>
+            <hr class="my-6 border-gray-200" />
           {% endif %}
-          <a href="{% url 'new_products' %}" class="block text-xl">New</a>
-          <a href="{% url 'sale_products' %}" class="block text-xl">Sale</a>
+          <!-- SHOP LINKS -->
+          <a href="{% url 'new_products' %}"
+             class="block text-xl hover:text-gray-500 transition cursor-pointer">New</a>
+          <a href="{% url 'sale_products' %}"
+             class="block text-xl hover:text-gray-500 transition cursor-pointer">Sale</a>
         </nav>
-        <hr class="mb-6" />
+        <hr class="mb-6 border-gray-200" />
+        <!-- CATEGORIES -->
         <div class="space-y-3">
           {% for category in categories %}
-            <a href="{% url 'collection' category.slug %}" class="block text-lg">{{ category.name }}</a>
+            <a href="{% url 'collection' category.slug %}"
+               class="block text-lg hover:text-gray-500 transition cursor-pointer">{{ category.name }}</a>
           {% endfor %}
         </div>
       </aside>
     </div>
-    <!-- Main content -->
+    <!-- MAIN CONTENT -->
     <main class="flex-1">
       {% block content %}{% endblock %}
     </main>
-    <!-- Footer -->
+    <!-- FOOTER -->
     <footer class="bg-white text-gray-700 pt-12 pb-8 mt-auto">
       <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 px-4 text-center md:text-left">
         <div>
