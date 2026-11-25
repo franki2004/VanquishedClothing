@@ -125,10 +125,6 @@ class Product(models.Model):
             super().save(update_fields=["sku"])
 
     @property
-    def is_sold_out(self):
-        return not self.variants.filter(stock__gt=0).exists()
-
-    @property
     def is_discount_active(self):
         if not self.discount_percent:
             return False

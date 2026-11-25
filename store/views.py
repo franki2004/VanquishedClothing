@@ -192,8 +192,7 @@ def search_products(query):
 
     if not query:
         return qs.none()
-
-    # Проверяваме дали цялата фраза съществува в таговете.
+    
     tag_phrase_qs = Product.objects.filter(
         pk=OuterRef("pk"),
         tags__name__icontains=query,
@@ -203,7 +202,6 @@ def search_products(query):
         tag_phrase_match=Exists(tag_phrase_qs)
     )
 
-    # Основни точки за релевантност.
     qs = qs.annotate(
         score_sku_exact=Case(
             When(sku__iexact=query, then=Value(2000)),
@@ -372,8 +370,8 @@ def search_suggestions(request):
             "price": str(product.final_price),
             "image": image_url,
             "url": reverse(
-                "product_detail",
-                kwargs={"slug": product.slug},
+            "product",
+                kwargs={"id": product.pk},
             ),
         })
 
@@ -503,34 +501,6 @@ def product_detail(request, id):
         },
     )
 
-def search_suggestions(request):
-    q = request.GET.get("q", "").strip()
-
-    if len(q) < 2:
-        return JsonResponse([], safe=False)
-
-    products = (
-        Product.objects.filter(
-            Q(name__icontains=q) |
-            Q(tags__name__icontains=q),
-            status="active",
-        )
-        .prefetch_related("images")
-        .distinct()[:6]
-    )
-
-    data = []
-    for p in products:
-        image = p.images.first()
-        data.append({
-            "id": p.id,
-            "name": p.name,
-            "url": f"/product/{p.id}/",
-            "image": image.image.url if image else "",
-            "price": str(p.final_price),
-        })
-
-    return JsonResponse(data, safe=False)
 
 @staff_member_required
 def add_product(request):
