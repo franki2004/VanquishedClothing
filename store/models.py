@@ -40,7 +40,7 @@ class Product(models.Model):
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name="products")
     tags = models.ManyToManyField(Tag, blank=True)
     related_products = models.ManyToManyField(
-        'self', blank=True, symmetrical=False, related_name='related_to'
+        'self', blank=True
     )
 
     def get_related_products(self, limit=15):
